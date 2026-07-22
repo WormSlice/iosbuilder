@@ -8,7 +8,7 @@ import '../../widgets/post_card.dart';
 import '../../services/firestore_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../services/location_service.dart';
-import '../../services/meilisearch_sync_service.dart';
+import '../../services/algolia_sync_service.dart';
 import '../../widgets/location_picker/location_bottom_sheet.dart';
 
 /// Pantalla principal del Marketplace.
@@ -45,7 +45,7 @@ class _HomeScreenState extends State<HomeScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _preloadPreviewImages();
       _initLocation();
-      _syncMeilisearch();
+      _syncAlgolia();
     });
   }
 
@@ -62,9 +62,9 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Future<void> _syncMeilisearch() async {
+  Future<void> _syncAlgolia() async {
     try {
-      await MeiliSearchSyncService().syncAll();
+      await AlgoliaSyncService().syncAll();
     } catch (e) {
       debugPrint('Error syncing Meilisearch: $e');
     }

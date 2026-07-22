@@ -5,7 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../services/firestore_service.dart';
-import '../../services/meilisearch_service.dart';
+import '../../services/algolia_service.dart';
 import '../../services/location_service.dart';
 import '../../models/want.dart';
 import 'widgets/want_card.dart';
@@ -24,11 +24,11 @@ class _WantsScreenState extends State<WantsScreen>
     with SingleTickerProviderStateMixin {
   late final CategorySelectionModel model;
   final _service = FirestoreService();
-  final _meiliService = MeiliSearchService();
+  final _algoliaService = AlgoliaService();
   final _locationService = LocationService();
 
   List<Map<String, dynamic>> _searchHits = [];
-  bool _isMeiliLoading = false;
+  bool _isAlgoliaLoading = false;
 
   bool _isSearching = false;
   bool _isMyPostsMode = false;
@@ -366,9 +366,9 @@ class _WantsScreenState extends State<WantsScreen>
                                           });
                                           if (val.length > 2) {
                                             setState(
-                                              () => _isMeiliLoading = true,
+                                              () => _isAlgoliaLoading = true,
                                             );
-                                            final results = await _meiliService
+                                            final results = await _algoliaService
                                                 .searchWants(
                                                   val,
                                                   city: _locationService
@@ -376,18 +376,14 @@ class _WantsScreenState extends State<WantsScreen>
                                                 );
                                             if (mounted) {
                                               setState(() {
-                                                _searchHits =
-                                                    (results.hits ?? [])
-                                                        .cast<
-                                                          Map<String, dynamic>
-                                                        >();
-                                                _isMeiliLoading = false;
+                                                _searchHits = results.hits.map((h) => h.toJson()).toList();
+                                                _isAlgoliaLoading = false;
                                               });
                                             }
                                           } else {
                                             setState(() {
                                               _searchHits = [];
-                                              _isMeiliLoading = false;
+                                              _isAlgoliaLoading = false;
                                             });
                                           }
                                         },
@@ -548,7 +544,7 @@ class _WantsScreenState extends State<WantsScreen>
                       }
 
                       if (_isSearching && _searchQuery.isNotEmpty) {
-                        if (_isMeiliLoading) {
+                        if (_isAlgoliaLoading) {
                           return const Center(
                             child: CircularProgressIndicator(),
                           );

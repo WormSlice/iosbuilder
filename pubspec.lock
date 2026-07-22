@@ -13,34 +13,34 @@ packages:
     dependency: transitive
     description:
       name: algolia_client_core
-      sha256: "1683fb81b296e2a64c3676a82ee15133f4b95f4c04a0b2f7de64a88e44723e6e"
+      sha256: ed478d068fc432ce772763c3a97c37910dbeca718e2fbc989d8700e92a3a8c51
       url: "https://pub.dev"
     source: hosted
-    version: "1.47.2"
+    version: "1.51.4"
   algolia_client_insights:
     dependency: transitive
     description:
       name: algolia_client_insights
-      sha256: "04e7ca6283523a869b30f4a8e7673797bf89810108f9289e20f8a2ea938c642e"
+      sha256: c6e6246c35ec3e76228805ea4c38ffd778ff25a750b115b81f8e690166d9d23d
       url: "https://pub.dev"
     source: hosted
-    version: "1.47.2"
+    version: "1.51.4"
   algolia_client_search:
     dependency: transitive
     description:
       name: algolia_client_search
-      sha256: "377957b5d9bf29736aacbfd51f8e89561539b11c678d873a50aecd8a34971f2b"
+      sha256: "97872b4c487e204b0ee7d58229e82f4f79f4123ec42d21aaa7c0ce590fcf1248"
       url: "https://pub.dev"
     source: hosted
-    version: "1.47.2"
+    version: "1.49.2"
   algoliasearch:
     dependency: "direct main"
     description:
       name: algoliasearch
-      sha256: "6d06d12a4330c53e7b2253a6fa6f78ee43259f0b5aa3314f5d11abbcc61f2532"
+      sha256: "76e64c5582f30c63f9771c3888d81b3a514222765e3b88ceec3f808e677f8431"
       url: "https://pub.dev"
     source: hosted
-    version: "1.47.2"
+    version: "1.49.2"
   app_links:
     dependency: "direct main"
     description:
@@ -1032,14 +1032,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.13.0"
-  meilisearch:
-    dependency: "direct main"
-    description:
-      name: meilisearch
-      sha256: e06480c778fd12a6b7a335d83ff1a333c714edf37807b4552ab4f5e5eb272aed
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.18.0"
   meta:
     dependency: transitive
     description:

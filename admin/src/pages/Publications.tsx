@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { collection, limit, onSnapshot, doc, deleteDoc, updateDoc, query, orderBy, setDoc } from 'firebase/firestore';
+import { collection, limit, onSnapshot, doc, deleteDoc, updateDoc, query, orderBy, setDoc, getDocs } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import {
     LayoutGrid,
@@ -40,6 +40,77 @@ export const Publications: React.FC = () => {
     const [isMarketplaceHidden, setIsMarketplaceHidden] = useState(false);
 
     const categories = ['Todas', 'Lo Tienes', 'Productos', 'Vehículos', 'Propiedades', 'Servicios', 'Empleos', 'Mascotas', 'Trueques', 'Sugerencias'];
+
+    const [isSyncing, setIsSyncing] = useState(false);
+
+    const syncToAlgolia = async () => {
+        if (!window.confirm('¿Seguro que deseas re-indexar todas las publicaciones a Algolia? Esto puede tomar unos segundos.')) return;
+        setIsSyncing(true);
+        try {
+            const { algoliasearch } = await import('algoliasearch');
+            const client = algoliasearch('P2CJMQDDSH', '99ec76cf710a0324bccd1f008514eb36');
+            
+            const sanitizeData = (data: any): any => {
+                const clean = { ...data };
+                for (const key in clean) {
+                    const val = clean[key];
+                    if (val && typeof val === 'object' && val.seconds) {
+                        clean[key] = val.seconds * 1000;
+                    } else if (val && typeof val === 'object' && val.latitude) {
+                        clean[key] = { latitude: val.latitude, longitude: val.longitude };
+                    } else if (val && typeof val === 'object' && val.path) {
+                        clean[key] = val.path;
+                    } else if (val && typeof val === 'object') {
+                        clean[key] = sanitizeData(val);
+                    }
+                }
+                return clean;
+            };
+
+            const postsSnap = await getDocs(collection(db, 'posts'));
+            const postsBatch = postsSnap.docs.map(doc => {
+                let data = doc.data();
+                data = sanitizeData(data);
+                return {
+                    action: 'addObject',
+                    body: { ...data, objectID: doc.id, id: doc.id, type: data.type || 'post', status: data.status || 'active' }
+                };
+            });
+            
+            if (postsBatch.length > 0) {
+                const batchSize = 50;
+                for (let i = 0; i < postsBatch.length; i += batchSize) {
+                    const batch = postsBatch.slice(i, i + batchSize);
+                    await client.batch({ indexName: 'posts', batchWriteParams: { requests: batch as any } });
+                }
+            }
+
+            const wantsSnap = await getDocs(collection(db, 'wants'));
+            const wantsBatch = wantsSnap.docs.map(doc => {
+                let data = doc.data();
+                data = sanitizeData(data);
+                return {
+                    action: 'addObject',
+                    body: { ...data, objectID: doc.id, id: doc.id, type: data.type || 'want', status: data.status || 'active' }
+                };
+            });
+            
+            if (wantsBatch.length > 0) {
+                const batchSize = 50;
+                for (let i = 0; i < wantsBatch.length; i += batchSize) {
+                    const batch = wantsBatch.slice(i, i + batchSize);
+                    await client.batch({ indexName: 'wants', batchWriteParams: { requests: batch as any } });
+                }
+            }
+
+            alert('¡Indexación a Algolia completada con éxito!');
+        } catch (error) {
+            console.error('Error syncing to Algolia:', error);
+            alert('Error al indexar: ' + error);
+        } finally {
+            setIsSyncing(false);
+        }
+    };
 
     useEffect(() => {
         const fetchAllContent = async () => {
@@ -178,6 +249,18 @@ export const Publications: React.FC = () => {
                             </span>
                             {isMarketplaceHidden && <Zap size={12} className="text-black" />}
                         </div>
+                        
+                        <div className="h-4 w-px bg-zinc-100 mx-2"></div>
+                        <button
+                            onClick={syncToAlgolia}
+                            disabled={isSyncing}
+                            className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-full border border-blue-100 hover:border-blue-300 transition-all cursor-pointer"
+                        >
+                            <RefreshCw size={12} className={isSyncing ? "animate-spin" : ""} />
+                            <span className="text-[9px] font-black uppercase tracking-widest">
+                                {isSyncing ? 'Indexando...' : 'Algolia Index'}
+                            </span>
+                        </button>
                     </div>
                 </div>
 

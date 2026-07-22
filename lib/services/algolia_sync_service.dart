@@ -1,131 +1,149 @@
-import 'dart:convert';
-import 'package:http/http.dart' as http;
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:algolia_client_search/algolia_client_search.dart';
+import 'algolia_service.dart';
 
 class AlgoliaSyncService {
-  // Reemplazar con credenciales reales
-  static const String _appId = 'YOUR_APP_ID';
-  static const String _adminApiKey = 'YOUR_ADMIN_API_KEY';
-
+  final _algolia = AlgoliaService();
   final _firestore = FirebaseFirestore.instance;
 
   Future<void> syncAll() async {
-    print('Algolia: Iniciando sincronización completa...');
-    await syncPosts();
-    await syncWants();
-    print('Algolia: Sincronización completada.');
+    try {
+      print('Algolia: Iniciando sincronización completa...');
+      
+      await syncPosts();
+      await syncWants();
+      print('Algolia: Sincronización completada con éxito.');
+    } catch (e, stack) {
+      print('Algolia Error en syncAll: $e');
+      print('Algolia StackTrace: $stack');
+      rethrow;
+    }
   }
 
   Future<void> syncPosts() async {
     try {
+      print('Algolia: Obteniendo posts de Firestore...');
       final snapshot = await _firestore.collection('posts').get();
-      if (snapshot.docs.isEmpty) return;
+      print('Algolia: Encontrados ${snapshot.docs.length} documentos en Firestore (posts)');
+      
+      if (snapshot.docs.isEmpty) {
+        print('Algolia: No hay documentos para sincronizar en posts.');
+        return;
+      }
 
-      final docs = snapshot.docs.map((doc) {
-        final data = doc.data();
-        data['objectID'] = doc.id; // Algolia requires objectID
+      final batchRequests = <BatchRequest>[];
+
+      for (var doc in snapshot.docs) {
+        var data = Map<String, dynamic>.from(doc.data());
+        data['objectID'] = doc.id; // required by Algolia
+        data['id'] = doc.id;
         
-        if (data['createdAt'] is Timestamp) {
-          data['createdAt'] = (data['createdAt'] as Timestamp).millisecondsSinceEpoch;
-        }
-        return data;
-      }).toList();
+        // Normalización de campos para búsqueda
+        data['type'] = (data['type'] ?? 'post').toString();
+        data['status'] = (data['status'] ?? 'active').toString();
+        
+        data = _sanitizeMap(data);
 
-      await _batchSaveItems('posts', docs);
-    } catch (e) {
-      print('Algolia Sync Error (Posts): $e');
+        batchRequests.add(
+          BatchRequest(action: Action.fromJson('addObject'), body: data),
+        );
+      }
+
+      print('Algolia: Enviando ${batchRequests.length} posts a Algolia...');
+      const batchSize = 50;
+      for (var i = 0; i < batchRequests.length; i += batchSize) {
+        final end = (i + batchSize < batchRequests.length) ? i + batchSize : batchRequests.length;
+        final batch = batchRequests.sublist(i, end);
+        await _algolia.client.batch(
+          indexName: AlgoliaService.postsIndex,
+          batchWriteParams: BatchWriteParams(requests: batch),
+        );
+      }
+      print('Algolia: Posts sincronizados correctamente.');
+    } catch (e, stack) {
+      print('Algolia Error CRÍTICO en syncPosts: $e');
+      print('Algolia StackTrace: $stack');
     }
   }
 
   Future<void> syncWants() async {
     try {
+      print('Algolia: Obteniendo wants de Firestore...');
       final snapshot = await _firestore.collection('wants').get();
-      if (snapshot.docs.isEmpty) return;
-
-      final docs = snapshot.docs.map((doc) {
-        final data = doc.data();
-        data['objectID'] = doc.id;
-        
-        if (data['createdAt'] is Timestamp) {
-          data['createdAt'] = (data['createdAt'] as Timestamp).millisecondsSinceEpoch;
-        }
-        return data;
-      }).toList();
-
-      await _batchSaveItems('wants', docs);
-    } catch (e) {
-      print('Algolia Sync Error (Wants): $e');
-    }
-  }
-
-  Future<void> savePost(String id, Map<String, dynamic> data) async {
-    data['objectID'] = id;
-    if (data['createdAt'] is Timestamp) {
-      data['createdAt'] = (data['createdAt'] as Timestamp).millisecondsSinceEpoch;
-    }
-    await saveItem('posts', id, data);
-  }
-
-  Future<void> deletePost(String id) async {
-    await deleteItem('posts', id);
-  }
-
-  Future<void> saveItem(String indexName, String objectID, Map<String, dynamic> data) async {
-    final url = Uri.parse('https://$_appId.algolia.net/1/indexes/$indexName/$objectID');
-    final response = await http.put(
-      url,
-      headers: {
-        'X-Algolia-Application-Id': _appId,
-        'X-Algolia-API-Key': _adminApiKey,
-        'Content-Type': 'application/json',
-      },
-      body: jsonEncode(data),
-    );
-    if (response.statusCode != 200 && response.statusCode != 201) {
-      print('Algolia Save Error: ${response.body}');
-    }
-  }
-
-  Future<void> deleteItem(String indexName, String objectID) async {
-    final url = Uri.parse('https://$_appId.algolia.net/1/indexes/$indexName/$objectID');
-    final response = await http.delete(
-      url,
-      headers: {
-        'X-Algolia-Application-Id': _appId,
-        'X-Algolia-API-Key': _adminApiKey,
-      },
-    );
-    if (response.statusCode != 200) {
-      print('Algolia Delete Error: ${response.body}');
-    }
-  }
-
-  Future<void> _batchSaveItems(String indexName, List<Map<String, dynamic>> items) async {
-    final url = Uri.parse('https://$_appId.algolia.net/1/indexes/$indexName/batch');
-    
-    final requests = items.map((item) => {
-      'action': 'updateObject',
-      'body': item,
-    }).toList();
-
-    const batchSize = 50;
-    for (var i = 0; i < requests.length; i += batchSize) {
-      final end = (i + batchSize < requests.length) ? i + batchSize : requests.length;
-      final batch = requests.sublist(i, end);
-
-      final response = await http.post(
-        url,
-        headers: {
-          'X-Algolia-Application-Id': _appId,
-          'X-Algolia-API-Key': _adminApiKey,
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({'requests': batch}),
-      );
+      print('Algolia: Encontrados ${snapshot.docs.length} documentos en Firestore (wants)');
       
-      if (response.statusCode != 200) {
-        print('Algolia Batch Error: ${response.body}');
+      if (snapshot.docs.isEmpty) {
+        print('Algolia: No hay documentos para sincronizar en wants.');
+        return;
       }
+
+      final batchRequests = <BatchRequest>[];
+
+      for (var doc in snapshot.docs) {
+        var data = Map<String, dynamic>.from(doc.data());
+        data['objectID'] = doc.id; // required by Algolia
+        data['id'] = doc.id;
+        
+        // Normalización de campos
+        data['type'] = (data['type'] ?? 'want').toString();
+        data['status'] = (data['status'] ?? 'active').toString();
+        
+        data = _sanitizeMap(data);
+
+        batchRequests.add(
+          BatchRequest(action: Action.fromJson('addObject'), body: data),
+        );
+      }
+
+      print('Algolia: Enviando ${batchRequests.length} wants a Algolia...');
+      const batchSize = 50;
+      for (var i = 0; i < batchRequests.length; i += batchSize) {
+        final end = (i + batchSize < batchRequests.length) ? i + batchSize : batchRequests.length;
+        final batch = batchRequests.sublist(i, end);
+        await _algolia.client.batch(
+          indexName: AlgoliaService.wantsIndex,
+          batchWriteParams: BatchWriteParams(requests: batch),
+        );
+      }
+      print('Algolia: Wants sincronizados correctamente.');
+    } catch (e, stack) {
+      print('Algolia Error CRÍTICO en syncWants: $e');
+      print('Algolia StackTrace: $stack');
     }
+  }
+
+  Map<String, dynamic> _sanitizeMap(Map<String, dynamic> data) {
+    final sanitized = <String, dynamic>{};
+    for (var entry in data.entries) {
+      sanitized[entry.key] = _sanitizeValue(entry.value);
+    }
+    return sanitized;
+  }
+
+  dynamic _sanitizeValue(dynamic value) {
+    if (value == null) return null;
+    if (value is String || value is num || value is bool) {
+      return value;
+    }
+    if (value is Iterable) {
+      return value.map((e) => _sanitizeValue(e)).toList();
+    }
+    if (value is Map) {
+      return _sanitizeMap(Map<String, dynamic>.from(value));
+    }
+    if (value is Timestamp) {
+      return value.millisecondsSinceEpoch;
+    }
+    if (value is DateTime) {
+      return value.millisecondsSinceEpoch;
+    }
+    if (value is DocumentReference) {
+      return value.path;
+    }
+    if (value is GeoPoint) {
+      return {'latitude': value.latitude, 'longitude': value.longitude};
+    }
+    // Convertir cualquier otro objeto a string para evitar caídas en jsonEncode
+    return value.toString();
   }
 }

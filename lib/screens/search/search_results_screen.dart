@@ -46,13 +46,12 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
 
     try {
       final result = await _algolia.searchPosts(
-        query: widget.query,
-        category: widget.category,
-        hitsPerPage: 60,
+        widget.query,
+        filter: widget.category != null ? {'category': widget.category} : null,
+        limit: 60,
       );
 
-      List<Map<String, dynamic>> hits =
-          List<Map<String, dynamic>>.from(result['hits'] ?? []);
+      List<Map<String, dynamic>> hits = result.hits.map((h) => h.toJson()).toList();
 
       // Ordenamiento local si se necesita
       if (_selectedSort == 'precio_asc') {
@@ -68,7 +67,7 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
       if (mounted) {
         setState(() {
           _results = hits;
-          _totalHits = result['nbHits'] ?? hits.length;
+          _totalHits = result.nbHits ?? hits.length;
           _isLoading = false;
         });
       }

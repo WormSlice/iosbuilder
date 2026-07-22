@@ -2,6 +2,7 @@ import { initializeApp } from "firebase/app";
 import {
     getAuth,
     GoogleAuthProvider,
+    OAuthProvider,
     signInWithEmailAndPassword,
     signInWithPopup,
     createUserWithEmailAndPassword,
@@ -16,7 +17,7 @@ import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
     apiKey: "AIzaSyDLb-a9BehwwbgUFKgY2oUQlwgYrbQFKZU",
-    authDomain: "connectapp.com.co",
+    authDomain: "connect2025-37b7c.firebaseapp.com",
     projectId: "connect2025-37b7c",
     storageBucket: "connect2025-37b7c.firebasestorage.app",
     messagingSenderId: "749754037761",
@@ -28,6 +29,7 @@ export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
 export const googleProvider = new GoogleAuthProvider();
+export const appleProvider = new OAuthProvider('apple.com');
 
 export {
     signInWithEmailAndPassword,
