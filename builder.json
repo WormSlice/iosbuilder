@@ -6,7 +6,8 @@
     "repo": "iosbuilder"
   },
   "ios": {
-    "path": "ios"
+    "path": "ios",
+    "signing": true
   },
   "flutter": {
     "version": "3.44.1",
