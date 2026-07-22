@@ -23,7 +23,9 @@ class AlgoliaService {
     return _client;
   }
 
-  static const String postsIndex = 'posts';
+  static const String _adminApiKey = '4aa72340abeb49d79d888cc3271c23b1';
+
+  static const String postsIndex = 'ALGOLIA';
   static const String wantsIndex = 'wants';
 
   Future<SearchResponse> searchPosts(
