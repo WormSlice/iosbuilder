@@ -1,0 +1,17 @@
+{
+  "project": "CONNECT",
+  "platform": "ios",
+  "github": {
+    "owner": "WormSlice",
+    "repo": "iosbuilder"
+  },
+  "ios": {
+    "path": "ios"
+  },
+  "flutter": {
+    "version": "3.44.1",
+    "watch": {}
+  },
+  "reactNative": {},
+  "mobai": {}
+}
