@@ -277,15 +277,18 @@ jobs:
               '<plist version="1.0">' \
               '<dict>' \
               '    <key>method</key>' \
-              '    <string>development</string>' \
+              '    <string>ad-hoc</string>' \
               '    <key>signingStyle</key>' \
-              '    <string>automatic</string>' \
+              '    <string>manual</string>' \
+              '    <key>provisioningProfiles</key>' \
+              '    <dict>' \
+              '        <key>com.connectapp.co</key>' \
+              '        <string>241e0d99-a85c-468f-945e-c778aa597b71</string>' \
+              '    </dict>' \
               '</dict>' \
               '</plist>' > ExportOptions.plist
-            xcodebuild -exportArchive \
-              -archivePath build/App.xcarchive \
-              -exportOptionsPlist ExportOptions.plist \
-              -exportPath build/export
+            
+            xcodebuild -exportArchive -archivePath build/App.xcarchive -exportPath build/export -exportOptionsPlist ExportOptions.plist
 
             # Move IPA to expected location
             mv build/export/*.ipa "build/$BUILD_ID.ipa"
