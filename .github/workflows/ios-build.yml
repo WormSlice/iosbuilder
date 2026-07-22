@@ -192,7 +192,7 @@ jobs:
             cd ..
             if [ "$USE_SIGNING" = "true" ]; then
               echo "Building Flutter IPA (Release)..."
-              flutter build ipa --release --no-export
+              flutter build ipa --release
               mkdir -p build
               cp -R build/ios/archive/Runner.xcarchive build/App.xcarchive
             else
