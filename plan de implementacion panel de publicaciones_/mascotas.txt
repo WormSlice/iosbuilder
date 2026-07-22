@@ -1,0 +1,16 @@
+*PUBLICACION MASCOTAS” 
+
+1. FOTOS 
+2. ⁠Título “maximo 40 caracteres” 
+3. ⁠precio “Venta” / Adopción / Se Busca
+4. ⁠Descripción “minimo 40 caracteres”
+5. ⁠Tipo de publicación “venta/adopción/se busca”
+6. ⁠especie “selección múltiple. perro, gato, ave, pez, reptil, roedor, caballo, cerdo, vaca”
+7. ⁠Raza 
+8. ⁠edad 
+9. ⁠Vacunas “al día / incompletas / sin vacunas”
+10. ⁠Sexo “macho/hembra”
+11. ⁠Pedigrí “si/no”
+12. ⁠Ubicación “escoja en qué ciudad quiere que se publique, aplican todas las ciudades de Colombia. Solo puede escoger una” 
+
+AVISO LEGAL OBLIGATORIO: Connect  prohíbe la venta de especies ilegales o en peligro de extinción.

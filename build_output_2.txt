@@ -1,0 +1,56 @@
+Running Gradle task 'assembleDebug'...                          
+lib/screens/wants/wants_screen.dart:642:95: Error: Expected ':' before this.
+              final bool isHidden = (d is DocumentSnapshot ? d.data()?['status'] : d['status']) == 'hidden';
+                                                                                          ^
+lib/screens/wants/wants_screen.dart:642:95: Error: Expected an identifier, but got ')'.
+Try inserting an identifier before ')'.
+              final bool isHidden = (d is DocumentSnapshot ? d.data()?['status'] : d['status']) == 'hidden';
+                                                                                          ^
+lib/screens/wants/wants_screen.dart:642:64: Error: A value of type 'Object?' can't be assigned to a variable of type 'bool'.
+ - 'Object' is from 'dart:core'.
+              final bool isHidden = (d is DocumentSnapshot ? d.data()?['status'] : d['status']) == 'hidden';
+                                                               ^
+lib/services/meilisearch_service.dart:56:38: Error: The argument type 'Map<String, Object>' can't be assigned to the parameter type 'SearchQuery?'.
+ - 'Map' is from 'dart:core'.
+ - 'Object' is from 'dart:core'.
+ - 'SearchQuery' is from 'package:meilisearch/src/query_parameters/search_query.dart' ('../../../.pub-cache/hosted/pub.dev/meilisearch-0.18.0/lib/src/query_parameters/search_query.dart').
+    return await index.search(query, queryOptions);
+                                     ^
+lib/services/meilisearch_service.dart:56:12: Error: A value of type 'Searcheable<Map<String, dynamic>>' can't be returned from an async function with return type 'Future<SearchResult<dynamic>>'.
+ - 'Searcheable' is from 'package:meilisearch/src/results/searchable.dart' ('../../../.pub-cache/hosted/pub.dev/meilisearch-0.18.0/lib/src/results/searchable.dart').
+ - 'Map' is from 'dart:core'.
+ - 'Future' is from 'dart:async'.
+ - 'SearchResult' is from 'package:meilisearch/src/results/searchable.dart' ('../../../.pub-cache/hosted/pub.dev/meilisearch-0.18.0/lib/src/results/searchable.dart').
+    return await index.search(query, queryOptions);
+           ^
+lib/services/meilisearch_service.dart:77:38: Error: The argument type 'Map<String, Object>' can't be assigned to the parameter type 'SearchQuery?'.
+ - 'Map' is from 'dart:core'.
+ - 'Object' is from 'dart:core'.
+ - 'SearchQuery' is from 'package:meilisearch/src/query_parameters/search_query.dart' ('../../../.pub-cache/hosted/pub.dev/meilisearch-0.18.0/lib/src/query_parameters/search_query.dart').
+    return await index.search(query, queryOptions);
+                                     ^
+lib/services/meilisearch_service.dart:77:12: Error: A value of type 'Searcheable<Map<String, dynamic>>' can't be returned from an async function with return type 'Future<SearchResult<dynamic>>'.
+ - 'Searcheable' is from 'package:meilisearch/src/results/searchable.dart' ('../../../.pub-cache/hosted/pub.dev/meilisearch-0.18.0/lib/src/results/searchable.dart').
+ - 'Map' is from 'dart:core'.
+ - 'Future' is from 'dart:async'.
+ - 'SearchResult' is from 'package:meilisearch/src/results/searchable.dart' ('../../../.pub-cache/hosted/pub.dev/meilisearch-0.18.0/lib/src/results/searchable.dart').
+    return await index.search(query, queryOptions);
+           ^
+Target kernel_snapshot_program failed: Exception
+
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':app:compileFlutterBuildDebug'.
+> Process 'command '/Users/duvanconde/Documents/flutter/bin/flutter'' finished with non-zero exit value 1
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 12s
+Running Gradle task 'assembleDebug'...                             12,8s
+Gradle task assembleDebug failed with exit code 1

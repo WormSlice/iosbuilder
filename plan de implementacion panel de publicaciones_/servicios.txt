@@ -1,0 +1,16 @@
+*PUBLICACION DE SERVICIOS*
+
+1. FOTOS 
+2. ⁠Título “Max 40 caracteres”
+3. ⁠Precio 
+4. ⁠Descripción “mínimo 40 caracteres” 
+5. ⁠Experiencia 
+6. ⁠tipo de contrato “selección múltiple. Por hora, por día, por proyecto, por visita, suscripción, a conveniencia” 
+7. ⁠modalidad “virtual / presencial”
+8. ⁠Tiempo de servicio 
+9. ⁠Horario “horario laboral / 24/7”
+10. ⁠categoría 
+11. ⁠cobertura “ciudad, departamento, nacional, internacional”
+12. ⁠tipo de servicio “barbería, contaduría, chofer…”
+13. ⁠Modo trueque “si/no”
+14. ⁠ubicación “escoja en qué ciudad quiere que se publique, aplican todas las ciudades de Colombia. Solo puede escoger una”

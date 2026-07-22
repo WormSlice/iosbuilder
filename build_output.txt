@@ -1,0 +1,111 @@
+Running Gradle task 'assembleDebug'...                          
+lib/services/meilisearch_service.dart:52:7: Error: No named parameter with the name 'filter'.
+      filter: filters.isNotEmpty ? filters.join(' AND ') : null,
+      ^^^^^^
+lib/services/meilisearch_service.dart:69:38: Error: No named parameter with the name 'filter'.
+    return await index.search(query, filter: filter, sort: ['createdAt:desc']);
+                                     ^^^^^^
+lib/screens/wants/wants_screen.dart:771:22: Error: Expected a declaration, but got ','.
+                    },
+                     ^
+lib/screens/wants/wants_screen.dart:772:19: Error: Expected a declaration, but got ')'.
+                  ),
+                  ^
+lib/screens/wants/wants_screen.dart:772:20: Error: Expected a declaration, but got ','.
+                  ),
+                   ^
+lib/screens/wants/wants_screen.dart:773:17: Error: Expected a declaration, but got ')'.
+                ),
+                ^
+lib/screens/wants/wants_screen.dart:773:18: Error: Expected a declaration, but got ','.
+                ),
+                 ^
+lib/screens/wants/wants_screen.dart:774:15: Error: Expected a declaration, but got ']'.
+              ],
+              ^
+lib/screens/wants/wants_screen.dart:774:16: Error: Expected a declaration, but got ','.
+              ],
+               ^
+lib/screens/wants/wants_screen.dart:775:13: Error: Expected a declaration, but got ')'.
+            ),
+            ^
+lib/screens/wants/wants_screen.dart:775:14: Error: Expected a declaration, but got ','.
+            ),
+             ^
+lib/screens/wants/wants_screen.dart:776:11: Error: Expected a declaration, but got ')'.
+          ),
+          ^
+lib/screens/wants/wants_screen.dart:776:12: Error: Expected a declaration, but got ','.
+          ),
+           ^
+lib/screens/wants/wants_screen.dart:777:9: Error: Expected a declaration, but got ')'.
+        );
+        ^
+lib/screens/wants/wants_screen.dart:777:10: Error: Unexpected token ';'.
+        );
+         ^
+lib/screens/wants/wants_screen.dart:778:7: Error: Expected a declaration, but got '}'.
+      },
+      ^
+lib/screens/wants/wants_screen.dart:778:8: Error: Expected a declaration, but got ','.
+      },
+       ^
+lib/screens/wants/wants_screen.dart:779:5: Error: Expected a declaration, but got ')'.
+    );
+    ^
+lib/screens/wants/wants_screen.dart:779:6: Error: Unexpected token ';'.
+    );
+     ^
+lib/screens/wants/wants_screen.dart:780:3: Error: Expected a declaration, but got '}'.
+  }
+  ^
+lib/screens/wants/wants_screen.dart:781:1: Error: Expected a declaration, but got '}'.
+}
+^
+lib/screens/wants/wants_screen.dart:29:8: Error: Type 'meili.MapHit' not found.
+  List<meili.MapHit> _searchHits = [];
+       ^^^^^^^^^^^^
+lib/screens/wants/wants_screen.dart:842:9: Error: Type 'meili.MapHit' not found.
+  final meili.MapHit hit;
+        ^^^^^^^^^^^^
+lib/screens/wants/wants_screen.dart:29:14: Error: 'MapHit' isn't a type.
+  List<meili.MapHit> _searchHits = [];
+             ^^^^^^
+lib/screens/wants/wants_screen.dart:585:32: Error: Member not found: 'Want.fromMap'.
+                        : Want.fromMap(wantData as Map<String, dynamic>, wantData['id']);
+                               ^^^^^^^
+lib/screens/wants/wants_screen.dart:644:24: Error: Member not found: 'Want.fromMap'.
+                : Want.fromMap(d as Map<String, dynamic>, d['id'].toString());
+                       ^^^^^^^
+lib/screens/wants/wants_screen.dart:647:95: Error: Expected ':' before this.
+              final bool isHidden = (d is DocumentSnapshot ? d.data()?['status'] : d['status']) == 'hidden';
+                                                                                          ^
+lib/screens/wants/wants_screen.dart:647:95: Error: Expected an identifier, but got ')'.
+Try inserting an identifier before ')'.
+              final bool isHidden = (d is DocumentSnapshot ? d.data()?['status'] : d['status']) == 'hidden';
+                                                                                          ^
+lib/screens/wants/wants_screen.dart:647:64: Error: A value of type 'Object?' can't be assigned to a variable of type 'bool'.
+ - 'Object' is from 'dart:core'.
+              final bool isHidden = (d is DocumentSnapshot ? d.data()?['status'] : d['status']) == 'hidden';
+                                                               ^
+lib/screens/wants/wants_screen.dart:842:15: Error: 'MapHit' isn't a type.
+  final meili.MapHit hit;
+              ^^^^^^
+Target kernel_snapshot_program failed: Exception
+
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':app:compileFlutterBuildDebug'.
+> Process 'command '/Users/duvanconde/Documents/flutter/bin/flutter'' finished with non-zero exit value 1
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 14s
+Running Gradle task 'assembleDebug'...                             15,2s
+Gradle task assembleDebug failed with exit code 1

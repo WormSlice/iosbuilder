@@ -1,0 +1,19 @@
+*PUBLICACIÓN PROPIEDADES*
+
+1. FOTOS 
+2. ⁠Título “Max 40 caracteres”
+3. ⁠Precio 
+4. ⁠Descripción “Mínimo 40 caracteres”
+5. ⁠tipo de propiedad “selección múltiple. Apartamento, apartaestudio, penthouse, casa, local, oficina, lote, casa lote, parqueadero, finca, cabaña”
+6. ⁠metraje 
+7. ⁠Año de construcción 
+8. ⁠Habitaciones 
+9. ⁠Baños 
+10. ⁠Parqueaderos 
+11. ⁠Estrato
+12. ⁠Antigüedad “como nuevo, para estrenar, remodelado…”
+13. ⁠Tipo de piso 
+14. ⁠Ubicado “sector o barrio” 
+15. ⁠acepta permuta “si/no”
+16. ⁠Anunciante “selección múltiple. Propietario, inmobiliaria, agente independiente”
+17. ⁠ubicación “escoja en qué ciudad quiere que se publique, aplican todas las ciudades de Colombia. Solo puede escoger una”

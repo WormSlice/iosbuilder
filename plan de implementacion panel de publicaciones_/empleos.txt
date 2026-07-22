@@ -1,0 +1,17 @@
+*PUBLICACION DE EMPLEOS*
+
+1. FOTOS
+2. ⁠Título del cargo “Max 40 caracteres” 
+3. ⁠Salario / pago $$$
+4. ⁠Descripción “mínimo 40 caracteres”
+5. ⁠Tipo de contrato “seleccion múltiple. fijo, término indefinido, temporal, por prestación de servicios, practicante” 
+6. Jornada laboral “selección múltiple. Tiempo completo, medio tiempo, nocturna, por turnos, por proyecto” 
+7. ⁠auxilio transporte “si/no”
+8. ⁠comisiones “si/no”
+9. ⁠Estudios requeridos “nivel y área” 
+10. ⁠experiencia requerida “nivel y área”
+11. ⁠idioma “español, inglés, francés…”
+12. ⁠ÁREA / FUNCIÓN DEL CARGO 
+13. ⁠UBICACIÓN LABORAL 
+14. ⁠REQUISITOS PARA EL TRABAJO “dejar espacio para escribir “mínimo 40 caracteres” 
+15. ⁠Ubicación de la publicación “escoja en qué ciudad quiere que se publique, aplican todas las ciudades de Colombia. Solo puede escoger una”

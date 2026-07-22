@@ -1,0 +1,16 @@
+*PUBLICACION DE ALQUILER*
+
+1. FOTOS 
+2. ⁠Título “maximo 40 caracteres” 
+3. ⁠Precio 
+4. ⁠Descripción “mínimo 40 caracteres” 
+5. ⁠Tipo de alquiler “¿qué estás alquilando?
+6. ⁠Depósito “si/no si aplica depósito, cuánto $?”
+7. ⁠estado del artículo en alquiler “nuevo, usado, usado como nuevo, mal estado” 
+8. ⁠Entrega “personal / domicilio”
+9. ⁠devolución “personal / domicilio”
+10. ⁠Penalidad “retraso / pérdida / daño”
+11. ⁠categoría del alquiler 
+12. ⁠Cobertura “ciudad, departamental, nacional, internacional”
+13. ⁠REQUISITOS PARA EL ALQUILER “dejar espacio para escribir “mínimo 40 caracteres” 
+14. ⁠Ubicación de la publicación “escoja en qué ciudad quiere que se publique, aplican todas las ciudades de Colombia. Solo puede escoger una”

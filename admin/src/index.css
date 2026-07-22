@@ -1,0 +1,77 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Archivo:wght@700;900&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+
+  html,
+  body {
+    @apply bg-white text-zinc-900 antialiased selection:bg-primary/30 selection:text-white;
+    font-size: 13px;
+    margin: 0;
+    padding: 0;
+  }
+}
+
+@layer components {
+  .container-custom {
+    @apply max-w-[1000px] mx-auto px-6 md:px-8;
+  }
+
+  .glass-nav {
+    @apply bg-black/60 border-b border-white/[0.04] sticky top-0 z-50;
+    backdrop-filter: blur(16px);
+  }
+
+  .premium-button {
+    @apply px-5 py-2 rounded-lg font-bold text-[9px] uppercase tracking-[0.14em] transition-all duration-300 flex items-center justify-center gap-2 active:scale-95;
+  }
+
+  .premium-button-primary {
+    @apply premium-button bg-[#0094FF] text-white hover:brightness-110;
+    box-shadow: 0 4px 12px rgba(0, 148, 255, 0.2);
+  }
+
+  .premium-button-secondary {
+    @apply premium-button bg-white/[0.04] text-zinc-300 border border-white/[0.06] hover:bg-white/[0.08] hover:text-white;
+  }
+
+  .premium-button-ghost {
+    @apply premium-button bg-transparent text-zinc-500 hover:text-white hover:bg-white/[0.04];
+  }
+
+  .premium-input {
+    @apply w-full bg-white/[0.03] border border-white/[0.06] px-4 py-2 rounded-lg text-[11px] font-medium focus:outline-none focus:ring-1 focus:ring-[#0094FF]/40 transition-all text-white placeholder:text-zinc-700;
+  }
+
+  .premium-label {
+    @apply text-[8px] font-black uppercase tracking-[0.12em] text-zinc-600 ml-0.5 mb-1 block;
+  }
+}
+
+.gradient-bg {
+  background: radial-gradient(circle at 50% -10%, rgba(0, 148, 255, 0.12) 0%, transparent 40%);
+  background-color: #030303;
+}
+
+.text-gradient {
+  @apply bg-clip-text text-transparent bg-gradient-to-br from-white to-zinc-500;
+}
+
+.page-emerge-active {
+  animation: pageEmerge 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes pageEmerge {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}

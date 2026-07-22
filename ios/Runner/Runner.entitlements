@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!-- Universal Links: permite que iOS abra la app cuando el usuario
+       accede a https://connectapp.com.co desde Safari o cualquier otra app.
+       Requiere el archivo apple-app-site-association publicado en el servidor. -->
+  <!-- temporalmente comentado por limitación de cuenta personal
+  <key>com.apple.developer.associated-domains</key>
+  <array>
+    <string>applinks:connectapp.com.co</string>
+  </array>
+  -->
+</dict>
+</plist>

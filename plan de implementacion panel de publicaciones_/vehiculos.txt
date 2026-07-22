@@ -1,0 +1,20 @@
+*PUBLICACION VEHÍCULOS*
+
+1. FOTOS
+2. ⁠Título “Max 40 caracteres” 
+3. ⁠Precio 
+4. ⁠Descripción “mínimo 40 caracteres” 
+5. ⁠marca “BMW, Audi, Toyota…”
+6. ⁠modelo Corolla, hilux, Prado…”
+7. ⁠año “2024, 2025…”
+8. ⁠kilometraje 
+9. ⁠combustible 
+10. ⁠color 
+11. ⁠tracción “4x4, 4x2, 4WD…”
+12. ⁠capacidad “2, 5, 7 pasajeros…”
+13. ⁠motor “2.0, 3.0…”
+14. ⁠transmisión “automática, manual…”
+15. ⁠soat hasta “vigente hasta” 
+16. ⁠impuestos “pagos/pendientes”
+17. ⁠MODO TRUEQUE “si/no”
+18. ⁠Ubicación “escoja en qué ciudad quiere que se publique, aplican todas las ciudades de Colombia. Solo puede escoger una”

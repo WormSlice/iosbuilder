@@ -1,0 +1,634 @@
+import 'package:flutter/material.dart';
+
+void main() {
+  runApp(const MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  const MyApp({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Publicación Vehículo',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+        useMaterial3: true,
+      ),
+      home: const VehicleDetailPage(),
+    );
+  }
+}
+
+class VehicleDetailPage extends StatelessWidget {
+  const VehicleDetailPage({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: CustomScrollView(
+        slivers: [
+          // AppBar con imagen
+          SliverAppBar(
+            expandedHeight: 250,
+            pinned: true,
+            backgroundColor: Colors.white,
+            leading: IconButton(
+              icon: const Icon(Icons.close, color: Colors.blue),
+              onPressed: () {},
+            ),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.share, color: Colors.blue),
+                onPressed: () {},
+              ),
+              IconButton(
+                icon: const Icon(Icons.more_vert, color: Colors.blue),
+                onPressed: () {},
+              ),
+            ],
+            flexibleSpace: FlexibleSpaceBar(
+              background: Stack(
+                fit: StackFit.expand,
+                children: [
+                  Image.network(
+                    'https://images.unsplash.com/photo-1519641471654-76ce0107ad1b?w=800',
+                    fit: BoxFit.cover,
+                  ),
+                  Positioned(
+                    bottom: 16,
+                    right: 16,
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.black54,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: const Icon(Icons.favorite_border,
+                          color: Colors.white, size: 20),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // Contenido
+          SliverToBoxAdapter(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Título y Precio - SIN SOMBRA
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Toyota FJ Cruiser 4.0 Gasolina 2023',
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          const Text(
+                            '\$ 220.000.000',
+                            style: TextStyle(
+                              fontSize: 26,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF0099FF),
+                            ),
+                          ),
+                          Text(
+                            'Publicado hace 3 días • Medellín',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[500],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+
+                const Divider(height: 1, thickness: 1),
+
+                // Tarjeta de Mensaje - ÚNICA CON SOMBRA
+                Container(
+                  margin: const EdgeInsets.all(16.0),
+                  padding: const EdgeInsets.all(20.0),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 15,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.send, color: Color(0xFF0099FF), size: 20),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Envía un mensaje al connect',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey[700],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF5F5F5),
+                          borderRadius: BorderRadius.circular(25),
+                        ),
+                        child: Row(
+                          children: [
+                            const Expanded(
+                              child: TextField(
+                                decoration: InputDecoration(
+                                  hintText: 'Hola, ¿Sigue disponible?',
+                                  border: InputBorder.none,
+                                  hintStyle: TextStyle(fontSize: 14),
+                                ),
+                              ),
+                            ),
+                            Container(
+                              width: 40,
+                              height: 40,
+                              decoration: const BoxDecoration(
+                                color: Color(0xFF0099FF),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.send,
+                                color: Colors.white,
+                                size: 18,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const Divider(height: 1, thickness: 1),
+
+                // Descripción - SIN SOMBRA
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Descripción',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey[800],
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      const Text(
+                        'Toyota FJ Cruiser 4.0 Gasolina 2023 está en perfectas condiciones. Único dueño. llantas al 70%, rines Beadlook.',
+                        style: TextStyle(
+                          fontSize: 15,
+                          height: 1.5,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      const Divider(),
+                      const SizedBox(height: 20),
+                      Row(
+                        children: [
+                          Stack(
+                            children: [
+                              const CircleAvatar(
+                                radius: 30,
+                                backgroundImage: NetworkImage(
+                                  'https://ui-avatars.com/api/?name=Valentino+Contreras&background=0D8ABC&color=fff&size=128',
+                                ),
+                              ),
+                              Positioned(
+                                bottom: 0,
+                                right: 0,
+                                child: Container(
+                                  padding: const EdgeInsets.all(2),
+                                  decoration: const BoxDecoration(
+                                    color: Colors.white,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.verified,
+                                    color: Color(0xFF0099FF),
+                                    size: 18,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Valentino Contreras',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Row(
+                                  children: List.generate(
+                                    5,
+                                    (index) => const Icon(
+                                      Icons.star,
+                                      color: Color(0xFF0099FF),
+                                      size: 16,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Se unió a Connect en 2025',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey[600],
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                const Text(
+                                  '• Ver perfil •',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: Color(0xFF0099FF),
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.grey[200],
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: const Text(
+                              'Seguir',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.black87,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+
+                const Divider(height: 1, thickness: 1),
+
+                // Características - SIN SOMBRA, CON BORDE AZUL
+                Container(
+                  margin: const EdgeInsets.all(16.0),
+                  padding: const EdgeInsets.all(20.0),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    border: Border.all(color: const Color(0xFF0099FF), width: 2),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Características',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey[800],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      _buildCaracteristicaRow('Marca', 'Toyota'),
+                      _buildCaracteristicaRow('Modelo', 'FJ Cruiser'),
+                      _buildCaracteristicaRow('Año', '2023'),
+                      _buildCaracteristicaRow('Kilometraje', '10.000 Km.'),
+                      _buildCaracteristicaRow('Combustible', 'Gasolina'),
+                      _buildCaracteristicaRow('Color', 'Arena'),
+                      _buildCaracteristicaRow('Tracción', '4x4'),
+                      _buildCaracteristicaRow('Capacidad', '5 Pasajeros'),
+                      _buildCaracteristicaRow('Motor', '4.0'),
+                      _buildCaracteristicaRow('Transmisión', 'Automática'),
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        decoration: BoxDecoration(
+                          border: Border(
+                            top: BorderSide(color: Colors.grey[300]!),
+                            bottom: BorderSide(color: Colors.grey[300]!),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                'Soat Hasta:',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                            ),
+                            Container(
+                              width: 1,
+                              height: 30,
+                              color: Colors.grey[300],
+                            ),
+                            Expanded(
+                              child: Padding(
+                                padding: const EdgeInsets.only(left: 16),
+                                child: Text(
+                                  'Enero 2026',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.grey[800],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        decoration: BoxDecoration(
+                          border: Border(
+                            bottom: BorderSide(color: Colors.grey[300]!),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                'Impuestos:',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                            ),
+                            Container(
+                              width: 1,
+                              height: 30,
+                              color: Colors.grey[300],
+                            ),
+                            Expanded(
+                              child: Padding(
+                                padding: const EdgeInsets.only(left: 16),
+                                child: Text(
+                                  'Pagos',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.grey[800],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF5F5F5),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Column(
+                          children: [
+                            Text(
+                              'MODO TRUEQUE',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.grey[600],
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            const Text(
+                              'SI',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black87,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const Divider(height: 1, thickness: 1),
+
+                // Ubicación - SIN SOMBRA
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Ubicación Aproximada',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey[800],
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Container(
+                        height: 150,
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[300],
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Center(
+                          child: Icon(Icons.map, size: 50, color: Colors.grey),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      const Text(
+                        'Medellín',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Medellín • Colombia',
+                        style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const Divider(height: 1, thickness: 1),
+
+                // Podría interesarte - SIN SOMBRA
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Podría interesarte',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey[800],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildRecommendationCard(
+                              '\$94.000.000',
+                              'HONDA ACCORD T...',
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _buildRecommendationCard(
+                              '\$80.000.000',
+                              'CHASIS HUMMER',
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _buildRecommendationCard(
+                              '\$180.000.000',
+                              'TUNDRA 4WD',
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCaracteristicaRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 13,
+                color: Colors.grey[600],
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(
+                fontSize: 14,
+                color: Colors.black87,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRecommendationCard(String price, String title) {
+    return Container(
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.grey[300]!),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            height: 100,
+            decoration: BoxDecoration(
+              color: Colors.grey[300],
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(8)),
+            ),
+            child: const Center(
+              child: Icon(Icons.directions_car, size: 40, color: Colors.grey),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  price,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  title,
+                  style: const TextStyle(fontSize: 12),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}

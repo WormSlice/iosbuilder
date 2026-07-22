@@ -1,0 +1,1448 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CONNECT | Admin Panel</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/framer-motion@10.16.4/dist/framer-motion.js"></script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;800&family=Inter:wght@400;500;700&display=swap"
+        rel="stylesheet">
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: white;
+            color: black;
+            scroll-behavior: smooth;
+        }
+
+        h1,
+        h2,
+        h3,
+        .font-archivo {
+            font-family: 'Archivo', sans-serif;
+        }
+
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #e4e4e7;
+            border-radius: 10px;
+        }
+
+        .sidebar-link.active {
+            background: white;
+            color: black;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .sidebar-link:hover:not(.active) {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .card {
+            background: white;
+            border: 1px solid #f4f4f5;
+            border-radius: 1rem;
+            padding: 1.5rem;
+            transition: all 0.2s;
+        }
+
+        .card:hover {
+            border-color: #e4e4e7;
+            box-shadow: 0 10px 30px -15px rgba(0, 0, 0, 0.05);
+        }
+
+        .btn-primary {
+            background: black;
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.75rem;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            cursor: pointer;
+            border: none;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 10px 20px -10px rgba(0, 0, 0, 0.3);
+        }
+
+        .btn-outline {
+            border: 1px solid #e4e4e7;
+            padding: 0.75rem 1.25rem;
+            border-radius: 0.75rem;
+            font-weight: 600;
+            color: #71717a;
+            transition: all 0.2s;
+            background: transparent;
+            cursor: pointer;
+        }
+
+        .btn-outline:hover {
+            border-color: black;
+            color: black;
+        }
+
+        .btn-danger {
+            color: #ef4444;
+            border: 1px solid #fee2e2;
+            padding: 0.75rem 1.25rem;
+            border-radius: 0.75rem;
+            font-weight: 600;
+            transition: all 0.2s;
+            background: transparent;
+            cursor: pointer;
+        }
+
+        .btn-danger:hover {
+            background: #fef2f2;
+            border-color: #fecaca;
+        }
+
+        .status-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 10px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        input,
+        textarea {
+            outline: none !important;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="root"></div>
+
+    <script>
+        window.onerror = function (msg, url, line, col, error) {
+            console.error('[CRITICAL] Runtime Error:', msg, error);
+            const container = document.getElementById('root');
+            if (container) {
+                container.innerHTML = `
+                    <div style="padding: 40px; font-family: sans-serif; background: #fff1f2; color: #991b1b; border: 2px solid #fecaca; border-radius: 20px; max-width: 600px; margin: 40px auto; shadow: 0 20px 25px -5px rgba(0,0,0,0.1)">
+                        <h1 style="margin-top: 0; font-size: 24px; font-weight: 900; letter-spacing: -0.025em">SYSTEM CRASH</h1>
+                        <p style="font-size: 14px; font-weight: 500; opacity: 0.8">The application encountered a fatal script error during initialization.</p>
+                        <hr style="border: 0; border-top: 1px solid #fecaca; margin: 20px 0" />
+                        <div style="background: #000; color: #fff; padding: 15px; border-radius: 10px; font-family: monospace; font-size: 11px; overflow: auto">
+                            <span style="color: #fda4af">Error:</span> ${msg}<br/>
+                            <span style="color: #fda4af">File:</span> ${url.split('/').pop()}<br/>
+                            <span style="color: #fda4af">Line:</span> ${line}
+                        </div>
+                        <button onclick="location.reload()" style="margin-top: 20px; background: #000; color: #white; border: 0; padding: 12px 24px; border-radius: 10px; font-weight: 800; cursor: pointer; text-transform: uppercase; font-size: 10px; letter-spacing: 0.1em">Reintentar Carga</button>
+                    </div>
+                `;
+            }
+        };
+    </script>
+
+    <script type="text/babel">
+        // Safe mode initialization
+        const { useState, useEffect, useMemo } = React;
+
+        // Globals normalization
+        const FM = window.Motion || window.framerMotion || {};
+        const motion = FM.motion || new Proxy({}, {
+            get: (target, prop) => (props) => <div {...props}>{props.children}</div>
+        });
+        const AnimatePresence = FM.AnimatePresence || (({ children }) => <React.Fragment>{children}</React.Fragment>);
+        const LayoutGroup = FM.LayoutGroup || (({ children }) => <React.Fragment>{children}</React.Fragment>);
+
+        // Firebase Setup
+        const firebaseConfig = {
+            apiKey: "AIzaSyDLb-a9BehwwbgUFKgY2oUQlwgYrbQFKZU",
+            authDomain: "connect2025-37b7c.firebaseapp.com",
+            projectId: "connect2025-37b7c",
+            storageBucket: "connect2025-37b7c.firebasestorage.app",
+            messagingSenderId: "749754037761",
+            appId: "1:749754037761:web:unknown"
+        };
+
+        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+        const provider = new firebase.auth.GoogleAuthProvider();
+        const ADMIN_EMAIL = 'irenzulsierra@gmail.com';
+
+        // --- ICONS (SVG) ---
+        const IconDashboard = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="7" height="9" x="3" y="3" rx="1" /><rect width="7" height="5" x="14" y="3" rx="1" /><rect width="7" height="9" x="14" y="12" rx="1" /><rect width="7" height="5" x="3" y="16" rx="1" /></svg>;
+        const IconUsers = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>;
+        const IconCheck = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>;
+        const IconShield = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10" /></svg>;
+        const IconZap = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 14.71 13 3l-1.31 8h7.31L10 21l1.31-8H4Z" /></svg>;
+        const IconMegaphone = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m3 11 18-5v12L3 13v-2Z" /><path d="M11.6 16.8 a3 3 0 1 1-5.8-1.6" /></svg>;
+        const IconFileText = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" /><polyline points="14 2 14 8 20 8" /></svg>;
+        const IconFlag = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" /><line x1="4" x2="4" y1="22" y2="15" /></svg>;
+        const IconBell = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" /><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" /></svg>;
+        const IconTool = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a2 2 0 0 1-2.83-2.83l-3.94 3.6Z" /><path d="m14 14 6.29 6.29a1 1 0 0 0 1.42 0l1.29-1.29a1 1 0 0 0 0-1.42L14 14Z" /><path d="M9 18h.01" /><path d="M10 22h.01" /></svg>;
+        const IconEye = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" /><circle cx="12" cy="12" r="3" /></svg>;
+        const IconEdit = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" /></svg>;
+        const IconTrash = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /></svg>;
+        const IconEyeOff = () => <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9.88 9.88 2 12s3 7 10 7a10 10 0 0 0 5.63-1.74" /><path d="m2 2 20 20" /><path d="M10.37 4.39C10.91 4.14 11.44 4 12 4c7 0 10 7 10 7a13.12 13.12 0 0 1-1 1.74" /><path d="M14.12 14.12a3 3 0 1 1-4.24-4.24" /></svg>;
+        const IconAlert = () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>;
+
+        // --- REUSABLE COMPONENTS ---
+        const ConfirmModal = ({ isOpen, onClose, onConfirm, title, message, loading }) => {
+            if (!isOpen) return null;
+            return (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        onClick={onClose}
+                        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+                    />
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                        className="relative bg-white w-full max-w-sm rounded-[2.5rem] shadow-2xl p-10 overflow-hidden"
+                    >
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-red-50 rounded-bl-full -mr-10 -mt-10 opacity-50" />
+
+                        <div className="relative z-10 space-y-6">
+                            <div className="w-16 h-16 bg-red-50 text-red-500 rounded-3xl flex items-center justify-center">
+                                <IconAlert />
+                            </div>
+
+                            <div className="space-y-2">
+                                <h3 className="text-2xl font-black tracking-tighter uppercase italic">{title}</h3>
+                                <p className="text-zinc-400 text-xs font-bold leading-relaxed">{message}</p>
+                            </div>
+
+                            <div className="flex gap-3 pt-4">
+                                <button
+                                    onClick={onClose}
+                                    className="flex-1 h-14 rounded-2xl border border-zinc-100 text-zinc-400 text-[10px] font-black uppercase tracking-widest hover:bg-zinc-50 transition-all"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    disabled={loading}
+                                    onClick={onConfirm}
+                                    className="flex-1 h-14 rounded-2xl bg-black text-white text-[10px] font-black uppercase tracking-widest shadow-xl shadow-black/10 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                                >
+                                    {loading ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : 'Confirmar'}
+                                </button>
+                            </div>
+                        </div>
+                    </motion.div>
+                </div>
+            );
+        };
+
+        // COMPONENTS
+        const AuthGuard = ({ children }) => {
+            const [user, setUser] = useState(null);
+            const [loading, setLoading] = useState(true);
+            const [error, setError] = useState(null);
+
+            useEffect(() => {
+                return auth.onAuthStateChanged((u) => {
+                    if (u && u.email === ADMIN_EMAIL) {
+                        setUser(u);
+                        setError(null);
+                    } else if (u) {
+                        auth.signOut();
+                        setError('Acceso denegado. Solo administradores autorizados.');
+                    } else {
+                        setUser(null);
+                    }
+                    setLoading(false);
+                });
+            }, []);
+
+            const login = async () => {
+                if (window.location.protocol === 'file:') {
+                    setError('ERROR: Google Sign-In requiere un servidor (http://localhost). Ejecuta el servidor de Python proporcionado.');
+                    return;
+                }
+                try {
+                    await auth.signInWithPopup(provider);
+                } catch (e) {
+                    setError(`Error: ${e.message}`);
+                }
+            };
+
+            if (loading) return <div className="h-screen flex items-center justify-center bg-white"><div className="w-8 h-8 border-2 border-black border-t-transparent rounded-full animate-spin"></div></div>;
+
+            if (!user) return (
+                <div className="h-screen flex flex-col items-center justify-center bg-white px-4">
+                    <div className="w-full max-w-sm text-center space-y-8">
+                        <div className="space-y-2">
+                            <h1 className="text-5xl font-black tracking-tighter uppercase">CONNECT</h1>
+                            <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest">Admin Control Center</p>
+                        </div>
+                        <div className="p-10 border border-zinc-100 rounded-[2.5rem] bg-zinc-50/50 space-y-6">
+                            {error && <div className="p-4 bg-red-50 text-red-600 text-[10px] font-bold rounded-2xl border border-red-100 uppercase tracking-wider">{error}</div>}
+                            <button onClick={login} className="w-full btn-primary h-14 text-sm gap-3">Entrar con Google</button>
+                            <p className="text-[10px] text-zinc-300 font-black uppercase tracking-[0.2em]">Restricted Access</p>
+                        </div>
+                    </div>
+                </div>
+            );
+
+            return children(user);
+        };
+
+
+        // --- DASHBOARD ---
+        const Dashboard = () => {
+            const [stats, setStats] = useState({ users: 0, posts: 0, active: 42, conversion: '3.2%' });
+
+            useEffect(() => {
+                db.collection('users').get().then(s => setStats(prev => ({ ...prev, users: s.size })));
+                db.collection('posts').get().then(s => setStats(prev => ({ ...prev, posts: s.size })));
+            }, []);
+
+            return (
+                <div className="space-y-12 animate-in fade-in duration-700">
+                    <div className="flex justify-between items-end">
+                        <div className="space-y-1">
+                            <h1 className="text-4xl font-black tracking-tighter uppercase italic">Control Central</h1>
+                            <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest">Global Overview</p>
+                        </div>
+                        <div className="flex p-1 bg-zinc-100 rounded-xl">
+                            <button className="px-4 py-2 bg-white shadow-sm rounded-lg text-[10px] font-black uppercase tracking-wider">Hoy</button>
+                            <button className="px-4 py-2 text-zinc-400 text-[10px] font-black uppercase tracking-wider hover:text-black transition-all">Semana</button>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                        <div className="card shadow-sm border-l-4 border-l-black group">
+                            <div className="flex justify-between items-start mb-2">
+                                <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Usuarios Reg.</p>
+                                <IconUsers />
+                            </div>
+                            <p className="text-4xl font-black group-hover:scale-110 transition-transform origin-left">{stats.users}</p>
+                            <div className="mt-4 flex items-center gap-2 text-green-500 font-bold text-[10px]">↑ 8% <span className="text-zinc-300 font-medium">vs mes anterior</span></div>
+                        </div>
+                        <div className="card shadow-sm group">
+                            <div className="flex justify-between items-start mb-2">
+                                <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Contenido Activo</p>
+                                <IconFileText />
+                            </div>
+                            <p className="text-4xl font-black group-hover:scale-110 transition-transform origin-left">{stats.posts}</p>
+                            <div className="mt-4 flex items-center gap-2 text-green-500 font-bold text-[10px]">↑ 12% <span className="text-zinc-300 font-medium">publicados hoy</span></div>
+                        </div>
+                        <div className="card shadow-sm group">
+                            <div className="flex justify-between items-start mb-2">
+                                <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Sesiones en Vivo</p>
+                                <div className="w-2 h-2 rounded-full bg-green-500 animate-ping"></div>
+                            </div>
+                            <p className="text-4xl font-black group-hover:scale-110 transition-transform origin-left">{stats.active}</p>
+                            <div className="mt-4 flex items-center gap-2 text-zinc-300 font-medium text-[10px]">Actualizado hace 1s</div>
+                        </div>
+                        <div className="card shadow-sm group">
+                            <div className="flex justify-between items-start mb-2">
+                                <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Estabilidad Core</p>
+                                <IconShield />
+                            </div>
+                            <p className="text-4xl font-black group-hover:scale-110 transition-transform origin-left">99.9%</p>
+                            <div className="mt-4 flex items-center gap-2 text-zinc-300 font-medium text-[10px]">Optimización de impulsos</div>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        <div className="lg:col-span-2 card bg-black text-white h-96 flex flex-col justify-between overflow-hidden relative">
+                            <div className="flex justify-between items-center relative z-10">
+                                <h3 className="font-bold text-xl tracking-tight">Analytics Predictivo</h3>
+                                <button className="text-[10px] font-black uppercase tracking-widest border-b border-zinc-700 pb-1 hover:border-white transition-all">Ver PDF</button>
+                            </div>
+                            <div className="flex-1 flex items-end justify-around pb-4 relative z-10">
+                                {[40, 70, 50, 90, 60, 80, 45, 65, 30, 85].map((h, i) => (
+                                    <div key={i} className="w-6 bg-white/10 rounded-t-sm hover:bg-white transition-all cursor-crosshair group relative" style={{ height: `${h}%` }}>
+                                        <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-white text-black text-[10px] font-black px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">{(h * 123).toLocaleString()}</div>
+                                    </div>
+                                ))}
+                            </div>
+                            <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -mr-20 -mt-20 blur-3xl"></div>
+                        </div>
+                        <div className="card space-y-8 bg-zinc-50 border-none shadow-none">
+                            <div className="space-y-1">
+                                <h3 className="font-bold text-lg">Cálculos del Sistema</h3>
+                                <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Métricas de Rentabilidad</p>
+                            </div>
+                            <div className="space-y-6">
+                                <div className="space-y-2">
+                                    <div className="flex justify-between items-end">
+                                        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Tasa de Retención</span>
+                                        <span className="text-sm font-black">94.2%</span>
+                                    </div>
+                                    <div className="h-1 bg-zinc-200 rounded-full overflow-hidden">
+                                        <div className="h-full bg-black w-[94%]"></div>
+                                    </div>
+                                </div>
+                                <div className="space-y-2">
+                                    <div className="flex justify-between items-end">
+                                        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Eficiencia Servidor</span>
+                                        <span className="text-sm font-black">99.9%</span>
+                                    </div>
+                                    <div className="h-1 bg-zinc-200 rounded-full overflow-hidden">
+                                        <div className="h-full bg-black w-[99%]"></div>
+                                    </div>
+                                </div>
+                                <div className="pt-6 grid grid-cols-2 gap-4">
+                                    <div className="p-4 bg-white rounded-2xl">
+                                        <p className="text-[9px] font-black text-zinc-300 uppercase mb-1">CAC</p>
+                                        <p className="text-xl font-black">$1.24</p>
+                                    </div>
+                                    <div className="p-4 bg-white rounded-2xl">
+                                        <p className="text-[9px] font-black text-zinc-300 uppercase mb-1">LTV</p>
+                                        <p className="text-xl font-black">$48.0</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- USERS ---
+        const Users = () => {
+            const [users, setUsers] = useState([]);
+            const [editingUser, setEditingUser] = useState(null);
+            const [userToDelete, setUserToDelete] = useState(null);
+            const [isDeleting, setIsDeleting] = useState(false);
+
+            useEffect(() => {
+                return db.collection('users').limit(20).onSnapshot(s => setUsers(s.docs.map(d => ({ id: d.id, ...d.data() }))));
+            }, []);
+
+            const userActions = [
+                { label: 'Ver Perfil', icon: IconEye, onClick: (u) => alert(`Perfil: ${u.email}`) },
+                { label: 'Verificar Email', icon: IconCheck, onClick: (u) => alert(`Email verificado para ${u.email}`) },
+                { label: 'Cambiar Rol', icon: IconShield, onClick: (u) => alert(`Cambiando rol de ${u.email}`) },
+                { label: 'Eliminar', icon: IconTrash, color: 'text-red-500', onClick: (u) => setUserToDelete(u) },
+            ];
+
+            return (
+                <div className="space-y-8 animate-in slide-in-from-bottom duration-500 cursor-default">
+                    <div className="flex justify-between items-center">
+                        <div className="space-y-1">
+                            <h1 className="text-3xl font-black tracking-tighter uppercase italic">Gestión de Usuarios</h1>
+                            <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest">Database Administration</p>
+                        </div>
+                        <div className="flex gap-4">
+                            <input placeholder="Buscar por email..." className="px-6 py-3 bg-zinc-50 border border-zinc-100 rounded-2xl text-xs w-64 focus:border-black transition-all" />
+                            <button className="btn-primary text-[10px] uppercase tracking-widest gap-2"><IconUsers /> Exportar DB</button>
+                        </div>
+                    </div>
+                    <div className="bg-white border border-zinc-100 rounded-[2.5rem] overflow-hidden shadow-sm">
+                        <table className="w-full text-left">
+                            <thead>
+                                <tr className="bg-zinc-50 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">
+                                    <th className="px-10 py-6">Perfil</th>
+                                    <th className="px-10 py-6">Identificador</th>
+                                    <th className="px-10 py-6">Antigüedad</th>
+                                    <th className="px-10 py-6">Estatus</th>
+                                    <th className="px-10 py-6 text-right">Opciones</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-zinc-50">
+                                {users.map(u => (
+                                    <tr key={u.id} className="hover:bg-zinc-50/50 transition-all group">
+                                        <td className="px-10 py-6">
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-10 h-10 rounded-2xl bg-zinc-100 border border-zinc-200 overflow-hidden shadow-sm group-hover:rotate-2 transition-transform">
+                                                    <img src={u.photoUrl || `https://ui-avatars.com/api/?name=${u.displayName || u.email}&background=000&color=fff&bold=true`} />
+                                                </div>
+                                                <div>
+                                                    <span className="font-bold text-sm tracking-tight block leading-none">{u.displayName || 'Usuario CONNECT'}</span>
+                                                    <span className="text-[10px] text-zinc-400 font-medium">Customer</span>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td className="px-10 py-6 text-[11px] font-mono text-zinc-400">{u.email}</td>
+                                        <td className="px-10 py-6 text-xs text-zinc-500 uppercase font-bold tracking-widest">7 Ene 2026</td>
+                                        <td className="px-10 py-6">
+                                            <div className={`status-badge inline-flex items-center gap-1.5 ${u.isVerified ? 'bg-black text-white' : 'bg-zinc-100 text-zinc-400'}`}>
+                                                {u.isVerified && <IconCheck />}
+                                                {u.isVerified ? 'Verificado' : 'Normal'}
+                                            </div>
+                                        </td>
+                                        <td className="px-10 py-6 text-right relative">
+                                            <button
+                                                onClick={() => setEditingUser(editingUser === u.id ? null : u.id)}
+                                                className={`p-2 transition-all rounded-xl ${editingUser === u.id ? 'bg-black text-white' : 'text-zinc-300 hover:text-black hover:bg-zinc-100'}`}
+                                            >
+                                                <IconEdit />
+                                            </button>
+
+                                            {editingUser === u.id && (
+                                                <div className="absolute right-10 top-16 w-48 bg-white border border-zinc-100 rounded-2xl shadow-2xl z-50 p-2 space-y-1 animate-in zoom-in duration-200 origin-top-right">
+                                                    {userActions.map((action, i) => (
+                                                        <button
+                                                            key={i}
+                                                            onClick={() => { action.onClick(u); setEditingUser(null); }}
+                                                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors ${action.color || 'text-zinc-400 hover:text-black hover:bg-zinc-50'}`}
+                                                        >
+                                                            <action.icon /> {action.label}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                        {users.length === 0 && <div className="py-40 text-center space-y-4">
+                            <div className="w-12 h-12 bg-zinc-50 rounded-full flex items-center justify-center mx-auto"><IconUsers /></div>
+                            <p className="text-zinc-300 text-[10px] font-black uppercase tracking-widest">Sincronizando con Base de Datos...</p>
+                        </div>}
+                    </div>
+
+                    <ConfirmModal
+                        isOpen={!!userToDelete}
+                        onClose={() => setUserToDelete(null)}
+                        onConfirm={async () => {
+                            if (!userToDelete) return;
+                            setIsDeleting(true);
+                            try {
+                                await db.collection('users').doc(userToDelete.id).delete();
+                                setUserToDelete(null);
+                            } catch (e) {
+                                console.error(e);
+                                alert('Error al eliminar usuario');
+                            } finally {
+                                setIsDeleting(false);
+                            }
+                        }}
+                        loading={isDeleting}
+                        title="Eliminar Usuario"
+                        message={`¿Estás seguro de que deseas eliminar a ${userToDelete?.email}? Esta acción borrará permanentemente su perfil.`}
+                    />
+                </div>
+            );
+        };
+
+        // --- VERIFICATIONS ---
+        const Verifications = () => {
+            const [users, setUsers] = useState([]);
+            const [manualEmail, setManualEmail] = useState('');
+            const [searchTerm, setSearchTerm] = useState('');
+
+            useEffect(() => {
+                return db.collection('users').where('isVerified', '==', true).limit(20).onSnapshot(s => setUsers(s.docs.map(d => ({ id: d.id, ...d.data() }))));
+            }, []);
+
+            const filteredUsers = useMemo(() => {
+                return users.filter(u =>
+                    u.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                    u.displayName?.toLowerCase().includes(searchTerm.toLowerCase())
+                );
+            }, [users, searchTerm]);
+
+            const verifyManually = async () => {
+                if (!manualEmail) return;
+                const snap = await db.collection('users').where('email', '==', manualEmail).get();
+                if (!snap.empty) {
+                    await db.collection('users').doc(snap.docs[0].id).update({ isVerified: true });
+                    alert('Usuario verificado con éxito.');
+                    setManualEmail('');
+                } else {
+                    alert('Usuario no encontrado.');
+                }
+            };
+
+            return (
+                <div className="space-y-12 animate-in fade-in duration-500">
+                    <div className="space-y-1">
+                        <h1 className="text-3xl font-black tracking-tighter uppercase italic">Protocolo de Verificación</h1>
+                        <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest">Validación Manual y Directa</p>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-12 text-black">
+                        <div className="col-span-1 bg-black p-12 rounded-[3.5rem] text-white space-y-8 shadow-2xl relative overflow-hidden">
+                            <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-bl-full animate-pulse" />
+                            <div className="space-y-4 relative z-10">
+                                <div className="p-4 bg-white/10 rounded-2xl w-fit">
+                                    <IconShield />
+                                </div>
+                                <h3 className="font-bold text-2xl tracking-tighter uppercase leading-none">Insignia Manual</h3>
+                                <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest leading-relaxed">Uso exclusivo para validaciones presenciales u oficiales.</p>
+                            </div>
+                            <div className="space-y-4 relative z-10">
+                                <div className="space-y-2">
+                                    <label className="text-[9px] font-black uppercase text-zinc-600 tracking-[0.2em] ml-2">Email del Usuario</label>
+                                    <input
+                                        value={manualEmail}
+                                        onChange={e => setManualEmail(e.target.value)}
+                                        placeholder="admin@connect.com"
+                                        className="w-full bg-white/5 border border-white/10 rounded-[1.5rem] px-8 py-5 text-sm focus:bg-white/10 focus:border-white/20 transition-all outline-none"
+                                    />
+                                </div>
+                                <button onClick={verifyManually} className="w-full bg-white text-black h-16 rounded-[1.5rem] font-black uppercase tracking-widest text-xs hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-3">
+                                    <IconCheck /> Ejecutar Verificación
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="col-span-2 space-y-8">
+                            <div className="flex justify-between items-center">
+                                <h3 className="font-bold text-xl tracking-tight">Audit Log de Verificaciones</h3>
+                                <div className="flex gap-4">
+                                    <input
+                                        type="text"
+                                        placeholder="Buscar verificado..."
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                        className="px-6 py-3 bg-zinc-50 border border-zinc-100 rounded-2xl text-xs w-48 focus:border-black transition-all outline-none"
+                                    />
+                                    <div className="text-[10px] font-black uppercase tracking-widest p-3 bg-zinc-100 rounded-xl leading-none flex items-center">Logs: {filteredUsers.length}</div>
+                                </div>
+                            </div>
+                            <div className="grid gap-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+                                {filteredUsers.map(u => (
+                                    <div key={u.id} className="flex justify-between items-center p-6 rounded-[2rem] bg-zinc-50 border border-zinc-100/50 hover:bg-white hover:shadow-xl hover:shadow-zinc-100/50 transition-all group">
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-12 h-12 bg-black rounded-2xl flex items-center justify-center text-white font-black text-sm uppercase group-hover:scale-110 transition-transform">{u.displayName?.[0] || 'U'}</div>
+                                            <div>
+                                                <p className="text-sm font-black leading-none mb-1">{u.displayName}</p>
+                                                <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest">{u.email}</p>
+                                            </div>
+                                        </div>
+                                        <button onClick={() => { if (confirm('¿Revocar verificación?')) db.collection('users').doc(u.id).update({ isVerified: false }) }} className="p-4 rounded-xl text-zinc-300 hover:text-red-500 hover:bg-red-50 transition-all"><IconTrash /></button>
+                                    </div>
+                                ))}
+                                {filteredUsers.length === 0 && <p className="text-center py-20 text-zinc-300 italic text-sm">No hay registros que coincidan con la búsqueda.</p>}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- MODERATION ---
+        const Moderation = () => {
+            const [posts, setPosts] = useState([]);
+            const [loading, setLoading] = useState(true);
+            const [filter, setFilter] = useState('all');
+            const [searchTerm, setSearchTerm] = useState('');
+            const [activeCategory, setActiveCategory] = useState('Todas');
+            const [isMarketplaceHidden, setIsMarketplaceHidden] = useState(false);
+            const [itemToDelete, setItemToDelete] = useState(null);
+            const [isDeleting, setIsDeleting] = useState(false);
+
+            const categories = ['Todas', 'Lo tienes', 'Productos', 'Vehículos', 'Propiedades', 'Servicios', 'Empleos', 'Mascotas', 'Trueques'];
+
+            useEffect(() => {
+                let postsList = [];
+                let wantsList = [];
+
+                const unsubPosts = db.collection('posts')
+                    .orderBy('createdAt', 'desc')
+                    .limit(50)
+                    .onSnapshot(s => {
+                        postsList = s.docs.map(d => ({ id: d.id, _collection: 'posts', ...d.data() }));
+                        combineAndSet();
+                    });
+
+                const unsubWants = db.collection('wants')
+                    .orderBy('createdAt', 'desc')
+                    .limit(50)
+                    .onSnapshot(s => {
+                        wantsList = s.docs.map(d => {
+                            const data = d.data();
+                            return {
+                                id: d.id,
+                                _collection: 'wants',
+                                ...data,
+                                category: 'Lo tienes', // Hardcode category for display/filter
+                                title: data.title || data.name || data.description || 'Sin título',
+                                price: data.willingToPay || data.price || 0,
+                                images: data.images || (data.imageUrl ? [data.imageUrl] : [])
+                            };
+                        });
+                        combineAndSet();
+                    });
+
+                const combineAndSet = () => {
+                    const combined = [...postsList, ...wantsList].sort((a, b) => {
+                        const timeA = a.createdAt?.seconds || 0;
+                        const timeB = b.createdAt?.seconds || 0;
+                        return timeB - timeA;
+                    });
+                    setPosts(combined);
+                    setLoading(false);
+                };
+
+                return () => {
+                    unsubPosts();
+                    unsubWants();
+                };
+            }, []);
+
+            useEffect(() => {
+                return db.collection('settings').doc('marketplace').onSnapshot(doc => {
+                    if (doc.exists) setIsMarketplaceHidden(doc.data().hideAllPosts || false);
+                });
+            }, []);
+
+            const toggleMarketplaceVisibility = async () => {
+                try {
+                    await db.collection('settings').doc('marketplace').set({
+                        hideAllPosts: !isMarketplaceHidden,
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    }, { merge: true });
+                } catch (e) {
+                    console.error(e);
+                }
+            };
+
+            const filteredPosts = posts.filter(post => {
+                const matchesFilter = filter === 'all' || post.status === filter;
+                const matchesCategory = activeCategory === 'Todas' || post.category === activeCategory;
+                const matchesSearch = post.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                    post.description?.toLowerCase().includes(searchTerm.toLowerCase());
+                return matchesFilter && matchesCategory && matchesSearch;
+            });
+
+            return (
+                <div className="space-y-10 animate-in slide-in-from-right duration-500">
+                    <div className="flex flex-col gap-8 md:flex-row md:items-end md:justify-between">
+                        <div className="space-y-1">
+                            <h1 className="text-4xl font-black tracking-tighter uppercase italic">Marketplace Moderation</h1>
+                            <div className="flex items-center gap-4 mt-2">
+                                <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest">Control de Inventario y Calidad</p>
+                                <div className="h-4 w-px bg-zinc-100 mx-2"></div>
+                                <div
+                                    onClick={toggleMarketplaceVisibility}
+                                    className="flex items-center gap-3 px-4 py-2 bg-zinc-50 rounded-full border border-zinc-100 hover:border-black transition-all cursor-pointer group"
+                                >
+                                    <div className={`w-8 h-4 rounded-full relative transition-colors ${isMarketplaceHidden ? 'bg-black' : 'bg-zinc-200'}`}>
+                                        <motion.div
+                                            animate={{ x: isMarketplaceHidden ? 18 : 2 }}
+                                            className="w-3 h-3 bg-white rounded-full absolute top-0.5 shadow-sm"
+                                        />
+                                    </div>
+                                    <span className={`text-[9px] font-black uppercase tracking-widest ${isMarketplaceHidden ? 'text-black' : 'text-zinc-400'}`}>
+                                        {isMarketplaceHidden ? 'Mercado en Pausa' : 'Mercado Activo'}
+                                    </span>
+                                    {isMarketplaceHidden && <IconEyeOff />}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="flex flex-col md:flex-row gap-4">
+                            <div className="relative group">
+                                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-300">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
+                                </div>
+                                <input
+                                    type="text"
+                                    placeholder="Buscar publicación..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    className="bg-zinc-50 border border-zinc-100 rounded-2xl pl-12 pr-6 py-3 text-[10px] font-bold uppercase tracking-widest outline-none focus:bg-white focus:border-black transition-all w-full md:w-64"
+                                />
+                            </div>
+
+                            <div className="flex p-1 bg-zinc-100 rounded-2xl">
+                                {['all', 'pending', 'approved'].map(f => (
+                                    <button
+                                        key={f}
+                                        onClick={() => setFilter(f)}
+                                        className={`px-6 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${filter === f ? 'bg-black text-white shadow-lg' : 'text-zinc-400 hover:text-black'
+                                            }`}
+                                    >
+                                        {f === 'all' ? 'Todos' : f === 'pending' ? 'Borradores' : 'En Vivo'}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="flex gap-2 overflow-x-auto pb-4 no-scrollbar">
+                        {categories.map((cat) => (
+                            <button
+                                key={cat}
+                                onClick={() => setActiveCategory(cat)}
+                                className={`px-6 py-2 rounded-full text-[9px] font-black uppercase tracking-widest whitespace-nowrap transition-all border ${activeCategory === cat
+                                    ? 'bg-black border-black text-white shadow-xl shadow-black/10'
+                                    : 'bg-white border-zinc-100 text-zinc-400 hover:border-black hover:text-black'
+                                    }`}
+                            >
+                                {cat}
+                            </button>
+                        ))}
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        {loading ? (
+                            <div className="col-span-full py-40 text-center">
+                                <div className="w-8 h-8 border-2 border-black border-t-transparent rounded-full animate-spin mx-auto"></div>
+                            </div>
+                        ) : filteredPosts.map(post => (
+                            <div key={post.id} className="bg-white rounded-[2.5rem] p-6 border border-zinc-100 flex gap-8 items-start hover:shadow-xl transition-all group">
+                                <div className="w-40 flex-shrink-0 space-y-3">
+                                    <div className="aspect-square bg-zinc-100 rounded-3xl overflow-hidden relative border border-zinc-50 shadow-inner">
+                                        {post.images && post.images[0] ? (
+                                            <img src={post.images[0]} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
+                                        ) : (
+                                            <div className="w-full h-full flex items-center justify-center text-zinc-200">
+                                                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" /><path d="M3 6h18" /><path d="M16 10a4 4 0 0 1-8 0" /></svg>
+                                            </div>
+                                        )}
+                                        <div className="absolute top-2 right-2 flex gap-1">
+                                            <div className={`px-2 py-1 rounded-full text-[7px] font-black uppercase tracking-tighter shadow-xl ${post.status === 'approved' ? 'bg-black text-white' : 'bg-zinc-200 text-zinc-600'}`}>
+                                                {post.status === 'approved' ? 'LIVE' : 'WAIT'}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="px-1 space-y-2">
+                                        <h4 className="font-black text-xs leading-none line-clamp-1 uppercase tracking-tighter text-zinc-800">{post.title || 'Publicación sin título'}</h4>
+                                        <div className="flex items-center gap-2">
+                                            <span className="px-2 py-0.5 bg-zinc-100 rounded text-[8px] font-bold text-zinc-400 uppercase tracking-widest">{post.category || 'Varios'}</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="flex-grow space-y-6 py-2">
+                                    <div className="grid grid-cols-2 gap-x-12 gap-y-6">
+                                        <div className="space-y-1">
+                                            <p className="text-[8px] font-black uppercase text-zinc-300 tracking-widest">Valorización</p>
+                                            <p className="font-black text-xl tracking-tight text-black group-hover:text-red-600 transition-colors">
+                                                {post._collection === 'wants' ? 'Ofe: ' : ''}
+                                                ${Number(post.price)?.toLocaleString() || '0'}
+                                            </p>
+                                        </div>
+                                        <div className="space-y-1 text-right">
+                                            <p className="text-[8px] font-black uppercase text-zinc-300 tracking-widest">Indexado el</p>
+                                            <p className="font-black text-[10px] text-zinc-400 tracking-widest uppercase">
+                                                {post.createdAt ? new Date(post.createdAt.seconds * 1000).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase() : 'Reciente'}
+                                            </p>
+                                        </div>
+                                        <div className="space-y-1 overflow-hidden">
+                                            <p className="text-[8px] font-black uppercase text-zinc-300 tracking-widest">Identificador Operador</p>
+                                            <p className="font-bold text-[9px] text-zinc-400 tracking-tight truncate font-mono">{post.userId || 'Sistema'}</p>
+                                        </div>
+                                        <div className="space-y-1 text-right">
+                                            <p className="text-[8px] font-black uppercase text-zinc-300 tracking-widest">Validación</p>
+                                            <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest ${post.status === 'approved' ? 'bg-zinc-100 text-black' : 'bg-red-50 text-red-500'}`}>
+                                                <div className={`w-1 h-1 rounded-full ${post.status === 'approved' ? 'bg-green-500' : 'bg-red-500'}`} />
+                                                {post.status === 'approved' ? 'Aprobado' : 'Pendiente'}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="pt-6 border-t border-zinc-50 flex justify-between items-center">
+                                        <button className="h-10 px-4 rounded-xl bg-zinc-50 text-[9px] font-black uppercase tracking-widest text-zinc-400 hover:text-black hover:bg-zinc-100 transition-all flex items-center gap-2">
+                                            <IconDashboard /> Ver Contexto
+                                        </button>
+                                        <div className="flex gap-2">
+                                            <button className="h-12 w-12 flex items-center justify-center bg-zinc-50 text-zinc-300 hover:text-black hover:bg-zinc-100 rounded-2xl transition-all">
+                                                <IconEdit />
+                                            </button>
+                                            <button
+                                                onClick={() => setItemToDelete(post)}
+                                                className="h-12 w-12 flex items-center justify-center bg-red-50 text-red-300 hover:text-red-500 hover:bg-red-100 rounded-2xl transition-all shadow-sm shadow-red-100/50"
+                                            >
+                                                <IconTrash />
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    <ConfirmModal
+                        isOpen={!!itemToDelete}
+                        onClose={() => setItemToDelete(null)}
+                        onConfirm={async () => {
+                            if (!itemToDelete) return;
+                            setIsDeleting(true);
+                            try {
+                                await db.collection(itemToDelete._collection).doc(itemToDelete.id).delete();
+                                setItemToDelete(null);
+                            } catch (e) {
+                                console.error(e);
+                                alert('Error al eliminar');
+                            } finally {
+                                setIsDeleting(false);
+                            }
+                        }}
+                        loading={isDeleting}
+                        title="Eliminar Publicación"
+                        message={`¿Estás seguro de que deseas eliminar este elemento? Esta acción es irreversible.`}
+                    />
+                    {!loading && filteredPosts.length === 0 && (
+                        <div className="py-40 text-center space-y-4">
+                            <div className="w-16 h-16 bg-zinc-50 rounded-full flex items-center justify-center mx-auto text-zinc-200">
+                                <IconFileText />
+                            </div>
+                            <p className="text-zinc-300 text-xs font-black uppercase tracking-[0.2em]">Catalogo Vacío o sin coincidencias</p>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        // --- BOOSTS (ROCKET ANIMATION) ---
+        const Boosts = () => {
+            return (
+                <div className="h-full min-h-[70vh] flex flex-col items-center justify-center text-center space-y-16 relative overflow-hidden">
+                    {/* Background Particles */}
+                    <div className="absolute inset-0 pointer-events-none">
+                        {[...Array(6)].map((_, i) => (
+                            <motion.div
+                                key={i}
+                                initial={{ opacity: 0, y: 100 }}
+                                animate={{ opacity: [0, 0.5, 0], y: -500, x: (i - 3) * 100 }}
+                                transition={{ duration: 3 + i, repeat: Infinity, ease: "linear", delay: i * 0.5 }}
+                                className="absolute bottom-0 left-1/2 w-1 h-20 bg-gradient-to-t from-black to-transparent"
+                            />
+                        ))}
+                    </div>
+
+                    <div className="relative group">
+                        <motion.div
+                            animate={{
+                                y: [0, -40, 0],
+                                rotate: [0, 5, -5, 0],
+                                scale: [1, 1.05, 1]
+                            }}
+                            transition={{
+                                duration: 5,
+                                repeat: Infinity,
+                                ease: "easeInOut"
+                            }}
+                            className="relative z-10 p-16 bg-black rounded-[4rem] shadow-[0_50px_100px_-20px_rgba(0,0,0,0.5)] border border-white/10"
+                        >
+                            <div className="text-white transform scale-[2.5] relative z-10">
+                                <IconZap />
+                            </div>
+
+                            {/* Inner Glow */}
+                            <motion.div
+                                animate={{ opacity: [0.3, 0.6, 0.3], scale: [1, 1.2, 1] }}
+                                transition={{ duration: 3, repeat: Infinity }}
+                                className="absolute inset-0 bg-white/10 rounded-[4rem] blur-xl"
+                            />
+                        </motion.div>
+
+                        {/* Propulsion Fire */}
+                        <motion.div
+                            animate={{
+                                scale: [1, 1.5, 1],
+                                opacity: [0.3, 0.7, 0.3],
+                                y: [0, 10, 0]
+                            }}
+                            transition={{ duration: 0.2, repeat: Infinity }}
+                            className="absolute -bottom-12 left-1/2 -translate-x-1/2 w-16 h-24 bg-gradient-to-b from-zinc-200 to-transparent blur-2xl rounded-full"
+                        />
+                    </div>
+
+                    <div className="space-y-6 max-w-xl px-6 relative z-10">
+                        <div className="inline-flex items-center gap-2 px-4 py-2 bg-zinc-100 rounded-full text-[10px] font-black uppercase tracking-[0.3em] mb-4">
+                            <div className="w-1.5 h-1.5 bg-black rounded-full animate-pulse" />
+                            Engine Status: Standby
+                        </div>
+                        <h1 className="text-6xl font-black tracking-tighter uppercase italic bg-clip-text text-transparent bg-gradient-to-b from-black to-zinc-400">Section Locked</h1>
+                        <p className="text-zinc-500 text-[10px] font-black uppercase tracking-[0.5em]">Global Propulsion Systems</p>
+                        <p className="text-zinc-400 text-sm font-medium leading-relaxed font-archivo">
+                            El motor de impulsos está en fase de calibración. Próximamente habilitaremos la capacidad de destacar contenido de forma instantánea en toda la red CONNECT.
+                        </p>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- ADS ---
+        const Ads = () => {
+            return (
+                <div className="space-y-12 animate-in fade-in duration-700">
+                    <div className="flex items-center justify-between">
+                        <div className="space-y-1">
+                            <h1 className="text-4xl font-black tracking-tighter uppercase italic">Ad Engine</h1>
+                            <p className="text-zinc-400 text-[10px] font-bold uppercase tracking-widest">Inventory Management</p>
+                        </div>
+                        <button className="h-16 px-8 bg-black text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:scale-105 transition-all flex items-center gap-3 shadow-xl shadow-black/10">
+                            Nuevo Banner
+                        </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                        {[
+                            { label: 'Impressions', value: '1.2M', icon: <IconEye /> },
+                            { label: 'Global CTR', value: '4.8%', icon: <IconZap /> },
+                        ].map((stat, i) => (
+                            <div key={i} className="bg-white border border-zinc-100 p-8 rounded-[2.5rem] shadow-sm group hover:border-black transition-colors">
+                                <div className="p-3 bg-zinc-50 rounded-xl w-fit mb-6 text-black group-hover:bg-black group-hover:text-white transition-all">{stat.icon}</div>
+                                <p className="text-3xl font-black tracking-tighter">{stat.value}</p>
+                                <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-1">{stat.label}</p>
+                            </div>
+                        ))}
+                    </div>
+
+                    <div className="bg-white rounded-[3.5rem] border border-zinc-100 p-20 text-center space-y-8 shadow-sm">
+                        <div className="mx-auto w-24 h-24 bg-zinc-50 rounded-[2rem] flex items-center justify-center text-zinc-200">
+                            <IconMegaphone />
+                        </div>
+                        <div className="space-y-2">
+                            <h2 className="text-2xl font-black tracking-tight uppercase">Sin Campañas Activas</h2>
+                            <p className="text-zinc-400 text-sm max-w-sm mx-auto font-medium">El inventario publicitario está disponible. Sube un banner o vincula una campaña externa para comenzar.</p>
+                        </div>
+                        <button className="btn-outline text-[10px] uppercase tracking-[0.2em] px-10">Actualizar Engine</button>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- NOTIFICATIONS ---
+        const Notifications = () => {
+            const [target, setTarget] = useState('all');
+            const [title, setTitle] = useState('');
+            const [body, setBody] = useState('');
+            const [channel, setChannel] = useState('Push');
+            const [priority, setPriority] = useState('Normal');
+            const [recipientId, setRecipientId] = useState('');
+
+            const history = [
+                { id: '1', title: 'Nueva Actualización v2.4', target: 'Global', channel: 'Push', timestamp: '7 ENE 2026, 09:12', status: 'Sent' },
+                { id: '2', title: 'Verificación Exitosa', target: 'irenzulsierra@gmail.com', channel: 'Email', timestamp: '6 ENE 2026, 14:05', status: 'Sent' },
+                { id: '3', title: 'Mantenimiento Programado', target: 'Global', channel: 'Push', timestamp: '8 ENE 2026, 02:00', status: 'Scheduled' },
+            ];
+
+            const send = async () => {
+                if (!title || !body) return alert('Por favor completa los campos requeridos');
+
+                try {
+                    const payload = {
+                        title,
+                        body,
+                        channel,
+                        priority,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        read: false,
+                        type: 'admin_broadcast'
+                    };
+
+                    if (target === 'all') {
+                        await db.collection('broadcasts').add(payload);
+                        alert(`¡Broadcast enviado a TODOS los usuarios via ${channel}!`);
+                    } else {
+                        if (!recipientId) return alert('Ingresa el ID del usuario');
+                        await db.collection('users').doc(recipientId).collection('notifications').add(payload);
+                        alert(`Notificación enviada a ${recipientId}`);
+                    }
+
+                    setTitle('');
+                    setBody('');
+                    setRecipientId('');
+
+                    // Add to local history for demo
+                    history.unshift({
+                        id: Date.now().toString(),
+                        title,
+                        target: target === 'all' ? 'Global' : recipientId,
+                        channel,
+                        timestamp: 'Ahora mismo',
+                        status: 'Sent'
+                    });
+                } catch (e) {
+                    console.error(e);
+                    alert('Error enviando: ' + e.message);
+                }
+            };
+
+            return (
+                <div className="space-y-12 animate-in slide-in-from-right duration-700 pb-20">
+                    <div className="flex justify-between items-end">
+                        <div className="space-y-1">
+                            <h1 className="text-4xl font-black tracking-tighter uppercase leading-none">Broadcast Engine</h1>
+                            <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest mt-2">Omnichannel Communications Control</p>
+                        </div>
+                        <div className="flex items-center gap-2 px-4 py-2 bg-zinc-50 rounded-xl border border-zinc-100">
+                            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                            <span className="text-[9px] font-black uppercase text-zinc-500 tracking-widest">Gateway Active</span>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
+                        <div className="lg:col-span-2 space-y-8">
+                            <div className="bg-white rounded-[3.5rem] p-12 border border-zinc-100 shadow-sm space-y-10">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                    <div className="space-y-4">
+                                        <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 ml-2">Audiencia</label>
+                                        <div className="flex p-1.5 bg-zinc-50 rounded-2xl">
+                                            <button onClick={() => setTarget('all')} className={`flex-1 py-3 rounded-xl font-black text-[9px] uppercase tracking-widest transition-all ${target === 'all' ? 'bg-black text-white' : 'text-zinc-400'}`}>Global</button>
+                                            <button onClick={() => setTarget('single')} className={`flex-1 py-3 rounded-xl font-black text-[9px] uppercase tracking-widest transition-all ${target === 'single' ? 'bg-black text-white' : 'text-zinc-400'}`}>Targeted</button>
+                                        </div>
+                                    </div>
+                                    <div className="space-y-4">
+                                        <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 ml-2">Canal</label>
+                                        <div className="flex p-1.5 bg-zinc-50 rounded-2xl overflow-x-auto no-scrollbar">
+                                            {['Push', 'Email', 'SMS'].map(c => (
+                                                <button key={c} onClick={() => setChannel(c)} className={`flex-1 px-4 py-3 rounded-xl font-black text-[9px] uppercase tracking-widest transition-all ${channel === c ? 'bg-black text-white' : 'text-zinc-400'}`}>{c}</button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {target === 'single' && (
+                                    <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
+                                        <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 ml-2">User ID / Email</label>
+                                        <input
+                                            value={recipientId}
+                                            onChange={e => setRecipientId(e.target.value)}
+                                            className="w-full bg-zinc-50 border-zinc-100 rounded-2xl px-6 py-4 text-xs font-bold outline-none focus:border-black transition-all"
+                                            placeholder="uuid-example-1234"
+                                        />
+                                    </div>
+                                )}
+
+                                <div className="space-y-3">
+                                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 ml-2">Título</label>
+                                    <input value={title} onChange={e => setTitle(e.target.value)} className="w-full bg-zinc-50 border-zinc-100 rounded-2xl px-6 py-4 text-xs font-bold outline-none focus:border-black transition-all" placeholder="¡Bienvenido a CONNECT!" />
+                                </div>
+
+                                <div className="space-y-3">
+                                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 ml-2">Mensaje</label>
+                                    <textarea value={body} onChange={e => setBody(e.target.value)} className="w-full bg-zinc-50 border-zinc-100 rounded-[2rem] px-6 py-6 text-xs font-bold outline-none focus:border-black transition-all h-40 resize-none shadow-sm" placeholder="Escribe el contenido detallado aquí..." />
+                                </div>
+
+                                <div className="pt-4 flex items-center justify-between gap-8">
+                                    <div className="flex-1 flex gap-4">
+                                        {['Normal', 'Urgent'].map(p => (
+                                            <button key={p} onClick={() => setPriority(p)} className={`px-4 py-2 rounded-lg text-[8px] font-black uppercase tracking-widest border transition-all ${priority === p ? 'bg-zinc-100 border-zinc-200 text-black' : 'border-transparent text-zinc-300'}`}>{p}</button>
+                                        ))}
+                                    </div>
+                                    <button onClick={send} className="px-12 bg-black text-white h-16 rounded-2xl font-black uppercase tracking-widest text-[10px] hover:-translate-y-1 hover:shadow-2xl shadow-black/20 transition-all flex items-center gap-3">
+                                        <IconMegaphone /> Desplegar
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="space-y-8">
+                            <h3 className="font-black text-xs uppercase tracking-[0.3em]">Recent Broadcasts</h3>
+                            <div className="space-y-4">
+                                {history.map(item => (
+                                    <div key={item.id} className="bg-white border border-zinc-100 rounded-3xl p-6 space-y-4 hover:shadow-md transition-shadow">
+                                        <div className="flex justify-between items-start">
+                                            <div className={`px-2 py-0.5 rounded-full text-[7px] font-black uppercase tracking-tighter ${item.status === 'Sent' ? 'bg-green-50 text-green-600' : 'bg-blue-50 text-blue-600'}`}>{item.status}</div>
+                                            <span className="text-[8px] font-black text-zinc-300 uppercase">{item.timestamp}</span>
+                                        </div>
+                                        <div>
+                                            <h4 className="font-black text-[10px] uppercase line-clamp-1">{item.title}</h4>
+                                            <p className="text-[8px] font-black text-zinc-400 uppercase mt-1">{item.target} • {item.channel}</p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- REPORTS ---
+        const Reports = () => {
+            const [filter, setFilter] = useState('pending');
+            const reports = [
+                { id: '1', item: 'Iphone 13 Pro', type: 'Post', reason: 'Possible Scam', reporter: 'user_452', status: 'pending', date: '2026-01-07' },
+                { id: '2', item: 'John Doe', type: 'User', reason: 'Hate Speech', reporter: 'mod_auto', status: 'pending', date: '2026-01-06' },
+                { id: '3', item: 'Toyota Corolla', type: 'Post', reason: 'Spam', reporter: 'user_881', status: 'resolved', date: '2026-01-05' },
+            ];
+
+            return (
+                <div className="space-y-12 animate-in slide-in-from-bottom duration-700">
+                    <div className="flex items-center justify-between">
+                        <div className="space-y-1">
+                            <h1 className="text-4xl font-black tracking-tighter uppercase italic">Moderation Center</h1>
+                            <p className="text-zinc-400 text-[10px] font-bold uppercase tracking-widest">Community Safety & Reports Control</p>
+                        </div>
+                        <div className="flex p-1 bg-zinc-50 rounded-2xl border border-zinc-100 shadow-sm">
+                            {['pending', 'resolved', 'all'].map((f) => (
+                                <button
+                                    key={f}
+                                    onClick={() => setFilter(f)}
+                                    className={`px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filter === f ? 'bg-black text-white' : 'text-zinc-400'}`}
+                                >
+                                    {f}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="bg-white border border-zinc-100 p-8 rounded-[2.5rem] shadow-sm flex items-center justify-between group hover:border-black transition-colors">
+                            <div>
+                                <p className="text-[10px] font-black text-zinc-300 uppercase tracking-widest">Pending Reports</p>
+                                <p className="text-3xl font-black tracking-tighter mt-1">24</p>
+                            </div>
+                            <div className="p-4 bg-zinc-50 rounded-2xl text-red-500 group-hover:bg-black group-hover:text-white transition-all"><IconFlag /></div>
+                        </div>
+                        <div className="bg-white border border-zinc-100 p-8 rounded-[2.5rem] shadow-sm flex items-center justify-between group hover:border-black transition-colors">
+                            <div>
+                                <p className="text-[10px] font-black text-zinc-300 uppercase tracking-widest">Avg Resolution</p>
+                                <p className="text-3xl font-black tracking-tighter mt-1">2.4h</p>
+                            </div>
+                            <div className="p-4 bg-zinc-50 rounded-2xl group-hover:bg-black group-hover:text-white transition-all"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg></div>
+                        </div>
+                    </div>
+
+                    <div className="bg-white rounded-[3.5rem] border border-zinc-100 overflow-hidden shadow-sm">
+                        <table className="w-full">
+                            <thead>
+                                <tr className="bg-zinc-50 text-[10px] font-black uppercase tracking-widest text-zinc-400">
+                                    <th className="px-10 py-8 text-left">Target Content</th>
+                                    <th className="px-10 py-8 text-left">Reason / Reporter</th>
+                                    <th className="px-10 py-8 text-center">Status</th>
+                                    <th className="px-10 py-8 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-zinc-50">
+                                {reports.filter(r => filter === 'all' || r.status === filter).map((report) => (
+                                    <tr key={report.id} className="hover:bg-zinc-50/50 transition-colors">
+                                        <td className="px-10 py-8">
+                                            <div className="flex items-center gap-4">
+                                                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black text-[10px] uppercase ${report.type === 'Post' ? 'bg-zinc-100 text-zinc-500' : 'bg-black text-white'}`}>{report.type}</div>
+                                                <div>
+                                                    <p className="text-sm font-black tracking-tight">{report.item}</p>
+                                                    <p className="text-[10px] text-zinc-400 font-bold uppercase">{report.date}</p>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td className="px-10 py-8">
+                                            <p className="text-xs font-black text-red-500 uppercase tracking-tight">{report.reason}</p>
+                                            <p className="text-[10px] text-zinc-400 font-bold italic">By: {report.reporter}</p>
+                                        </td>
+                                        <td className="px-10 py-8 text-center">
+                                            <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-[0.1em] ${report.status === 'pending' ? 'bg-zinc-100 text-zinc-400' : 'bg-black text-white'}`}>{report.status}</span>
+                                        </td>
+                                        <td className="px-10 py-8 text-right">
+                                            <div className="flex items-center justify-end gap-2">
+                                                <button className="p-3 bg-zinc-50 hover:bg-black hover:text-white transition-all rounded-xl"><IconEye /></button>
+                                                <button className="p-3 bg-zinc-50 hover:bg-black hover:text-white transition-all rounded-xl text-red-500"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><line x1="17" y1="8" x2="22" y2="13" /><line x1="22" y1="8" x2="17" y2="13" /></svg></button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- TOOLS ---
+        const Tools = () => {
+            const tools = [
+                { title: 'Purge CDN', icon: <IconZap />, color: 'text-orange-500', description: 'Flush global assets and edge locations.' },
+                { title: 'Firestore Audit', icon: <IconDashboard />, color: 'text-blue-500', description: 'Check for document integrity and orphans.' },
+                { title: 'Export GDPR', icon: <IconUsers />, color: 'text-emerald-500', description: 'Generate full encrypted user archives.' },
+                { title: 'Reset Tokens', icon: <IconShield />, color: 'text-red-500', description: 'Force re-authentication across all clients.' },
+                { title: 'DB Vacuum', icon: <IconDashboard />, color: 'text-purple-500', description: 'Optimize database storage and indexing.' },
+                { title: 'SSL Renewal', icon: <IconCheck />, color: 'text-cyan-500', description: 'Force refresh of security certificates.' },
+            ];
+
+            const logs = [
+                { type: 'success', text: '[SYSTEM] Authenticated as root_admin@connect2025.local' },
+                { type: 'info', text: '[INFO] Firestore Snapshot Listener initialized successfully' },
+                { type: 'warn', text: '[WARN] High memory pressure detected in edge_node_4' },
+                { type: 'error', text: '[CRITICAL] Failed to sync document: users/AX72-B1' },
+                { type: 'success', text: '[SYNC] Legacy assets migration 82% complete' },
+            ];
+
+            return (
+                <div className="space-y-12 animate-in slide-in-from-right duration-700">
+                    <div className="space-y-1">
+                        <h1 className="text-4xl font-black tracking-tighter uppercase italic">System Utilities</h1>
+                        <p className="text-zinc-400 text-[10px] font-bold uppercase tracking-widest">Maintenance Control</p>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        {[
+                            { label: 'DB Latency', value: '38ms', sub: 'Optimal' },
+                            { label: 'CPU Usage', value: '14%', sub: 'Balanced' },
+                            { label: 'Storage', value: '76%', sub: 'Safe Range' },
+                        ].map((stat, i) => (
+                            <div key={i} className="bg-white border border-zinc-100 p-8 rounded-[2.5rem] shadow-sm">
+                                <p className="text-[10px] font-black text-zinc-300 uppercase tracking-widest mb-4">{stat.label}</p>
+                                <p className="text-4xl font-black tracking-tighter">{stat.value}</p>
+                                <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-2">{stat.sub}</p>
+                            </div>
+                        ))}
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {tools.map((t, i) => (
+                            <motion.button
+                                key={i}
+                                whileHover={{ scale: 1.02 }}
+                                whileTap={{ scale: 0.98 }}
+                                className="bg-white border border-zinc-100 p-8 rounded-[2.5rem] text-left group hover:border-black transition-colors shadow-sm"
+                            >
+                                <div className={`p-4 bg-zinc-50 rounded-2xl w-fit mb-6 group-hover:bg-black group-hover:text-white transition-all ${t.color}`}>{t.icon}</div>
+                                <h3 className="font-black text-xs uppercase tracking-[0.2em] mb-2">{t.title}</h3>
+                                <p className="text-[10px] text-zinc-400 font-bold leading-relaxed">{t.description}</p>
+                            </motion.button>
+                        ))}
+                    </div>
+
+                    <div className="bg-black rounded-[3rem] p-10 overflow-hidden relative group">
+                        <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:opacity-20 transition-opacity">
+                            <svg width="120" height="120" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-white"><path d="M4 17l6-6-6-6M12 19h8" /></svg>
+                        </div>
+                        <div className="relative z-10 space-y-6">
+                            <div className="flex items-center gap-4 border-b border-white/10 pb-6">
+                                <div className="h-3 w-3 bg-red-500 rounded-full animate-pulse"></div>
+                                <div className="h-3 w-3 bg-yellow-400 rounded-full"></div>
+                                <div className="h-3 w-3 bg-green-500 rounded-full"></div>
+                                <span className="text-[10px] font-black text-white/30 uppercase tracking-[0.5em] ml-4">Terminal Live Diagnostics</span>
+                            </div>
+                            <div className="font-mono text-[10px] space-y-2 max-h-60 overflow-y-auto no-scrollbar">
+                                {logs.map((log, i) => (
+                                    <p key={i} className={`
+                                        ${log.type === 'success' ? 'text-green-500' : ''}
+                                        ${log.type === 'error' ? 'text-red-500' : ''}
+                                        ${log.type === 'warn' ? 'text-yellow-500' : ''}
+                                        ${log.type === 'info' ? 'text-blue-400' : ''}
+                                    `}>
+                                        {log.text}
+                                    </p>
+                                ))}
+                                <p className="text-white animate-pulse">_</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const Sidebar = ({ current, setPage }) => {
+            const menu = [
+                { id: 'dashboard', label: 'Dashboard', icon: <IconDashboard /> },
+                { id: 'users', label: 'Usuarios', icon: <IconUsers /> },
+                { id: 'verifications', label: 'Verificaciones', icon: <IconShield /> },
+                { id: 'boosts', label: 'Impulsos', icon: <IconZap /> },
+                { id: 'ads', label: 'Anuncios', icon: <IconMegaphone /> },
+                { id: 'publications', label: 'Moderación', icon: <IconFileText /> },
+                { id: 'reports', label: 'Reportes', icon: <IconFlag /> },
+                { id: 'notifications', label: 'Notificaciones', icon: <IconBell /> },
+                { id: 'tools', label: 'Herramientas', icon: <IconTool /> },
+            ];
+
+            return (
+                <div className="w-72 h-screen bg-black text-white flex flex-col fixed left-0 top-0 z-50">
+                    <div className="p-10">
+                        <h2 className="text-3xl font-black tracking-tighter uppercase leading-none">CONNECT</h2>
+                        <div className="h-1 w-8 bg-zinc-800 mt-2 rounded-full"></div>
+                    </div>
+                    <nav className="flex-1 px-6 space-y-2 overflow-y-auto relative">
+                        {menu.map(item => (
+                            <button
+                                key={item.id}
+                                onClick={() => setPage(item.id)}
+                                className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl text-sm font-bold transition-all relative z-10 ${current === item.id ? 'text-black' : 'text-zinc-500 hover:text-white'}`}
+                            >
+                                {current === item.id && (
+                                    <motion.div
+                                        layoutId="piano-key"
+                                        className="absolute inset-0 bg-white rounded-2xl -z-10 shadow-lg"
+                                        transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                                    />
+                                )}
+                                <span className={current === item.id ? 'text-black' : 'text-zinc-700'}>{item.icon}</span>
+                                {item.label}
+                            </button>
+                        ))}
+                    </nav>
+                    <div className="p-8 border-t border-zinc-900">
+                        <button onClick={() => auth.signOut()} className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest text-red-500 hover:bg-red-500/10 transition-all">
+                            Salir del Sistema
+                        </button>
+                    </div>
+                </div>
+            );
+        };
+
+        const App = () => {
+            const [page, setPage] = useState('dashboard');
+
+            return (
+                <AuthGuard>
+                    {(user) => (
+                        <div className="flex min-h-screen bg-white">
+                            <Sidebar current={page} setPage={setPage} />
+                            <main className="ml-72 flex-1 p-16 overflow-x-hidden">
+                                <header className="flex justify-between items-center mb-20">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-2 h-2 rounded-full bg-black"></div>
+                                        <div className="text-[10px] font-black text-zinc-300 uppercase tracking-[0.4em]">SYSTEM MASTER v2.0</div>
+                                    </div>
+                                    <div className="flex items-center gap-8">
+                                        <div className="text-right">
+                                            <p className="text-sm font-black tracking-tighter leading-none mb-1 text-black uppercase">{user.displayName || 'Root Admin'}</p>
+                                            <p className="text-[9px] text-zinc-300 font-bold uppercase tracking-widest italic">Authorized Operator</p>
+                                        </div>
+                                        <div className="w-14 h-14 bg-black rounded-[1.5rem] transition-all hover:rotate-6 hover:scale-110 shadow-xl shadow-black/10 flex items-center justify-center p-0.5 border-2 border-zinc-100">
+                                            <img src={`https://ui-avatars.com/api/?name=${user.email}&background=000&color=fff&bold=true&rounded=true`} className="rounded-[1.2rem]" />
+                                        </div>
+                                    </div>
+                                </header>
+
+                                <div className="max-w-7xl mx-auto">
+                                    <AnimatePresence mode="wait">
+                                        <motion.div
+                                            key={page}
+                                            initial={{ opacity: 0, x: 20 }}
+                                            animate={{ opacity: 1, x: 0 }}
+                                            exit={{ opacity: 0, x: -20 }}
+                                            transition={{ type: "spring", bounce: 0, duration: 0.5 }}
+                                        >
+                                            {page === 'dashboard' && <Dashboard />}
+                                            {page === 'users' && <Users />}
+                                            {page === 'verifications' && <Verifications />}
+                                            {page === 'publications' && <Moderation />}
+                                            {page === 'notifications' && <Notifications />}
+                                            {page === 'boosts' && <Boosts />}
+                                            {page === 'ads' && <Ads />}
+                                            {page === 'reports' && <Reports />}
+                                            {page === 'tools' && <Tools />}
+                                        </motion.div>
+                                    </AnimatePresence>
+                                </div>
+                            </main>
+                        </div>
+                    )}
+                </AuthGuard>
+            );
+        };
+
+        const container = document.getElementById('root');
+        const root = ReactDOM.createRoot(container);
+        root.render(<App />);
+    </script>
+</body>
+
+</html>

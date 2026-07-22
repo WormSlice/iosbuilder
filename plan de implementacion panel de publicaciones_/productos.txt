@@ -1,0 +1,12 @@
+*PUBLICACIÓN PRODUCTOS*
+
+1. FOTOS 
+2. ⁠Título “Max 40 caracteres” 
+3. ⁠precio 
+4. Descripción “Minimo 40 caracteres”
+5. Categoría 
+6. Estado “nuevo, como nuevo, usado, restaurado” 
+7. método de envío “domicilio, envío nacional, Contraentrega, recoger en punto físico” 
+8. Garantía “0/24 meses” 
+9. ⁠Modo trueque “si/no” 
+10. ⁠Ubicación “escoja en qué ciudad publicar, aplican todas las ciudades de Colombia. Solo puede escoger 

@@ -1,0 +1,15 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "VFWHFP2459.com.connectapp.co",
+        "paths": [
+          "/p/*",
+          "/w/*",
+          "/u/*"
+        ]
+      }
+    ]
+  }
+}

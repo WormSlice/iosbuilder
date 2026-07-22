@@ -1,0 +1,137 @@
+name: connect
+description: "A new Flutter project."
+publish_to: 'none'
+
+version: 1.1.5+11
+
+environment:
+  sdk: ^3.10.1
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+
+  # Firebase
+  firebase_core: ^3.8.1
+  firebase_auth: ^5.1.4
+  cloud_firestore: ^5.3.1
+  firebase_messaging: ^15.0.0
+  google_sign_in: ^6.2.1
+  sign_in_with_apple: ^6.1.1
+  provider: ^6.1.2
+  shared_preferences: ^2.2.2
+  uuid: ^4.2.0
+  cached_network_image: ^3.4.1
+  image_picker: ^1.1.2
+  firebase_storage: ^12.3.2
+  intl: ^0.19.0
+  google_maps_flutter: ^2.5.3
+  flutter_local_notifications: ^20.0.0
+  record: ^6.1.2
+  audioplayers: ^6.5.1
+  path_provider: ^2.1.5
+  permission_handler: ^12.0.1
+  geolocator: ^11.0.0
+  file_picker: ^8.0.0
+  url_launcher: ^6.2.5
+  speech_to_text: ^7.3.0
+  google_generative_ai: ^0.4.7
+  qr_flutter: ^4.1.0
+  overlay_support: ^2.1.0
+  open_file: ^3.5.11
+  geocoding: ^4.0.0
+  flutter_ringtone_player: ^4.0.0+4
+  flutter_webrtc: ^1.3.0
+  share_plus: ^12.0.1
+  app_links: ^7.0.0
+  camera: ^0.11.0
+  google_mlkit_face_detection: ^0.13.0
+  meilisearch: ^0.18.0
+  device_info_plus: ^12.3.0
+  timeago: ^3.7.1
+  translator: ^1.0.4+1
+  algoliasearch: ^1.47.2
+  http: ^1.6.0
+  youtube_explode_dart: ^3.1.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_launcher_icons: ^0.13.1
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - Diseños/
+    - assets/
+    - assets/iconos/AssetsCPu/productos.png
+    - assets/iconos/AssetsCPu/servicios.png
+    - assets/iconos/AssetsCPu/empleos.png
+    - assets/iconos/AssetsCPu/vehiculos.png
+    - assets/iconos/AssetsCPu/propiedades.png
+    - assets/iconos/AssetsCPu/mascotas.png
+    - assets/iconos/AssetsCPu/alquiler.png
+    - assets/iconos/AssetsCPu/trueques.png
+    - assets/images/logo.png
+    - assets/iconos/inicio.png
+    - assets/iconos/chat.png
+    - assets/iconos/usuario.png
+    - assets/iconos/instagram.png
+    - assets/iconos/facebook.png
+    - assets/iconos/whatsapp.png
+    - assets/iconos/tik-tok.png
+    - assets/iconos/cargar.png
+    - assets/iconos/publicaciones.png
+    - assets/iconos/reseñas.png
+    - assets/iconos/info.png
+    - assets/iconos/compartir.png
+    - imgenes/
+
+  fonts:
+    - family: BankGothic
+      fonts:
+        - asset: assets/fonts/Bank Gothic Light Regular.otf
+          weight: 400
+    - family: Poppins
+      fonts:
+        - asset: assets/fonts/Archivo_Black,Poppins/Poppins/Poppins-ExtraLight.ttf
+          weight: 200
+        - asset: assets/fonts/Archivo_Black,Poppins/Poppins/Poppins-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Archivo_Black,Poppins/Poppins/Poppins-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Archivo_Black,Poppins/Poppins/Poppins-Bold.ttf
+          weight: 700
+    - family: ArchivoBlack
+      fonts:
+        - asset: assets/fonts/Archivo_Black,Poppins/Archivo_Black/ArchivoBlack-Regular.ttf
+          weight: 400
+    - family: Alexandria
+      fonts:
+        - asset: assets/fonts/Alexandria/Alexandria-VariableFont_wght.ttf
+    - family: MontserratArabic
+      fonts:
+        - asset: assets/fonts/Montserrat-Arabic Light 300.otf
+          weight: 300
+    - family: CanvaSans
+      fonts:
+        - asset: assets/fonts/Canva-Sans-Regular/Typeface/Canva Sans/Desktop/CanvaSans-Medium.otf
+    - family: LeagueSpartan
+      fonts:
+        - asset: assets/fonts/League_Spartan/LeagueSpartan-VariableFont_wght.ttf
+    - family: BebasNeue
+      fonts:
+        - asset: assets/fonts/BebasNeue-Regular.ttf
+    - family: Arimo
+      fonts:
+        - asset: assets/fonts/arimo-regular-maisfontes.a473/arimo-regular.ttf
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: assets/images/logo.png
+  min_sdk_android: 21

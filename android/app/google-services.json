@@ -1,0 +1,138 @@
+{
+  "project_info": {
+    "project_number": "749754037761",
+    "project_id": "connect2025-37b7c",
+    "storage_bucket": "connect2025-37b7c.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:749754037761:android:b437cf6d2f56f3a0733200",
+        "android_client_info": {
+          "package_name": "com.connectapp.co"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "749754037761-vu8o6iru6mmbjsvjnjlgspr1bh8v0bb0.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.connectapp.co",
+            "certificate_hash": "fc08be105a2e63bf02102302c9e4f0b29821c010"
+          }
+        },
+        {
+          "client_id": "749754037761-hss3gknjferi1errhbl7p9olcs0r0gvp.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDLb-a9BehwwbgUFKgY2oUQlwgYrbQFKZU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "749754037761-hss3gknjferi1errhbl7p9olcs0r0gvp.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "749754037761-57hheott5qftrrvoob6l5ajhocr274h1.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "connectquarklcloud"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:749754037761:android:422ac25e0b5e75a7733200",
+        "android_client_info": {
+          "package_name": "com.example.flutterprueba"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "749754037761-2kc4h875db5fp1k7llq8r8jjj497j4jk.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.flutterprueba",
+            "certificate_hash": "d23f539564009ea98e7aec7af46c304721ec26c9"
+          }
+        },
+        {
+          "client_id": "749754037761-5f29rfb11kfrt9n5eprmod25m1eh7fql.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.flutterprueba",
+            "certificate_hash": "c86e18f7da300792acc2833fea7af307eae716d4"
+          }
+        },
+        {
+          "client_id": "749754037761-6c595mbi1knb4rqbq3t8v94t34cmhq5l.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.flutterprueba",
+            "certificate_hash": "4cb2b3f650393a8034dcd764d329b79409887599"
+          }
+        },
+        {
+          "client_id": "749754037761-egcm45ueuhsr5aomh5fhn05fb53e7f3s.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.flutterprueba",
+            "certificate_hash": "98dfcb2d7c8b877880b79cfc20c21bf0810f91a3"
+          }
+        },
+        {
+          "client_id": "749754037761-f4hi87guao5oak1gjnmbbo536lnnibu0.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.flutterprueba",
+            "certificate_hash": "fc08be105a2e63bf02102302c9e4f0b29821c010"
+          }
+        },
+        {
+          "client_id": "749754037761-l12nod6urcrigcgc8vv1fnrja0n1sd66.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.flutterprueba",
+            "certificate_hash": "281ca6ff535ded5c5fc6fe2cda817fb07b581631"
+          }
+        },
+        {
+          "client_id": "749754037761-hss3gknjferi1errhbl7p9olcs0r0gvp.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDLb-a9BehwwbgUFKgY2oUQlwgYrbQFKZU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "749754037761-hss3gknjferi1errhbl7p9olcs0r0gvp.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "749754037761-57hheott5qftrrvoob6l5ajhocr274h1.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "connectquarklcloud"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

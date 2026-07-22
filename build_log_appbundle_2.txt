@@ -1,0 +1,17 @@
+Running Gradle task 'bundleRelease'...                          
+Your project is configured with Android NDK 27.0.12077973, but the following plugin(s) depend on a different Android NDK version:
+- speech_to_text requires Android NDK 28.2.13676358
+Fix this issue by using the highest Android NDK version (they are backward compatible).
+Add the following to /Users/duvanconde/Documents/proyectos/CONNECT/android/app/build.gradle.kts:
+
+    android {
+        ndkVersion = "28.2.13676358"
+        ...
+    }
+Font asset "MaterialIcons-Regular.otf" was tree-shaken, reducing it from 1645184 to 13880 bytes (99.2% reduction). Tree-shaking can be disabled by providing the --no-tree-shake-icons flag when building your app.
+Running Gradle task 'bundleRelease'...                             85,1s
+Release app bundle failed to strip debug symbols from native libraries.
+Please run flutter doctor and ensure that the Android toolchain does not
+report any issues.
+
+Otherwise, file an issue at https://github.com/flutter/flutter/issues.
