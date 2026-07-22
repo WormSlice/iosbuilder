@@ -190,12 +190,19 @@ jobs:
 
           if [ "$PROJECT_TYPE" = "flutter" ]; then
             cd ..
-            if [ "$CONFIGURATION" = "Debug" ]; then
-              echo "Building Flutter iOS Debug..."
-              flutter build ios --debug --no-codesign
+            if [ "$USE_SIGNING" = "true" ]; then
+              echo "Building Flutter IPA (Release)..."
+              flutter build ipa --release --no-export
+              mkdir -p build
+              cp -R build/ios/archive/Runner.xcarchive build/App.xcarchive
             else
-              echo "Building Flutter iOS Release..."
-              flutter build ios --release --no-codesign
+              if [ "$CONFIGURATION" = "Debug" ]; then
+                echo "Building Flutter iOS Debug..."
+                flutter build ios --debug --no-codesign
+              else
+                echo "Building Flutter iOS Release..."
+                flutter build ios --release --no-codesign
+              fi
             fi
             cd "$IOS_PATH"
           elif [ "$PROJECT_TYPE" = "reactnative" ] || [ "$PROJECT_TYPE" = "expo" ]; then
