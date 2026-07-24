@@ -22,7 +22,7 @@ import {
     Menu
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { sendEmail } from '../services/mailgun';
+import { sendEmail } from '../services/mailersend';
 import {
     saveMail,
     subscribeToMail,

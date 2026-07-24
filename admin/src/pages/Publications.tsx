@@ -48,7 +48,7 @@ export const Publications: React.FC = () => {
         setIsSyncing(true);
         try {
             const { algoliasearch } = await import('algoliasearch');
-            const client = algoliasearch('P2CJMQDDSH', '99ec76cf710a0324bccd1f008514eb36');
+            const client = algoliasearch('P2CJMQDDSH', '4aa72340abeb49d79d888cc3271c23b1');
             
             const sanitizeData = (data: any): any => {
                 const clean = { ...data };
@@ -81,7 +81,7 @@ export const Publications: React.FC = () => {
                 const batchSize = 50;
                 for (let i = 0; i < postsBatch.length; i += batchSize) {
                     const batch = postsBatch.slice(i, i + batchSize);
-                    await client.batch({ indexName: 'posts', batchWriteParams: { requests: batch as any } });
+                    await client.batch({ indexName: 'ALGOLIA', batchWriteParams: { requests: batch as any } });
                 }
             }
 

@@ -124,28 +124,36 @@ class AuthService {
 
     if (method == 'email') {
       try {
-        final auth = base64Encode(utf8.encode('api:0b7c4497295d2319888303bd9120f5f9-ccbfdc2c-c034af37'));
+        final token = 'mlsn.fab96f60860be7782cf156dbada87ac67bfd065521b4c3d8da32c17d49a9e630';
         final response = await http.post(
-          Uri.parse('https://api.mailgun.net/v3/connectapp.com.co/messages'),
+          Uri.parse('https://api.mailersend.com/v1/email'),
           headers: {
-            'Authorization': 'Basic $auth',
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
           },
-          body: {
-            'from': 'CONNECT <contacto@connectapp.com.co>',
-            'to': email,
+          body: jsonEncode({
+            'from': {
+              'email': 'contacto@connectapp.com.co',
+              'name': 'CONNECT'
+            },
+            'to': [
+              {
+                'email': email
+              }
+            ],
             'subject': 'Código de Verificación 2FA - CONNECT',
             'text': 'Tu código de verificación es: $code\nEste código expira en 5 minutos.',
-            'html': '<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px; text-align: center; background-color: #f9f9f9;"><h2 style="color: #1E88E5; margin-bottom: 20px; font-weight: bold; letter-spacing: 2px;">CONNECT</h2><p style="font-size: 16px; color: #333;">Hola,</p><p style="font-size: 16px; color: #333;">Tu código de verificación seguro de dos pasos es:</p><div style="font-size: 32px; font-weight: bold; color: #fff; background-color: #1E88E5; padding: 15px 30px; margin: 20px auto; width: fit-content; border-radius: 8px; letter-spacing: 4px;">$code</div><p style="font-size: 14px; color: #777;">Este código expira en 5 minutos. No compartas esto con nadie.</p></div>',
-          },
+            'html': '<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px; text-align: center; background-color: #f9f9f9;"><h2 style="color: #1E88E5; margin-bottom: 20px; font-weight: bold; letter-spacing: 2px;">CONNECT</h2><p style="font-size: 16px; color: #333;">Hola,</p><p style="font-size: 16px; color: #333;">Tu código de verificación seguro de dos pasos es:</p><div style="font-size: 32px; font-weight: bold; color: #fff; background-color: #1E88E5; padding: 15px 30px; margin: 20px auto; width: fit-content; border-radius: 8px; letter-spacing: 4px;">$code</div><p style="font-size: 14px; color: #777;">Este código expira en 5 minutos. No compartas esto con nadie.</p></div>'
+          }),
         );
 
         if (response.statusCode >= 200 && response.statusCode < 300) {
-          print('DEBUG: 2FA Code sent to Email ($email) via MailGun API: $code');
+          print('DEBUG: 2FA Code sent to Email ($email) via MailerSend API: $code');
         } else {
-          print('Error en MailGun 2FA: ${response.statusCode} - ${response.body}');
+          print('Error en MailerSend 2FA: ${response.statusCode} - ${response.body}');
         }
       } catch (e) {
-        print('Error de conexión MailGun 2FA: $e');
+        print('Error de conexión MailerSend 2FA: $e');
       }
     } else if (method == 'sms') {
       // Logic to send SMS (Firebase Auth verification could be used or external provider)
