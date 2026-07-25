@@ -9,6 +9,8 @@ import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final GoogleSignIn _google = GoogleSignIn();
@@ -124,7 +126,7 @@ class AuthService {
 
     if (method == 'email') {
       try {
-        final token = 'mlsn.fab96f60860be7782cf156dbada87ac67bfd065521b4c3d8da32c17d49a9e630';
+        final token = dotenv.env['MAILERSEND_API_KEY'] ?? '';
         final response = await http.post(
           Uri.parse('https://api.mailersend.com/v1/email'),
           headers: {

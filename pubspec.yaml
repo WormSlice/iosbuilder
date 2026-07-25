@@ -54,6 +54,7 @@ dependencies:
   algoliasearch: ^1.49.2
   http: ^1.6.0
   youtube_explode_dart: ^3.1.0
+  flutter_dotenv: ^6.0.1
 
 dev_dependencies:
   flutter_test:
@@ -65,6 +66,7 @@ flutter:
   uses-material-design: true
 
   assets:
+    - .env
     - Diseños/
     - assets/
     - assets/iconos/AssetsCPu/productos.png

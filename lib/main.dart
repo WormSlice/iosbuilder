@@ -4,8 +4,11 @@ import 'app.dart';
 import 'services/messaging_service.dart';
 import 'services/local_notification_service.dart'; // Assuming this import is needed for LocalNotificationService
 
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(fileName: ".env");
   await Firebase.initializeApp();
 
   // No bloquear el inicio de la interfaz con servicios secundarios
