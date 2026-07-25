@@ -23,6 +23,11 @@ export default defineConfig({
                     delete proxyRes.headers['www-authenticate'];
                 }
             },
+            '/api/mailersend': {
+                target: 'https://api.mailersend.com/v1',
+                changeOrigin: true,
+                rewrite: (path) => path.replace(/^\/api\/mailersend/, '')
+            },
             '/api/mailgun-storage': {
                 target: 'https://storage.mailgun.net/v3',
                 changeOrigin: true,

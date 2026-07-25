@@ -4,7 +4,7 @@
  */
 
 const API_KEY = import.meta.env.VITE_MAILERSEND_API_KEY;
-const BASE_URL = 'https://api.mailersend.com/v1';
+const BASE_URL = import.meta.env.DEV ? '/api/mailersend' : 'https://api.mailersend.com/v1';
 
 export interface EmailData {
     to: string;
