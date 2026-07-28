@@ -25,7 +25,7 @@ export const About: React.FC = () => {
                         </div>
                     </div>
 
-                    <div className="space-y-12 bg-white/[0.02] p-8 md:p-12 rounded-[2.5rem] border border-white/[0.05]">
+                    <div className="space-y-12 glass-panel/[0.02] p-8 md:p-12 rounded-[2.5rem] border border-white/[0.05]">
                         <div className="space-y-2">
                             <h3 className="text-[10px] font-black uppercase tracking-widest text-primary">Enfoque Tecnológico</h3>
                             <p className="text-base font-black text-white">Infraestructura Distribuida</p>

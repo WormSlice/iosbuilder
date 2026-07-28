@@ -23,7 +23,7 @@ export const AuthGuard: React.FC<AuthGuardProps> = ({ children, adminOnly = true
 
     if (loading) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-white">
+            <div className="min-h-screen flex items-center justify-center glass-panel">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
             </div>
         );

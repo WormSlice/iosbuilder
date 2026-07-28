@@ -152,9 +152,9 @@ export const Mail: React.FC = () => {
             resetForm();
             setIsComposing(false);
             alert('¡Correo enviado con éxito!');
-        } catch (error) {
+        } catch (error: any) {
             console.error(error);
-            alert('Error al enviar el correo.');
+            alert(error.message || 'Error al enviar el correo.');
         } finally {
             setIsSending(false);
         }
@@ -202,7 +202,7 @@ export const Mail: React.FC = () => {
     return (
         <div className="relative min-h-[calc(100vh-120px)] flex flex-col">
             {/* Top Bar - Account Selector */}
-            <div className="flex justify-between items-center mb-8 bg-zinc-50 p-4 rounded-3xl border border-zinc-100 flex-wrap gap-4">
+            <div className="flex justify-between items-center mb-8 glass-button p-4 rounded-3xl border border-zinc-100 flex-wrap gap-4">
                 <div className="flex items-center gap-4">
                     <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
                         <MailIcon className="text-primary" size={20} />
@@ -214,12 +214,12 @@ export const Mail: React.FC = () => {
                                 <span className="text-sm font-black tracking-tight">{selectedAccount}</span>
                                 <ChevronDown size={14} className="text-zinc-400 group-hover:text-black transition-colors" />
                             </div>
-                            <div className="absolute top-full left-0 mt-2 w-64 bg-white border border-zinc-100 rounded-2xl shadow-premium opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 p-2">
+                            <div className="absolute top-full left-0 mt-2 w-64 glass-panel border border-zinc-100 rounded-2xl shadow-premium opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 p-2">
                                 {accounts.map(acc => (
                                     <button
                                         key={acc}
                                         onClick={() => setSelectedAccount(acc)}
-                                        className="w-full text-left px-4 py-3 text-xs font-bold hover:bg-zinc-50 rounded-xl transition-all"
+                                        className="w-full text-left px-4 py-3 text-xs font-bold hover:glass-button rounded-xl transition-all"
                                     >
                                         {acc}
                                     </button>
@@ -232,7 +232,7 @@ export const Mail: React.FC = () => {
                 <div className="relative max-w-xs w-full">
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-300" size={14} />
                     <input
-                        className="w-full bg-white border-zinc-100 rounded-xl pl-10 pr-4 py-2 text-[10px] font-bold outline-none focus:border-black transition-all"
+                        className="w-full glass-panel border-zinc-100 rounded-xl pl-10 pr-4 py-2 text-[10px] font-bold outline-none focus:border-black transition-all"
                         placeholder="Buscar correos..."
                     />
                 </div>
@@ -240,12 +240,12 @@ export const Mail: React.FC = () => {
 
             <div className="flex flex-1 gap-8 relative overflow-hidden">
                 {/* Main Content Area */}
-                <div className="flex-1 bg-white border border-zinc-100 rounded-[3rem] p-8 shadow-sm relative flex flex-col min-w-0">
+                <div className="flex-1 glass-panel border border-zinc-100 rounded-[3rem] p-8 shadow-sm relative flex flex-col min-w-0">
                     <div className="flex justify-between items-center mb-6">
                         <h2 className="text-lg font-black tracking-tighter uppercase">{categories.find(c => c.id === activeCategory)?.label}</h2>
                         <button
                             onClick={handleRefresh}
-                            className="p-3 text-zinc-400 hover:text-black bg-zinc-50 rounded-xl transition-all flex items-center gap-2 text-[9px] font-black uppercase tracking-widest"
+                            className="p-3 text-zinc-400 hover:text-black glass-button rounded-xl transition-all flex items-center gap-2 text-[9px] font-black uppercase tracking-widest"
                         >
                             <RefreshCw size={14} /> Actualizar
                         </button>
@@ -261,9 +261,9 @@ export const Mail: React.FC = () => {
                                     animate={{ opacity: 1, x: 0 }}
                                     exit={{ opacity: 0, scale: 0.95 }}
                                     onClick={() => setSelectedMail(log)}
-                                    className="flex items-center gap-6 p-5 hover:bg-zinc-50 rounded-3xl transition-all group cursor-pointer border border-transparent hover:border-zinc-100"
+                                    className="flex items-center gap-6 p-5 hover:glass-button rounded-3xl transition-all group cursor-pointer border border-transparent hover:border-zinc-100"
                                 >
-                                    <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden bg-zinc-100 shrink-0 border border-zinc-50 shadow-inner">
+                                    <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden glass-button shrink-0 border border-zinc-50 shadow-inner">
                                         <img
                                             src={getAvatarUrl(activeCategory === 'sent' ? log.to : log.from)}
                                             alt="Avatar"
@@ -293,7 +293,7 @@ export const Mail: React.FC = () => {
                                                 e.stopPropagation();
                                                 handleMoveToTrash(log.id, log.category);
                                             }}
-                                            className="opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-zinc-100 rounded-lg text-zinc-400 hover:text-red-500"
+                                            className="opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:glass-button rounded-lg text-zinc-400 hover:text-red-500"
                                         >
                                             <Trash2 size={14} />
                                         </button>
@@ -317,18 +317,18 @@ export const Mail: React.FC = () => {
                 </div>
 
                 {/* Categories Right Navbar */}
-                <div className="w-20 hidden sm:flex flex-col gap-4 bg-zinc-900 rounded-[2.5rem] p-4 shadow-premium h-fit">
+                <div className="w-20 hidden sm:flex flex-col gap-4 glass-panel-dark rounded-[2.5rem] p-4 shadow-premium h-fit">
                     {categories.map((cat) => (
                         <button
                             key={cat.id}
                             onClick={() => setActiveCategory(cat.id as any)}
-                            className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all group relative ${activeCategory === cat.id ? 'bg-primary text-white scale-110' : 'bg-zinc-800 text-zinc-500 hover:text-white hover:bg-zinc-700'
+                            className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all group relative ${activeCategory === cat.id ? 'bg-primary text-white scale-110' : 'glass-panel-dark text-zinc-500 hover:text-white hover:bg-zinc-700'
                                 }`}
                         >
                             <cat.icon size={20} strokeWidth={activeCategory === cat.id ? 2.5 : 2} />
 
                             {/* Tooltip */}
-                            <div className="absolute right-full mr-4 bg-black text-white px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all whitespace-nowrap pointer-events-none border border-zinc-800 translate-x-2 group-hover:translate-x-0">
+                            <div className="absolute right-full mr-4 glass-panel-dark text-white px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all whitespace-nowrap pointer-events-none border border-zinc-800 translate-x-2 group-hover:translate-x-0">
                                 {cat.label}
                             </div>
                         </button>
@@ -349,12 +349,12 @@ export const Mail: React.FC = () => {
             {/* Compose Modal Overlay */}
             <AnimatePresence>
                 {isComposing && (
-                    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4 sm:p-8">
+                    <div className="fixed inset-0 glass-panel-dark backdrop-blur-sm z-[100] flex items-center justify-center p-4 sm:p-8">
                         <motion.div
                             initial={{ opacity: 0, scale: 0.9, y: 20 }}
                             animate={{ opacity: 1, scale: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                            className="bg-white rounded-[2.5rem] sm:rounded-[3.5rem] w-full max-w-4xl max-h-[90vh] shadow-2xl relative flex flex-col overflow-hidden"
+                            className="glass-panel rounded-[2.5rem] sm:rounded-[3.5rem] w-full max-w-4xl max-h-[90vh] shadow-2xl relative flex flex-col overflow-hidden"
                         >
                             <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -mr-32 -mt-32"></div>
 
@@ -379,7 +379,7 @@ export const Mail: React.FC = () => {
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div className="space-y-3">
                                         <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 ml-2">De</label>
-                                        <div className="w-full bg-zinc-50 border border-zinc-100 rounded-2xl px-6 py-4 text-xs font-bold text-zinc-400">
+                                        <div className="w-full glass-button border border-zinc-100 rounded-2xl px-6 py-4 text-xs font-bold text-zinc-400">
                                             {selectedAccount}
                                         </div>
                                     </div>
@@ -388,7 +388,7 @@ export const Mail: React.FC = () => {
                                         <input
                                             value={to}
                                             onChange={(e) => setTo(e.target.value)}
-                                            className="w-full bg-zinc-50 border border-zinc-100 rounded-2xl px-6 py-4 text-xs font-bold outline-none focus:border-primary transition-all"
+                                            className="w-full glass-button border border-zinc-100 rounded-2xl px-6 py-4 text-xs font-bold outline-none focus:border-primary transition-all"
                                             placeholder="destinatario@email.com"
                                         />
                                     </div>
@@ -399,7 +399,7 @@ export const Mail: React.FC = () => {
                                     <input
                                         value={subject}
                                         onChange={(e) => setSubject(e.target.value)}
-                                        className="w-full bg-zinc-50 border border-zinc-100 rounded-2xl px-6 py-4 text-xs font-bold outline-none focus:border-primary transition-all"
+                                        className="w-full glass-button border border-zinc-100 rounded-2xl px-6 py-4 text-xs font-bold outline-none focus:border-primary transition-all"
                                         placeholder="Propósito oficial..."
                                     />
                                 </div>
@@ -410,7 +410,7 @@ export const Mail: React.FC = () => {
                                         <div className="flex gap-2">
                                             <button
                                                 onClick={() => fileInputRef.current?.click()}
-                                                className="flex items-center gap-2 px-3 py-1.5 bg-zinc-50 hover:bg-zinc-100 text-zinc-500 rounded-lg text-[9px] font-black uppercase tracking-tight transition-all"
+                                                className="flex items-center gap-2 px-3 py-1.5 glass-button hover:glass-button text-zinc-500 rounded-lg text-[9px] font-black uppercase tracking-tight transition-all"
                                             >
                                                 <LucidePaperclip size={12} /> adjuntar
                                             </button>
@@ -420,13 +420,13 @@ export const Mail: React.FC = () => {
                                     <textarea
                                         value={message}
                                         onChange={(e) => setMessage(e.target.value)}
-                                        className="w-full bg-zinc-50 border border-zinc-100 rounded-[2rem] px-8 py-8 text-xs font-bold outline-none focus:border-primary transition-all h-40 resize-none"
+                                        className="w-full glass-button border border-zinc-100 rounded-[2rem] px-8 py-8 text-xs font-bold outline-none focus:border-primary transition-all h-40 resize-none"
                                         placeholder="Escribe el cuerpo del mensaje..."
                                     />
                                 </div>
 
                                 {/* Link interactivo (Botón) */}
-                                <div className="bg-zinc-50/50 p-6 rounded-[2rem] border border-dashed border-zinc-200 space-y-4">
+                                <div className="glass-button p-6 rounded-[2rem] border border-dashed border-zinc-200 space-y-4">
                                     <p className="text-[9px] font-black uppercase tracking-widest text-zinc-400 flex items-center gap-2">
                                         <ExternalLink size={12} /> Botón Interactivo (CTA)
                                     </p>
@@ -434,13 +434,13 @@ export const Mail: React.FC = () => {
                                         <input
                                             value={ctaText}
                                             onChange={(e) => setCtaText(e.target.value)}
-                                            className="bg-white border border-zinc-100 rounded-xl px-4 py-3 text-[10px] font-bold outline-none focus:border-primary transition-all"
+                                            className="glass-panel border border-zinc-100 rounded-xl px-4 py-3 text-[10px] font-bold outline-none focus:border-primary transition-all"
                                             placeholder="Texto del botón (ej: Ver Pedido)"
                                         />
                                         <input
                                             value={ctaLink}
                                             onChange={(e) => setCtaLink(e.target.value)}
-                                            className="bg-white border border-zinc-100 rounded-xl px-4 py-3 text-[10px] font-bold outline-none focus:border-primary transition-all"
+                                            className="glass-panel border border-zinc-100 rounded-xl px-4 py-3 text-[10px] font-bold outline-none focus:border-primary transition-all"
                                             placeholder="URL (https://...)"
                                         />
                                     </div>
@@ -450,7 +450,7 @@ export const Mail: React.FC = () => {
                                 {attachments.length > 0 && (
                                     <div className="flex flex-wrap gap-2">
                                         {attachments.map((file, i) => (
-                                            <div key={i} className="flex items-center gap-2 bg-zinc-900 text-white px-3 py-1.5 rounded-xl text-[9px] font-bold group">
+                                            <div key={i} className="flex items-center gap-2 glass-panel-dark text-white px-3 py-1.5 rounded-xl text-[9px] font-bold group">
                                                 <ImageIcon size={12} className="text-primary" />
                                                 <span className="truncate max-w-[150px]">{file.name}</span>
                                                 <button onClick={() => removeAttachment(i)} className="text-zinc-500 hover:text-red-400">
@@ -463,13 +463,13 @@ export const Mail: React.FC = () => {
                             </div>
 
                             {/* Modal Footer */}
-                            <div className="p-8 pt-4 border-t border-zinc-50 bg-white relative z-10 flex justify-end">
+                            <div className="p-8 pt-4 border-t border-zinc-50 glass-panel relative z-10 flex justify-end">
                                 <motion.button
                                     whileHover={{ scale: 1.02 }}
                                     whileTap={{ scale: 0.98 }}
                                     onClick={handleSend}
                                     disabled={isSending || !to || !subject || !message}
-                                    className="w-full sm:w-auto px-16 bg-black text-white h-16 rounded-2xl font-black uppercase tracking-widest text-[10px] hover:shadow-2xl shadow-black/20 transition-all flex items-center justify-center gap-4 disabled:opacity-50"
+                                    className="w-full sm:w-auto px-16 glass-panel-dark text-white h-16 rounded-2xl font-black uppercase tracking-widest text-[10px] hover:shadow-2xl shadow-black/20 transition-all flex items-center justify-center gap-4 disabled:opacity-50"
                                 >
                                     {isSending ? <RefreshCw className="animate-spin" size={18} /> : <Send size={18} />}
                                     {isSending ? 'PROCESANDO...' : 'ENVIAR COMUNICACIÓN'}
@@ -483,26 +483,26 @@ export const Mail: React.FC = () => {
             {/* Detail View Modal */}
             <AnimatePresence>
                 {selectedMail && (
-                    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[110] flex items-center justify-center p-4">
+                    <div className="fixed inset-0 glass-panel-dark backdrop-blur-sm z-[110] flex items-center justify-center p-4">
                         <motion.div
                             initial={{ opacity: 0, scale: 0.9 }}
                             animate={{ opacity: 1, scale: 1 }}
                             exit={{ opacity: 0, scale: 0.9 }}
-                            className="bg-white rounded-[2.5rem] w-full max-w-2xl max-h-[85vh] shadow-2xl flex flex-col overflow-hidden"
+                            className="glass-panel rounded-[2.5rem] w-full max-w-2xl max-h-[85vh] shadow-2xl flex flex-col overflow-hidden"
                         >
                             <div className="p-8 pb-4 flex justify-between items-start">
                                 <div className="flex-1 pr-8">
                                     <p className="text-[10px] font-black uppercase text-primary tracking-[0.2em] mb-2">{selectedMail.category}</p>
                                     <h3 className="text-2xl font-black tracking-tighter leading-tight">{selectedMail.subject}</h3>
                                 </div>
-                                <button onClick={() => setSelectedMail(null)} className="text-zinc-300 hover:text-black p-2 bg-zinc-50 rounded-xl transition-all">
+                                <button onClick={() => setSelectedMail(null)} className="text-zinc-300 hover:text-black p-2 glass-button rounded-xl transition-all">
                                     <X size={24} />
                                 </button>
                             </div>
 
                             <div className="flex-1 overflow-y-auto px-8 pb-8 space-y-8 custom-scrollbar">
-                                <div className="flex items-center gap-4 bg-zinc-50 p-4 rounded-2xl border border-zinc-100">
-                                    <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center overflow-hidden border border-zinc-100 shadow-sm">
+                                <div className="flex items-center gap-4 glass-button p-4 rounded-2xl border border-zinc-100">
+                                    <div className="w-10 h-10 glass-panel rounded-xl flex items-center justify-center overflow-hidden border border-zinc-100 shadow-sm">
                                         <img
                                             src={getAvatarUrl(selectedMail.from)}
                                             alt={selectedMail.from}
@@ -518,7 +518,7 @@ export const Mail: React.FC = () => {
                                     </div>
                                 </div>
 
-                                <div className="bg-zinc-100/50 p-8 rounded-[2.5rem] relative overflow-hidden">
+                                <div className="glass-button p-8 rounded-[2.5rem] relative overflow-hidden">
                                     {/* Background Decor */}
                                     <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-2xl -mr-16 -mt-16"></div>
 
@@ -528,7 +528,7 @@ export const Mail: React.FC = () => {
                                 </div>
 
                                 {selectedMail.attachmentsCount ? (
-                                    <div className="p-4 bg-zinc-50 rounded-2xl border border-zinc-100 flex items-center gap-3">
+                                    <div className="p-4 glass-button rounded-2xl border border-zinc-100 flex items-center gap-3">
                                         <LucidePaperclip size={14} className="text-primary" />
                                         <p className="text-[9px] font-black uppercase tracking-wider">Este mensaje tiene {selectedMail.attachmentsCount} adjuntos</p>
                                         <p className="ml-auto text-[8px] font-bold text-zinc-400">(Visibles en MailGun)</p>
@@ -536,7 +536,7 @@ export const Mail: React.FC = () => {
                                 ) : null}
                             </div>
 
-                            <div className="p-8 pt-4 border-t border-zinc-50 bg-zinc-50/50 flex justify-between items-center">
+                            <div className="p-8 pt-4 border-t border-zinc-50 glass-button flex justify-between items-center">
                                 <button
                                     onClick={() => {
                                         handleMoveToTrash(selectedMail.id, selectedMail.category);
@@ -554,7 +554,7 @@ export const Mail: React.FC = () => {
                                         setIsComposing(true);
                                         setSelectedMail(null);
                                     }}
-                                    className="px-8 py-4 bg-black text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg hover:shadow-black/20"
+                                    className="px-8 py-4 glass-panel-dark text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg hover:shadow-black/20"
                                 >
                                     Responder
                                 </button>

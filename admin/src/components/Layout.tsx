@@ -46,20 +46,20 @@ export const Layout: React.FC = () => {
     };
 
     return (
-        <div className="flex min-h-screen bg-white text-zinc-900 font-inter">
+        <div className="flex min-h-screen bg-transparent text-zinc-900 font-inter">
             {/* Sidebar */}
             <motion.aside
-                animate={{ width: isCollapsed ? 100 : 288 }}
-                className="bg-black text-white flex flex-col border-r border-zinc-900 z-20 overflow-hidden relative"
+                animate={{ width: isCollapsed ? 80 : 260 }}
+                className={`text-white flex flex-col z-20 overflow-hidden relative transition-all duration-500 ${isCollapsed ? 'bg-transparent border-none' : 'glass-panel-dark border-r border-white/5'}`}
             >
-                <div className={`p-10 flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
+                <div className={`p-8 flex items-center ${isCollapsed ? 'justify-center mt-2' : 'justify-between'}`}>
                     <AnimatePresence mode="wait">
                         {!isCollapsed && (
                             <motion.h1
                                 initial={{ opacity: 0, x: -10 }}
                                 animate={{ opacity: 1, x: 0 }}
                                 exit={{ opacity: 0, x: -10 }}
-                                className="text-3xl font-black font-archivo tracking-tighter uppercase leading-none"
+                                className="text-2xl font-black font-archivo tracking-tighter uppercase leading-none text-white/90"
                             >
                                 CONNECT
                             </motion.h1>
@@ -67,48 +67,40 @@ export const Layout: React.FC = () => {
                     </AnimatePresence>
                     <button
                         onClick={() => setIsCollapsed(!isCollapsed)}
-                        className="text-zinc-600 hover:text-white transition-colors p-2 bg-zinc-900 rounded-lg"
+                        className={`text-white/60 hover:text-white transition-all p-2 rounded-xl ${isCollapsed ? 'glass-button' : 'hover:bg-white/10'}`}
                     >
-                        {isCollapsed ? <Menu size={16} /> : <ChevronRight size={16} className="rotate-180" />}
+                        {isCollapsed ? <Menu size={18} /> : <ChevronRight size={18} className="rotate-180" />}
                     </button>
                 </div>
 
-                {!isCollapsed && <div className="h-1 w-8 bg-zinc-800 ml-10 rounded-full"></div>}
+                {!isCollapsed && <div className="h-0.5 w-6 bg-white/20 ml-8 rounded-full mb-2"></div>}
 
-                <nav className="flex-1 px-6 space-y-2 mt-4">
+                <nav className={`flex-1 space-y-3 mt-4 ${isCollapsed ? 'px-3' : 'px-5'}`}>
                     {menuItems.map((item) => (
                         <NavLink
                             key={item.path}
                             to={item.path}
                             end={item.path === '/admin/dashboard'} // <--- Importante para que el dashboard no quede active siempre
                             className={({ isActive }: { isActive: boolean }) => `
-                                relative flex items-center gap-4 px-6 py-4 rounded-2xl text-sm font-bold transition-all group overflow-hidden
-                                ${isActive ? 'text-black' : 'text-zinc-500 hover:text-white'}
+                                relative flex items-center gap-4 py-3 rounded-2xl text-sm font-bold transition-all duration-300 group overflow-hidden
+                                ${isCollapsed ? 'px-0 justify-center' : 'px-5'}
+                                ${isActive 
+                                    ? 'text-white glass-panel shadow-lg shadow-white/5 scale-105' 
+                                    : `text-white/50 hover:text-white hover:scale-105 ${isCollapsed ? 'hover:glass-panel' : 'hover:bg-white/5'}`
+                                }
                             `}
                         >
                             {({ isActive }: { isActive: boolean }) => (
                                 <>
-                                    {isActive && (
-                                        <motion.div
-                                            layoutId="piano-key"
-                                            className="absolute inset-0 bg-white z-0"
-                                            initial={false}
-                                            transition={{
-                                                type: "spring",
-                                                stiffness: 300,
-                                                damping: 30
-                                            }}
-                                        />
-                                    )}
-                                    <span className={`relative z-10 ${isCollapsed ? 'w-full flex justify-center' : ''}`}>
-                                        <item.icon size={20} strokeWidth={isActive ? 2.5 : 2} />
+                                    <span className={`relative z-10 flex items-center justify-center ${isCollapsed ? 'w-10 h-10' : ''}`}>
+                                        <item.icon size={isCollapsed ? 22 : 18} strokeWidth={isActive ? 2.5 : 2} className={isActive ? 'text-white' : ''} />
                                     </span>
                                     {!isCollapsed && (
                                         <>
-                                            <span className="relative z-10 flex-1">{item.label}</span>
+                                            <span className="relative z-10 flex-1 tracking-wide">{item.label}</span>
                                             <ChevronRight
                                                 size={14}
-                                                className={`relative z-10 transition-opacity ${isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
+                                                className={`relative z-10 transition-all ${isActive ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0'}`}
                                             />
                                         </>
                                     )}
@@ -118,22 +110,22 @@ export const Layout: React.FC = () => {
                     ))}
                 </nav>
 
-                <div className="p-8 border-t border-zinc-900">
-                    <div className="flex items-center gap-4 px-4 py-2 hover:bg-zinc-900/50 rounded-2xl transition-all group">
-                        <div className={`w-10 h-10 flex-shrink-0 rounded-xl bg-zinc-800 border border-zinc-700 flex items-center justify-center text-sm font-black group-hover:scale-110 transition-transform`}>
+                <div className={`p-6 border-t ${isCollapsed ? 'border-transparent' : 'border-white/5'}`}>
+                    <div className={`flex items-center gap-4 py-2 rounded-2xl transition-all group ${isCollapsed ? 'px-0 justify-center' : 'px-4 hover:bg-white/5'}`}>
+                        <div className={`flex-shrink-0 rounded-xl flex items-center justify-center text-sm font-black transition-all ${isCollapsed ? 'w-12 h-12 glass-panel group-hover:scale-110' : 'w-10 h-10 glass-panel-dark'}`}>
                             {user?.email?.[0].toUpperCase()}
                         </div>
                         {!isCollapsed && (
                             <>
                                 <div className="flex-1 min-w-0 text-left">
-                                    <p className="text-xs font-black truncate uppercase tracking-tight">{user?.displayName || 'Root Admin'}</p>
-                                    <p className="text-[9px] text-zinc-500 truncate font-bold">{user?.email}</p>
+                                    <p className="text-[11px] font-black truncate uppercase tracking-widest text-white/90">{user?.displayName || 'Root Admin'}</p>
+                                    <p className="text-[9px] text-white/40 truncate font-bold">{user?.email}</p>
                                 </div>
                                 <button
                                     onClick={handleLogout}
-                                    className="text-zinc-600 hover:text-red-500 transition-colors"
+                                    className="text-white/40 hover:text-red-400 transition-colors p-2 hover:bg-red-400/10 rounded-lg"
                                 >
-                                    <LogOut size={18} />
+                                    <LogOut size={16} />
                                 </button>
                             </>
                         )}
@@ -142,38 +134,21 @@ export const Layout: React.FC = () => {
             </motion.aside>
 
             {/* Main Content */}
-            <main className="flex-1 flex flex-col h-screen overflow-hidden bg-white">
-                <header className="h-20 flex items-center justify-between px-12 z-10 border-b border-zinc-50 bg-white/80 backdrop-blur-xl">
-                    <div className="flex items-center gap-3">
-                        <div className="w-2 h-2 rounded-full bg-blue-500"></div>
-                        <div className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.4em]">
-                            {menuItems.find(item => item.path === location.pathname)?.label || 'System Master'}
-                        </div>
-                    </div>
-
-                    <div className="flex items-center gap-6">
-                        <div className="h-10 w-px bg-zinc-100"></div>
-                        <button className="p-3 text-zinc-400 hover:text-black transition-all relative group bg-zinc-50 rounded-xl">
-                            <Bell size={20} />
-                            <span className="absolute top-3 right-3 w-2 h-2 bg-black rounded-full border-2 border-white ring-4 ring-black/5 opacity-0 group-hover:opacity-100 transition-opacity"></span>
-                        </button>
-                    </div>
-                </header>
-
+            <main className="flex-1 flex flex-col h-screen overflow-hidden bg-transparent">
                 <div className="flex-1 overflow-hidden relative">
-                    <AnimatePresence mode="wait">
+                    <AnimatePresence>
                         <ErrorBoundary>
                             <motion.section
                                 key={location.pathname}
-                                initial={{ x: -20, opacity: 0, scale: 0.98 }}
-                                animate={{ x: 0, opacity: 1, scale: 1 }}
-                                exit={{ x: 20, opacity: 0, scale: 1.02 }}
+                                initial={{ x: -10, opacity: 0 }}
+                                animate={{ x: 0, opacity: 1 }}
+                                exit={{ x: 10, opacity: 0 }}
                                 transition={{
                                     type: "spring",
-                                    stiffness: 260,
+                                    stiffness: 300,
                                     damping: 20
                                 }}
-                                className="absolute inset-0 overflow-y-auto px-12 pb-12"
+                                className="absolute inset-0 overflow-y-auto px-12 pb-12 pt-6"
                             >
                                 <Outlet />
                             </motion.section>

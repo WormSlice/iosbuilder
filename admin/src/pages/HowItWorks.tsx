@@ -50,8 +50,8 @@ export const HowItWorks: React.FC = () => {
                 <div className="container-custom">
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                         {steps.map((step, i) => (
-                            <div key={i} className="p-12 border border-white/[0.05] rounded-[2.5rem] hover:bg-white/[0.02] transition-all group bg-[#0a0a0a] relative overflow-hidden">
-                                <div className="w-12 h-12 bg-white/[0.03] rounded-full mb-8 flex items-center justify-center font-black text-primary group-hover:bg-primary group-hover:text-white transition-all shadow-[0_0_15px_rgba(0,148,255,0.1)]">
+                            <div key={i} className="p-12 border border-white/[0.05] rounded-[2.5rem] hover:glass-panel/[0.02] transition-all group bg-[#0a0a0a] relative overflow-hidden">
+                                <div className="w-12 h-12 glass-panel/[0.03] rounded-full mb-8 flex items-center justify-center font-black text-primary group-hover:bg-primary group-hover:text-white transition-all shadow-[0_0_15px_rgba(0,148,255,0.1)]">
                                     {i + 1}
                                 </div>
                                 <h3 className="text-xl font-black mb-4 tracking-tighter text-white uppercase">{step.title}</h3>

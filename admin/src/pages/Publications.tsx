@@ -233,15 +233,15 @@ export const Publications: React.FC = () => {
                     <h1 className="text-3xl font-black tracking-tighter uppercase leading-none">Marketplace Moderation</h1>
                     <div className="flex items-center gap-4 mt-2">
                         <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest">Control de Inventario y Calidad</p>
-                        <div className="h-4 w-px bg-zinc-100 mx-2"></div>
+                        <div className="h-4 w-px glass-button mx-2"></div>
                         <div
                             onClick={toggleMarketplaceVisibility}
-                            className="flex items-center gap-3 px-4 py-2 bg-zinc-50 rounded-full border border-zinc-100 hover:border-black transition-all cursor-pointer group"
+                            className="flex items-center gap-3 px-4 py-2 glass-button rounded-full border border-zinc-100 hover:border-black transition-all cursor-pointer group"
                         >
-                            <div className={`w-8 h-4 rounded-full relative transition-colors ${isMarketplaceHidden ? 'bg-black' : 'bg-zinc-200'}`}>
+                            <div className={`w-8 h-4 rounded-full relative transition-colors ${isMarketplaceHidden ? 'glass-panel-dark' : 'bg-zinc-200'}`}>
                                 <motion.div
                                     animate={{ x: isMarketplaceHidden ? 18 : 2 }}
-                                    className="w-3 h-3 bg-white rounded-full absolute top-0.5 shadow-sm"
+                                    className="w-3 h-3 glass-panel rounded-full absolute top-0.5 shadow-sm"
                                 />
                             </div>
                             <span className={`text-[9px] font-black uppercase tracking-widest ${isMarketplaceHidden ? 'text-black' : 'text-zinc-400'}`}>
@@ -250,7 +250,7 @@ export const Publications: React.FC = () => {
                             {isMarketplaceHidden && <Zap size={12} className="text-black" />}
                         </div>
                         
-                        <div className="h-4 w-px bg-zinc-100 mx-2"></div>
+                        <div className="h-4 w-px glass-button mx-2"></div>
                         <button
                             onClick={syncToAlgolia}
                             disabled={isSyncing}
@@ -273,16 +273,16 @@ export const Publications: React.FC = () => {
                             placeholder="Buscar publicación..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="bg-zinc-50 border border-zinc-100 rounded-2xl pl-12 pr-6 py-3 text-[10px] font-bold uppercase tracking-widest outline-none focus:bg-white focus:border-black transition-all w-full md:w-64"
+                            className="glass-button border border-zinc-100 rounded-2xl pl-12 pr-6 py-3 text-[10px] font-bold uppercase tracking-widest outline-none focus:glass-panel focus:border-black transition-all w-full md:w-64"
                         />
                     </div>
 
-                    <div className="flex p-1 bg-zinc-100 rounded-2xl">
+                    <div className="flex p-1 glass-button rounded-2xl">
                         {['all', 'pending', 'approved'].map(f => (
                             <button
                                 key={f}
                                 onClick={() => setFilter(f)}
-                                className={`px-6 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${filter === f ? 'bg-black text-white shadow-lg' : 'text-zinc-400 hover:text-black'
+                                className={`px-6 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${filter === f ? 'glass-panel-dark text-white shadow-lg' : 'text-zinc-400 hover:text-black'
                                     }`}
                             >
                                 {f === 'all' ? 'Todos' : f === 'pending' ? 'Borradores' : 'En Vivo'}
@@ -299,8 +299,8 @@ export const Publications: React.FC = () => {
                         key={cat}
                         onClick={() => setActiveCategory(cat)}
                         className={`px-6 py-2 rounded-full text-[9px] font-black uppercase tracking-widest whitespace-nowrap transition-all border ${activeCategory === cat
-                            ? 'bg-black border-black text-white shadow-xl shadow-black/10'
-                            : 'bg-white border-zinc-100 text-zinc-400 hover:border-black hover:text-black'
+                            ? 'glass-panel-dark border-black text-white shadow-xl shadow-black/10'
+                            : 'glass-panel border-zinc-100 text-zinc-400 hover:border-black hover:text-black'
                             }`}
                     >
                         {cat}
@@ -314,10 +314,10 @@ export const Publications: React.FC = () => {
                         <div className="w-8 h-8 border-2 border-black border-t-transparent rounded-full animate-spin mx-auto"></div>
                     </div>
                 ) : filteredPosts.map((post) => (
-                    <div key={post.id} className="bg-white rounded-[2.5rem] p-6 border border-zinc-100 flex gap-8 items-start hover:shadow-xl transition-all group">
+                    <div key={post.id} className="glass-panel rounded-[2.5rem] p-6 border border-zinc-100 flex gap-8 items-start hover:shadow-xl transition-all group">
                         {/* Compact Card (Connect Style) */}
                         <div className="w-40 flex-shrink-0 space-y-3">
-                            <div className="aspect-square bg-zinc-100 rounded-3xl overflow-hidden relative border border-zinc-50 shadow-inner">
+                            <div className="aspect-square glass-button rounded-3xl overflow-hidden relative border border-zinc-50 shadow-inner">
                                 {(() => {
                                     const p = post as any;
                                     const img = p.images?.[0] || p.imageUrl || p.image;
@@ -330,7 +330,7 @@ export const Publications: React.FC = () => {
                                     );
                                 })()}
                                 <div className="absolute top-2 right-2 flex gap-1">
-                                    <div className={`px-2 py-1 rounded-full text-[7px] font-black uppercase tracking-tighter shadow-xl ${post.status === 'active' ? 'bg-black text-white' : 'bg-zinc-200 text-zinc-600'}`}>
+                                    <div className={`px-2 py-1 rounded-full text-[7px] font-black uppercase tracking-tighter shadow-xl ${post.status === 'active' ? 'glass-panel-dark text-white' : 'bg-zinc-200 text-zinc-600'}`}>
                                         {post.status === 'active' ? 'LIVE' : 'WAIT'}
                                     </div>
                                 </div>
@@ -367,13 +367,13 @@ export const Publications: React.FC = () => {
                                 <div className="space-y-1 truncate">
                                     <p className="text-[8px] font-black uppercase text-zinc-300 tracking-widest">Propietario / Autor</p>
                                     <div className="flex items-center gap-2">
-                                        <div className="w-4 h-4 rounded bg-zinc-100 border border-zinc-200" />
+                                        <div className="w-4 h-4 rounded glass-button border border-zinc-200" />
                                         <p className="font-bold text-[10px] text-zinc-500 tracking-tight truncate">{(post as any).userId || 'Anónimo'}</p>
                                     </div>
                                 </div>
                                 <div className="space-y-1 text-right">
                                     <p className="text-[8px] font-black uppercase text-zinc-300 tracking-widest">Estatus Sistema</p>
-                                    <div className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest ${post.status === 'active' ? 'bg-zinc-50 text-black' : 'bg-red-50 text-red-500'}`}>
+                                    <div className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest ${post.status === 'active' ? 'glass-button text-black' : 'bg-red-50 text-red-500'}`}>
                                         {post.status === 'active' ? 'Validado' : 'Pendiente'}
                                     </div>
                                 </div>
@@ -384,10 +384,10 @@ export const Publications: React.FC = () => {
                                     Ver Documentación <ArrowUpRight size={10} />
                                 </button>
                                 <div className="flex gap-2">
-                                    <button className="h-10 w-10 flex items-center justify-center bg-zinc-50 text-zinc-300 hover:text-black hover:bg-zinc-100 rounded-xl transition-all">
+                                    <button className="h-10 w-10 flex items-center justify-center glass-button text-zinc-300 hover:text-black hover:glass-button rounded-xl transition-all">
                                         <Zap size={16} />
                                     </button>
-                                    <button onClick={() => handleDelete(post.id)} className="h-10 w-10 flex items-center justify-center bg-zinc-50 text-zinc-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all">
+                                    <button onClick={() => handleDelete(post.id)} className="h-10 w-10 flex items-center justify-center glass-button text-zinc-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all">
                                         <Trash2 size={16} />
                                     </button>
                                 </div>
@@ -399,7 +399,7 @@ export const Publications: React.FC = () => {
 
             {!loading && filteredPosts.length === 0 && (
                 <div className="py-40 text-center space-y-4">
-                    <div className="w-16 h-16 bg-zinc-50 rounded-full flex items-center justify-center mx-auto text-zinc-200">
+                    <div className="w-16 h-16 glass-button rounded-full flex items-center justify-center mx-auto text-zinc-200">
                         <LayoutGrid size={32} />
                     </div>
                     <p className="text-zinc-300 text-xs font-black uppercase tracking-[0.2em]">Catalogo Vacío o sin coincidencias</p>

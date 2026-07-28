@@ -61,7 +61,7 @@ export const Navbar: React.FC = () => {
                                 to="/settings"
                                 className={({ isActive }: { isActive: boolean }) => `flex items-center gap-3 group transition-all ${isActive ? 'text-white' : 'text-zinc-500 hover:text-white'}`}
                             >
-                                <div className="w-10 h-10 rounded-full border border-white/10 overflow-hidden bg-zinc-900 flex items-center justify-center transition-all group-hover:border-primary/50">
+                                <div className="w-10 h-10 rounded-full border border-white/10 overflow-hidden glass-panel-dark flex items-center justify-center transition-all group-hover:border-primary/50">
                                     {profilePhoto ? (
                                         <img src={profilePhoto} className="w-full h-full object-cover" />
                                     ) : (
@@ -107,7 +107,7 @@ export const Navbar: React.FC = () => {
                                     <p className="text-[9px] font-black uppercase tracking-widest">{user?.displayName || 'Usuario'}</p>
                                     <p className="text-[7px] font-black uppercase tracking-[0.2em] text-[#0094FF]">Cuenta</p>
                                 </div>
-                                <div className="w-9 h-9 rounded-xl bg-white/[0.03] border border-white/[0.08] flex items-center justify-center overflow-hidden group-hover:border-[#0094FF]/50 transition-all">
+                                <div className="w-9 h-9 rounded-xl glass-panel/[0.03] border border-white/[0.08] flex items-center justify-center overflow-hidden group-hover:border-[#0094FF]/50 transition-all">
                                     {profilePhoto ? (
                                         <img src={profilePhoto} alt="Profile" className="w-full h-full object-cover" />
                                     ) : (

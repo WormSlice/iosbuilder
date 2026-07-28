@@ -42,7 +42,7 @@ export const FAQ: React.FC = () => {
                 <div className="container-custom max-w-3xl">
                     <div className="space-y-4">
                         {faqs.map((faq, i) => (
-                            <div key={i} className="border border-white/[0.05] rounded-[2rem] overflow-hidden bg-[#0a0a0a] transition-all hover:bg-white/[0.01]">
+                            <div key={i} className="border border-white/[0.05] rounded-[2rem] overflow-hidden bg-[#0a0a0a] transition-all hover:glass-panel/[0.01]">
                                 <button
                                     className="w-full flex justify-between items-center p-6 md:p-8 text-left transition-all"
                                     onClick={() => setOpenIndex(openIndex === i ? null : i)}

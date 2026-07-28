@@ -47,7 +47,7 @@ export const Notifications: React.FC = () => {
                     <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest mt-2">Omnichannel Communications Control</p>
                 </div>
                 <div className="flex gap-4">
-                    <div className="flex items-center gap-2 px-4 py-2 bg-zinc-50 rounded-xl border border-zinc-100">
+                    <div className="flex items-center gap-2 px-4 py-2 glass-button rounded-xl border border-zinc-100">
                         <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
                         <span className="text-[9px] font-black uppercase text-zinc-500 tracking-widest">Gateway Active</span>
                     </div>
@@ -56,24 +56,24 @@ export const Notifications: React.FC = () => {
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
                 <div className="lg:col-span-2 space-y-8">
-                    <div className="bg-white rounded-[3.5rem] p-12 border border-zinc-100 shadow-sm space-y-10">
+                    <div className="glass-panel rounded-[3.5rem] p-12 border border-zinc-100 shadow-sm space-y-10">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                             <div className="space-y-4">
                                 <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 ml-2">Audiencia</label>
-                                <div className="flex p-1.5 bg-zinc-50 rounded-2xl">
-                                    <button onClick={() => setTarget('all')} className={`flex-1 py-3 rounded-xl font-black text-[9px] uppercase tracking-widest transition-all ${target === 'all' ? 'bg-black text-white' : 'text-zinc-400'}`}>
+                                <div className="flex p-1.5 glass-button rounded-2xl">
+                                    <button onClick={() => setTarget('all')} className={`flex-1 py-3 rounded-xl font-black text-[9px] uppercase tracking-widest transition-all ${target === 'all' ? 'glass-panel-dark text-white' : 'text-zinc-400'}`}>
                                         Global
                                     </button>
-                                    <button onClick={() => setTarget('specific')} className={`flex-1 py-3 rounded-xl font-black text-[9px] uppercase tracking-widest transition-all ${target === 'specific' ? 'bg-black text-white' : 'text-zinc-400'}`}>
+                                    <button onClick={() => setTarget('specific')} className={`flex-1 py-3 rounded-xl font-black text-[9px] uppercase tracking-widest transition-all ${target === 'specific' ? 'glass-panel-dark text-white' : 'text-zinc-400'}`}>
                                         Targeted
                                     </button>
                                 </div>
                             </div>
                             <div className="space-y-4">
                                 <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 ml-2">Canal de Envío</label>
-                                <div className="flex p-1.5 bg-zinc-50 rounded-2xl overflow-x-auto no-scrollbar">
+                                <div className="flex p-1.5 glass-button rounded-2xl overflow-x-auto no-scrollbar">
                                     {['Push', 'Email', 'SMS', 'In-App'].map(c => (
-                                        <button key={c} onClick={() => setChannel(c)} className={`flex-1 px-4 py-3 rounded-xl font-black text-[9px] uppercase tracking-widest transition-all whitespace-nowrap ${channel === c ? 'bg-black text-white' : 'text-zinc-400'}`}>
+                                        <button key={c} onClick={() => setChannel(c)} className={`flex-1 px-4 py-3 rounded-xl font-black text-[9px] uppercase tracking-widest transition-all whitespace-nowrap ${channel === c ? 'glass-panel-dark text-white' : 'text-zinc-400'}`}>
                                             {c}
                                         </button>
                                     ))}
@@ -84,7 +84,7 @@ export const Notifications: React.FC = () => {
                         {target === 'specific' && (
                             <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
                                 <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 ml-2">User ID / Email</label>
-                                <input className="w-full bg-zinc-50 border-zinc-100 rounded-2xl px-6 py-4 text-xs font-bold outline-none focus:border-black transition-all" placeholder="uuid-example-1234" />
+                                <input className="w-full glass-button border-zinc-100 rounded-2xl px-6 py-4 text-xs font-bold outline-none focus:border-black transition-all" placeholder="uuid-example-1234" />
                             </div>
                         )}
 
@@ -93,7 +93,7 @@ export const Notifications: React.FC = () => {
                             <input
                                 value={title}
                                 onChange={(e) => setTitle(e.target.value)}
-                                className="w-full bg-zinc-50 border-zinc-100 rounded-2xl px-6 py-4 text-xs font-bold outline-none focus:border-black transition-all"
+                                className="w-full glass-button border-zinc-100 rounded-2xl px-6 py-4 text-xs font-bold outline-none focus:border-black transition-all"
                                 placeholder="Escribe un asunto impactante..."
                             />
                         </div>
@@ -103,7 +103,7 @@ export const Notifications: React.FC = () => {
                             <textarea
                                 value={body}
                                 onChange={(e) => setBody(e.target.value)}
-                                className="w-full bg-zinc-50 border-zinc-100 rounded-[2rem] px-6 py-6 text-xs font-bold outline-none focus:border-black transition-all h-40 resize-none"
+                                className="w-full glass-button border-zinc-100 rounded-[2rem] px-6 py-6 text-xs font-bold outline-none focus:border-black transition-all h-40 resize-none"
                                 placeholder="Detalla el contenido aquí..."
                             />
                         </div>
@@ -111,14 +111,14 @@ export const Notifications: React.FC = () => {
                         <div className="pt-4 flex items-center justify-between gap-8">
                             <div className="flex-1 flex gap-4">
                                 {['Normal', 'High', 'Urgent'].map(p => (
-                                    <button key={p} onClick={() => setPriority(p)} className={`px-4 py-2 rounded-lg text-[8px] font-black uppercase tracking-widest border transition-all ${priority === p ? 'bg-zinc-100 border-zinc-200 text-black' : 'border-transparent text-zinc-300'}`}>
+                                    <button key={p} onClick={() => setPriority(p)} className={`px-4 py-2 rounded-lg text-[8px] font-black uppercase tracking-widest border transition-all ${priority === p ? 'glass-button border-zinc-200 text-black' : 'border-transparent text-zinc-300'}`}>
                                         {p}
                                     </button>
                                 ))}
                             </div>
                             <button
                                 onClick={handleSend}
-                                className="px-12 bg-black text-white h-16 rounded-2xl font-black uppercase tracking-widest text-[10px] hover:shadow-2xl shadow-black/20 hover:-translate-y-1 transition-all flex items-center gap-3"
+                                className="px-12 glass-panel-dark text-white h-16 rounded-2xl font-black uppercase tracking-widest text-[10px] hover:shadow-2xl shadow-black/20 hover:-translate-y-1 transition-all flex items-center gap-3"
                             >
                                 <Send size={16} /> Desplegar
                             </button>
@@ -134,7 +134,7 @@ export const Notifications: React.FC = () => {
 
                     <div className="space-y-4">
                         {history.map((item) => (
-                            <div key={item.id} className="bg-white border border-zinc-100 rounded-3xl p-6 space-y-4 hover:shadow-md transition-shadow cursor-pointer group">
+                            <div key={item.id} className="glass-panel border border-zinc-100 rounded-3xl p-6 space-y-4 hover:shadow-md transition-shadow cursor-pointer group">
                                 <div className="flex justify-between items-start">
                                     <div className={`px-2 py-0.5 rounded-full text-[7px] font-black uppercase tracking-tighter ${item.status === 'Sent' ? 'bg-green-50 text-green-600' : item.status === 'Scheduled' ? 'bg-blue-50 text-blue-600' : 'bg-red-50 text-red-600'}`}>
                                         {item.status}
@@ -158,7 +158,7 @@ export const Notifications: React.FC = () => {
                         ))}
                     </div>
 
-                    <button className="w-full py-4 border border-zinc-100 rounded-2xl text-[9px] font-black uppercase tracking-[0.3em] text-zinc-300 hover:text-black hover:bg-zinc-50 transition-all">
+                    <button className="w-full py-4 border border-zinc-100 rounded-2xl text-[9px] font-black uppercase tracking-[0.3em] text-zinc-300 hover:text-black hover:glass-button transition-all">
                         Cargar Historial Completo
                     </button>
                 </div>

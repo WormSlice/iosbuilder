@@ -78,7 +78,7 @@ export const Login: React.FC = () => {
                     <button
                         onClick={handleAppleLogin}
                         disabled={loading}
-                        className="w-full bg-white text-black py-2.5 rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-zinc-200 transition-all flex items-center justify-center gap-2 active:scale-95 shadow-sm disabled:opacity-50"
+                        className="w-full glass-panel text-black py-2.5 rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-zinc-200 transition-all flex items-center justify-center gap-2 active:scale-95 shadow-sm disabled:opacity-50"
                     >
                         <svg viewBox="0 0 24 24" className="w-4 h-4 fill-black" xmlns="http://www.w3.org/2000/svg">
                             <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.1 2.48-1.34.03-1.77-.79-3.29-.79-1.53 0-2.01.77-3.27.82-1.31.05-2.31-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91 1.65.07 2.49.52 3.01.99.11.11.23.23.33.36-1.3.77-2.13 2.1-2.09 3.63.04 1.88 1.58 3.32 3.44 3.42-.04.42-.1.85-.2 1.25zM12.91 5.99c.35-1.5 1.77-2.61 3.35-2.6.14 1.58-1.28 3.16-3.35 3.1-.14-1.58-.2-2.5.3-3.1z" />
@@ -89,7 +89,7 @@ export const Login: React.FC = () => {
                     <button
                         onClick={handleGoogleLogin}
                         disabled={loading}
-                        className="w-full bg-white/[0.03] border border-white/[0.08] text-white py-2.5 rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-white/[0.06] transition-all flex items-center justify-center gap-2 active:scale-95 shadow-sm disabled:opacity-50"
+                        className="w-full glass-panel/[0.03] border border-white/[0.08] text-white py-2.5 rounded-xl font-black text-[9px] uppercase tracking-widest hover:glass-panel/[0.06] transition-all flex items-center justify-center gap-2 active:scale-95 shadow-sm disabled:opacity-50"
                     >
                         <svg viewBox="0 0 24 24" className="w-4 h-4" xmlns="http://www.w3.org/2000/svg">
                             <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
@@ -102,9 +102,9 @@ export const Login: React.FC = () => {
                 </div>
 
                 <div className="flex items-center gap-3">
-                    <div className="flex-1 h-[1px] bg-white/[0.04]"></div>
+                    <div className="flex-1 h-[1px] glass-panel/[0.04]"></div>
                     <span className="text-[7px] font-black text-zinc-700 uppercase tracking-widest">CONTINUAR CON</span>
-                    <div className="flex-1 h-[1px] bg-white/[0.04]"></div>
+                    <div className="flex-1 h-[1px] glass-panel/[0.04]"></div>
                 </div>
 
                 <form onSubmit={handleLogin} className="space-y-4">

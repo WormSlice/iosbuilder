@@ -75,12 +75,12 @@ export const Reports: React.FC = () => {
                     <h1 className="text-4xl font-black tracking-tighter uppercase italic">Moderation Center</h1>
                     <p className="text-zinc-400 text-[10px] font-bold uppercase tracking-widest">Community Safety & Reports Control</p>
                 </div>
-                <div className="flex p-1 bg-zinc-50 rounded-2xl border border-zinc-100 shadow-sm">
+                <div className="flex p-1 glass-button rounded-2xl border border-zinc-100 shadow-sm">
                     {(['pending', 'resolved', 'all'] as const).map((f) => (
                         <button
                             key={f}
                             onClick={() => setFilter(f)}
-                            className={`px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filter === f ? 'bg-black text-white' : 'text-zinc-400'
+                            className={`px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filter === f ? 'glass-panel-dark text-white' : 'text-zinc-400'
                                 }`}
                         >
                             {f}
@@ -89,10 +89,10 @@ export const Reports: React.FC = () => {
                 </div>
             </div>
 
-            <div className="bg-white rounded-[3.5rem] border border-zinc-100 overflow-hidden shadow-2xl shadow-zinc-200/20">
+            <div className="glass-panel rounded-[3.5rem] border border-zinc-100 overflow-hidden shadow-2xl shadow-zinc-200/20">
                 <table className="w-full text-left">
                     <thead>
-                        <tr className="bg-zinc-50 pb-4">
+                        <tr className="glass-button pb-4">
                             <th className="px-10 py-8 text-[10px] font-black uppercase tracking-widest text-zinc-400">Tipo / Usuario</th>
                             <th className="px-10 py-8 text-[10px] font-black uppercase tracking-widest text-zinc-400">Descripción / Motivo</th>
                             <th className="px-10 py-8 text-[10px] font-black uppercase tracking-widest text-zinc-400">Evidencias</th>
@@ -103,7 +103,7 @@ export const Reports: React.FC = () => {
                     <tbody className="divide-y divide-zinc-50">
                         {loading && <tr><td colSpan={5} className="text-center py-10 font-black text-xs">CARGANDO REVISIONES...</td></tr>}
                         {!loading && reports.filter(r => filter === 'all' || r.status === filter).map((report) => (
-                            <tr key={report.id} className="hover:bg-zinc-50/50 transition-colors group">
+                            <tr key={report.id} className="hover:glass-button transition-colors group">
                                 <td className="px-10 py-8">
                                     <div className="flex items-center gap-4">
                                         <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black text-[10px] uppercase ${report.postId ? 'bg-amber-50 text-amber-600' : 'bg-red-50 text-red-600'}`}>
@@ -136,7 +136,7 @@ export const Reports: React.FC = () => {
                                                 />
                                             ))}
                                             {report.images.length > 3 && (
-                                                <div className="w-8 h-8 rounded-lg bg-zinc-100 flex items-center justify-center text-[10px] font-black text-zinc-400">
+                                                <div className="w-8 h-8 rounded-lg glass-button flex items-center justify-center text-[10px] font-black text-zinc-400">
                                                     +{report.images.length - 3}
                                                 </div>
                                             )}
@@ -146,7 +146,7 @@ export const Reports: React.FC = () => {
                                     )}
                                 </td>
                                 <td className="px-10 py-8 text-center">
-                                    <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-[0.1em] ${report.status === 'pending' ? 'bg-red-50 text-red-600' : 'bg-black text-white'
+                                    <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-[0.1em] ${report.status === 'pending' ? 'bg-red-50 text-red-600' : 'glass-panel-dark text-white'
                                         }`}>
                                         {report.status}
                                     </span>
@@ -156,12 +156,12 @@ export const Reports: React.FC = () => {
                                         {report.status === 'pending' && (
                                             <button
                                                 onClick={() => handleResolve(report.id)}
-                                                className="p-3 bg-zinc-50 hover:bg-black hover:text-white transition-all rounded-xl text-green-500"
+                                                className="p-3 glass-button hover:glass-panel-dark hover:text-white transition-all rounded-xl text-green-500"
                                                 title="Marcar como Resuelto">
                                                 <CheckCircle size={16} />
                                             </button>
                                         )}
-                                        <button onClick={() => handleDelete(report.id)} className="p-3 bg-zinc-50 hover:bg-red-50 hover:text-red-500 transition-all rounded-xl text-zinc-400">
+                                        <button onClick={() => handleDelete(report.id)} className="p-3 glass-button hover:bg-red-50 hover:text-red-500 transition-all rounded-xl text-zinc-400">
                                             <Trash size={16} />
                                         </button>
                                     </div>
@@ -174,13 +174,13 @@ export const Reports: React.FC = () => {
 
             {/* Modal de Imágenes */}
             {selectedImages && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-8 bg-black/95 animate-in fade-in duration-300" onClick={() => setSelectedImages(null)}>
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-8 glass-panel-dark animate-in fade-in duration-300" onClick={() => setSelectedImages(null)}>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4 max-w-5xl" onClick={e => e.stopPropagation()}>
                         {selectedImages.map((img, idx) => (
                             <img key={idx} src={img} className="w-full h-64 object-cover rounded-3xl border-4 border-white/10" alt="Full Preview" />
                         ))}
                     </div>
-                    <button className="absolute top-10 right-10 text-white font-black uppercase text-xs tracking-widest bg-white/10 px-6 py-3 rounded-2xl hover:bg-white hover:text-black transition-all">Cerrar</button>
+                    <button className="absolute top-10 right-10 text-white font-black uppercase text-xs tracking-widest glass-panel px-6 py-3 rounded-2xl hover:glass-panel hover:text-black transition-all">Cerrar</button>
                 </div>
             )}
         </div>

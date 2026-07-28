@@ -59,8 +59,8 @@ export const Tools: React.FC = () => {
                     <h1 className="text-4xl font-black tracking-tighter uppercase italic">System Utilities</h1>
                     <p className="text-zinc-400 text-[10px] font-bold uppercase tracking-widest">Low-level Controls & Maintenance</p>
                 </div>
-                <div className="h-12 w-12 bg-zinc-50 rounded-full border border-zinc-100 flex items-center justify-center animate-pulse">
-                    <div className="h-2 w-2 bg-black rounded-full"></div>
+                <div className="h-12 w-12 glass-button rounded-full border border-zinc-100 flex items-center justify-center animate-pulse">
+                    <div className="h-2 w-2 glass-panel-dark rounded-full"></div>
                 </div>
             </div>
 
@@ -72,7 +72,7 @@ export const Tools: React.FC = () => {
                 ].map((stat, i) => {
                     const Icon = stat.icon;
                     return (
-                        <div key={i} className="bg-white border border-zinc-100 p-8 rounded-[2.5rem] shadow-sm">
+                        <div key={i} className="glass-panel border border-zinc-100 p-8 rounded-[2.5rem] shadow-sm">
                             <div className="flex items-center gap-3 mb-4">
                                 <Icon size={16} className="text-zinc-300" />
                                 <span className="text-[10px] font-black text-zinc-300 uppercase tracking_widest">{stat.label}</span>
@@ -92,9 +92,9 @@ export const Tools: React.FC = () => {
                             key={i}
                             whileHover={{ scale: 1.02 }}
                             whileTap={{ scale: 0.98 }}
-                            className="bg-white border border-zinc-100 p-8 rounded-[2.5rem] shadow-sm text-left group hover:border-black transition-colors"
+                            className="glass-panel border border-zinc-100 p-8 rounded-[2.5rem] shadow-sm text-left group hover:border-black transition-colors"
                         >
-                            <div className={`p-4 bg-zinc-50 rounded-2xl w-fit mb-6 group-hover:bg-black group-hover:text-white transition-all ${action.color}`}>
+                            <div className={`p-4 glass-button rounded-2xl w-fit mb-6 group-hover:glass-panel-dark group-hover:text-white transition-all ${action.color}`}>
                                 <Icon size={24} />
                             </div>
                             <h3 className="font-black text-xs uppercase tracking-[0.2em] mb-2">{action.title}</h3>
@@ -104,7 +104,7 @@ export const Tools: React.FC = () => {
                 })}
             </div>
 
-            <div className="bg-black rounded-[3rem] p-10 overflow-hidden relative group">
+            <div className="glass-panel-dark rounded-[3rem] p-10 overflow-hidden relative group">
                 <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:opacity-20 transition-opacity">
                     <Terminal size={120} className="text-white" />
                 </div>

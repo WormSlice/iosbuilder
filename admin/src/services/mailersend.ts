@@ -100,10 +100,12 @@ export const sendEmail = async (data: EmailData) => {
 
         // MailerSend retorna 202 Accepted cuando el envío es exitoso sin body JSON
         if (!response.ok) {
-            let errorMessage = `Error de MailerSend: ${response.statusText}`;
+            let errorMessage = `Error de MailerSend: ${response.status} ${response.statusText}`;
             try {
                 const errorData = await response.json();
-                errorMessage = errorData.message || errorMessage;
+                console.error('MailerSend Detailed Error:', errorData);
+                if (errorData.message) errorMessage += ` - ${errorData.message}`;
+                if (errorData.errors) errorMessage += ` - Detalles: ${JSON.stringify(errorData.errors)}`;
             } catch (e) {}
             throw new Error(errorMessage);
         }

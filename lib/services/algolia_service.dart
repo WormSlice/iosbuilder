@@ -1,4 +1,8 @@
+import 'dart:convert';
 import 'package:algolia_client_search/algolia_client_search.dart';
+import 'package:http/http.dart' as http;
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class AlgoliaService {
   static final AlgoliaService _instance = AlgoliaService._internal();
@@ -7,6 +11,7 @@ class AlgoliaService {
 
   final String _appId = 'P2CJMQDDSH';
   final String _apiKey = '99ec76cf710a0324bccd1f008514eb36';
+  static const String _adminApiKey = '4aa72340abeb49d79d888cc3271c23b1';
 
   late SearchClient _client;
   bool _initialized = false;
@@ -23,10 +28,12 @@ class AlgoliaService {
     return _client;
   }
 
-  static const String _adminApiKey = '4aa72340abeb49d79d888cc3271c23b1';
-
   static const String postsIndex = 'ALGOLIA';
   static const String wantsIndex = 'wants';
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // BÚSQUEDAS (Usando SDK)
+  // ─────────────────────────────────────────────────────────────────────────
 
   Future<SearchResponse> searchPosts(
     String query, {
@@ -79,4 +86,143 @@ class AlgoliaService {
 
     return result;
   }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // ESCRITURA (Restaurados mediante peticiones HTTP para asegurar su funcionamiento)
+  // ─────────────────────────────────────────────────────────────────────────
+
+  Future<void> indexPost(String id, Map<String, dynamic> data) async {
+    await _saveObject(
+      indexName: postsIndex,
+      objectId: id,
+      data: _prepareDocument(id, data),
+    );
+  }
+
+  Future<void> deletePost(String id) async {
+    await _deleteObject(indexName: postsIndex, objectId: id);
+  }
+
+  Future<void> indexWant(String id, Map<String, dynamic> data) async {
+    await _saveObject(
+      indexName: wantsIndex,
+      objectId: id,
+      data: _prepareDocument(id, data),
+    );
+  }
+
+  Future<void> deleteWant(String id) async {
+    await _deleteObject(indexName: wantsIndex, objectId: id);
+  }
+
+  Future<void> _saveObject({
+    required String indexName,
+    required String objectId,
+    required Map<String, dynamic> data,
+  }) async {
+    final url = Uri.parse('https://$_appId.algolia.net/1/indexes/$indexName/$objectId');
+    final response = await http.put(
+      url,
+      headers: _adminHeaders,
+      body: jsonEncode(data),
+    );
+    if (response.statusCode != 200 && response.statusCode != 201) {
+      print('AlgoliaService._saveObject error: ${response.body}');
+    }
+  }
+
+  Future<void> _deleteObject({
+    required String indexName,
+    required String objectId,
+  }) async {
+    final url = Uri.parse('https://$_appId.algolia.net/1/indexes/$indexName/$objectId');
+    final response = await http.delete(url, headers: _adminHeaders);
+    if (response.statusCode != 200) {
+      print('AlgoliaService._deleteObject error: ${response.body}');
+    }
+  }
+
+  Map<String, dynamic> _prepareDocument(String id, Map<String, dynamic> data) {
+    final doc = Map<String, dynamic>.from(data);
+    doc['objectID'] = id;
+
+    if (doc['createdAt'] is Timestamp) {
+      doc['createdAt'] = (doc['createdAt'] as Timestamp).millisecondsSinceEpoch;
+    }
+    if (doc['updatedAt'] is Timestamp) {
+      doc['updatedAt'] = (doc['updatedAt'] as Timestamp).millisecondsSinceEpoch;
+    }
+
+    doc['_searchTitle'] = (doc['title'] ?? '').toString().toLowerCase();
+    doc['_searchDesc'] = (doc['description'] ?? '').toString().toLowerCase();
+
+    return doc;
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // RECOMENDACIONES (Restaurado para FirebaseFallback)
+  // ─────────────────────────────────────────────────────────────────────────
+
+  Future<List<Map<String, dynamic>>> getRecommendations({
+    required String category,
+    required String currentPostId,
+    int limit = 10,
+  }) async {
+    return _firestoreRecommendations(
+      category: category,
+      currentPostId: currentPostId,
+      limit: limit,
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> _firestoreRecommendations({
+    required String category,
+    required String currentPostId,
+    required int limit,
+  }) async {
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('posts')
+          .where('category', isEqualTo: category)
+          .limit(limit + 5)
+          .get();
+
+      final posts = snapshot.docs
+          .where((doc) => doc.id != currentPostId)
+          .take(limit)
+          .map((doc) {
+            final data = doc.data();
+            data['objectID'] = doc.id;
+            return data;
+          })
+          .toList();
+
+      if (posts.length < limit) {
+        final extra = await FirebaseFirestore.instance
+            .collection('posts')
+            .limit(limit)
+            .get();
+
+        final existingIds = posts.map((p) => p['objectID']).toSet();
+        for (final doc in extra.docs) {
+          if (!existingIds.contains(doc.id) && doc.id != currentPostId) {
+            final data = doc.data();
+            data['objectID'] = doc.id;
+            posts.add(data);
+            if (posts.length >= limit) break;
+          }
+        }
+      }
+
+      return posts.take(limit).toList();
+    } catch (e) {
+      return [];
+    }
+  }
+
+  Map<String, String> get _adminHeaders => {
+        'X-Algolia-Application-Id': _appId,
+        'X-Algolia-API-Key': _adminApiKey,
+        'Content-Type': 'application/json',
+      };
 }

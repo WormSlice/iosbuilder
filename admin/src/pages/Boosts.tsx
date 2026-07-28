@@ -18,7 +18,7 @@ export const Boosts: React.FC = () => {
                         repeat: Infinity,
                         ease: "easeInOut"
                     }}
-                    className="relative z-10 p-12 bg-black rounded-[3rem] shadow-2xl shadow-black/20"
+                    className="relative z-10 p-12 glass-panel-dark rounded-[3rem] shadow-2xl shadow-black/20"
                 >
                     <Rocket size={80} className="text-white fill-white/10" />
 
@@ -67,9 +67,9 @@ export const Boosts: React.FC = () => {
             <div className="space-y-4 max-w-xl px-6">
                 <h1 className="text-5xl font-black tracking-tighter uppercase italic opacity-10">Section Locked</h1>
                 <div className="flex items-center justify-center gap-4 py-2">
-                    <div className="h-px w-12 bg-zinc-100"></div>
+                    <div className="h-px w-12 glass-button"></div>
                     <p className="text-zinc-400 text-[10px] font-black uppercase tracking-[0.4em]">Propulsión de Contenido</p>
-                    <div className="h-px w-12 bg-zinc-100"></div>
+                    <div className="h-px w-12 glass-button"></div>
                 </div>
                 <p className="text-zinc-300 text-sm font-medium leading-relaxed">
                     Estamos calibrando los motores de visibilidad. El marketplace pronto despegará con opciones de pauta premium y destacados automáticos.
@@ -89,7 +89,7 @@ export const Boosts: React.FC = () => {
                         transition={{ delay: 0.5 + (i * 0.1) }}
                         className="flex flex-col items-center gap-2"
                     >
-                        <div className="p-4 bg-zinc-50 rounded-2xl text-zinc-300">
+                        <div className="p-4 glass-button rounded-2xl text-zinc-300">
                             <item.icon size={20} />
                         </div>
                         <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400">{item.label}</span>

@@ -37,7 +37,7 @@ export const Ads: React.FC = () => {
                     <h1 className="text-4xl font-black tracking-tighter uppercase italic">Ad Engine</h1>
                     <p className="text-zinc-400 text-[10px] font-bold uppercase tracking-widest">Inventory & Campaign Management</p>
                 </div>
-                <button className="h-16 px-8 bg-black text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:scale-105 active:scale-95 transition-all flex items-center gap-3 shadow-xl shadow-black/10">
+                <button className="h-16 px-8 glass-panel-dark text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:scale-105 active:scale-95 transition-all flex items-center gap-3 shadow-xl shadow-black/10">
                     <Plus size={18} /> New Campaign
                 </button>
             </div>
@@ -50,9 +50,9 @@ export const Ads: React.FC = () => {
                     { label: 'Active Slots', value: '12/15', icon: Monitor },
                     { label: 'Rev. Estimation', value: '$8.4k', icon: TrendingUp },
                 ].map((stat: any, i: number) => (
-                    <div key={i} className="bg-white border border-zinc-100 p-8 rounded-[2.5rem] shadow-sm hover:shadow-xl hover:shadow-zinc-100 transition-all group">
+                    <div key={i} className="glass-panel border border-zinc-100 p-8 rounded-[2.5rem] shadow-sm hover:shadow-xl hover:shadow-zinc-100 transition-all group">
                         <div className="flex items-center justify-between mb-6">
-                            <div className="p-3 bg-zinc-50 rounded-xl group-hover:bg-black group-hover:text-white transition-colors">
+                            <div className="p-3 glass-button rounded-xl group-hover:glass-panel-dark group-hover:text-white transition-colors">
                                 <stat.icon size={20} />
                             </div>
                             <span className="text-[10px] font-black text-zinc-300 uppercase tracking-widest">Live Now</span>
@@ -64,8 +64,8 @@ export const Ads: React.FC = () => {
             </div>
 
             {/* Empty State Message */}
-            <div className="bg-white rounded-[3.5rem] border border-zinc-100 overflow-hidden shadow-sm py-40 flex flex-col items-center justify-center space-y-6">
-                <div className="w-20 h-20 bg-zinc-50 rounded-full flex items-center justify-center text-zinc-200">
+            <div className="glass-panel rounded-[3.5rem] border border-zinc-100 overflow-hidden shadow-sm py-40 flex flex-col items-center justify-center space-y-6">
+                <div className="w-20 h-20 glass-button rounded-full flex items-center justify-center text-zinc-200">
                     <Megaphone size={40} />
                 </div>
                 <div className="text-center space-y-2 max-w-sm">
@@ -76,7 +76,7 @@ export const Ads: React.FC = () => {
                 </div>
                 <button
                     onClick={() => window.location.reload()}
-                    className="mt-4 px-8 py-3 bg-zinc-50 text-zinc-400 hover:text-black hover:bg-zinc-100 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all"
+                    className="mt-4 px-8 py-3 glass-button text-zinc-400 hover:text-black hover:glass-button rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all"
                 >
                     Actualizar Engine
                 </button>

@@ -19,12 +19,12 @@ export const Support: React.FC = () => {
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-20">
                         <div className="space-y-12">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                <div className="p-10 bg-white/[0.02] rounded-[2.5rem] border border-white/[0.05] space-y-4">
+                                <div className="p-10 glass-panel/[0.02] rounded-[2.5rem] border border-white/[0.05] space-y-4">
                                     <Mail className="text-primary" size={24} />
                                     <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Email Oficial</p>
                                     <p className="text-white text-sm font-bold">soporte@connectapp.com.co</p>
                                 </div>
-                                <div className="p-10 bg-white/[0.02] rounded-[2.5rem] border border-white/[0.05] space-y-4">
+                                <div className="p-10 glass-panel/[0.02] rounded-[2.5rem] border border-white/[0.05] space-y-4">
                                     <Clock className="text-primary" size={24} />
                                     <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Tiempo de Respuesta</p>
                                     <p className="text-white text-sm font-bold">Menos de 24 horas hábiles.</p>

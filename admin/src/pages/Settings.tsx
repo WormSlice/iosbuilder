@@ -116,12 +116,12 @@ export const Settings: React.FC = () => {
             </div>
 
             {/* Navigation Tabs */}
-            <div className="flex gap-2 p-1 bg-white/[0.02] border border-white/[0.04] rounded-2xl w-fit">
+            <div className="flex gap-2 p-1 glass-panel/[0.02] border border-white/[0.04] rounded-2xl w-fit">
                 <button
                     onClick={() => setActiveTab('perfil')}
                     className={`px-6 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${activeTab === 'perfil'
                         ? 'bg-[#0094FF] text-white shadow-[0_0_20px_rgba(0,148,255,0.3)]'
-                        : 'text-zinc-500 hover:text-white hover:bg-white/[0.03]'
+                        : 'text-zinc-500 hover:text-white hover:glass-panel/[0.03]'
                         }`}
                 >
                     Perfil
@@ -130,7 +130,7 @@ export const Settings: React.FC = () => {
                     onClick={() => setActiveTab('seguridad')}
                     className={`px-6 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${activeTab === 'seguridad'
                         ? 'bg-[#0094FF] text-white shadow-[0_0_20px_rgba(0,148,255,0.3)]'
-                        : 'text-zinc-500 hover:text-white hover:bg-white/[0.03]'
+                        : 'text-zinc-500 hover:text-white hover:glass-panel/[0.03]'
                         }`}
                 >
                     Seguridad
@@ -153,11 +153,11 @@ export const Settings: React.FC = () => {
                                     {photoURL ? (
                                         <img src={photoURL} alt="Profile" className="w-full h-full object-cover" />
                                     ) : (
-                                        <div className="w-full h-full bg-zinc-900 flex items-center justify-center text-zinc-500">
+                                        <div className="w-full h-full glass-panel-dark flex items-center justify-center text-zinc-500">
                                             <User size={48} strokeWidth={1} />
                                         </div>
                                     )}
-                                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer">
+                                    <div className="absolute inset-0 glass-panel-dark opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer">
                                         <Camera className="text-white" size={24} />
                                     </div>
                                 </div>
@@ -170,7 +170,7 @@ export const Settings: React.FC = () => {
 
                         {/* Form Section */}
                         <div className="md:col-span-2">
-                            <form onSubmit={handleUpdateProfile} className="space-y-6 bg-white/[0.02] border border-white/[0.04] p-6 md:p-8 rounded-[2rem]">
+                            <form onSubmit={handleUpdateProfile} className="space-y-6 glass-panel/[0.02] border border-white/[0.04] p-6 md:p-8 rounded-[2rem]">
                                 <div className="space-y-4">
                                     <div className="grid grid-cols-1 gap-4">
                                         <div className="space-y-2">
@@ -181,7 +181,7 @@ export const Settings: React.FC = () => {
                                                     type="text"
                                                     value={name}
                                                     onChange={(e) => setName(e.target.value)}
-                                                    className="w-full bg-black/40 border border-white/[0.08] rounded-2xl py-4 pl-12 pr-4 text-xs font-bold text-white focus:outline-none focus:border-[#0094FF] transition-all placeholder:text-zinc-800"
+                                                    className="w-full glass-panel-dark border border-white/[0.08] rounded-2xl py-4 pl-12 pr-4 text-xs font-bold text-white focus:outline-none focus:border-[#0094FF] transition-all placeholder:text-zinc-800"
                                                     placeholder="Tu nombre administrativo"
                                                 />
                                             </div>
@@ -194,7 +194,7 @@ export const Settings: React.FC = () => {
                                                     type="text"
                                                     value={photoURL}
                                                     onChange={(e) => setPhotoURL(e.target.value)}
-                                                    className="w-full bg-black/40 border border-white/[0.08] rounded-2xl py-4 pl-12 pr-4 text-xs font-bold text-white focus:outline-none focus:border-[#0094FF] transition-all placeholder:text-zinc-800"
+                                                    className="w-full glass-panel-dark border border-white/[0.08] rounded-2xl py-4 pl-12 pr-4 text-xs font-bold text-white focus:outline-none focus:border-[#0094FF] transition-all placeholder:text-zinc-800"
                                                     placeholder="https://instancia.com/mi-foto.jpg"
                                                 />
                                             </div>
@@ -228,7 +228,7 @@ export const Settings: React.FC = () => {
                         exit={{ opacity: 0, x: -20 }}
                         className="max-w-2xl mx-auto w-full space-y-8"
                     >
-                        <form onSubmit={handleChangePassword} className="space-y-6 bg-white/[0.02] border border-white/[0.04] p-6 md:p-8 rounded-[2rem]">
+                        <form onSubmit={handleChangePassword} className="space-y-6 glass-panel/[0.02] border border-white/[0.04] p-6 md:p-8 rounded-[2rem]">
                             <div className="space-y-4">
                                 <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-[#0094FF] mb-6">Actualizar Credenciales</h4>
 
@@ -240,7 +240,7 @@ export const Settings: React.FC = () => {
                                             type="password"
                                             value={newPassword}
                                             onChange={(e) => setNewPassword(e.target.value)}
-                                            className="w-full bg-black/40 border border-white/[0.08] rounded-2xl py-4 pl-12 pr-4 text-xs font-bold text-white focus:outline-none focus:border-[#0094FF] transition-all placeholder:text-zinc-800"
+                                            className="w-full glass-panel-dark border border-white/[0.08] rounded-2xl py-4 pl-12 pr-4 text-xs font-bold text-white focus:outline-none focus:border-[#0094FF] transition-all placeholder:text-zinc-800"
                                             placeholder="••••••••"
                                         />
                                     </div>
@@ -254,7 +254,7 @@ export const Settings: React.FC = () => {
                                             type="password"
                                             value={confirmPassword}
                                             onChange={(e) => setConfirmPassword(e.target.value)}
-                                            className="w-full bg-black/40 border border-white/[0.08] rounded-2xl py-4 pl-12 pr-4 text-xs font-bold text-white focus:outline-none focus:border-[#0094FF] transition-all placeholder:text-zinc-800"
+                                            className="w-full glass-panel-dark border border-white/[0.08] rounded-2xl py-4 pl-12 pr-4 text-xs font-bold text-white focus:outline-none focus:border-[#0094FF] transition-all placeholder:text-zinc-800"
                                             placeholder="••••••••"
                                         />
                                     </div>
@@ -280,9 +280,9 @@ export const Settings: React.FC = () => {
 
                         <div className="pt-6 border-t border-white/[0.04] space-y-6">
                             <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-[#0094FF]">Seguridad Avanzada</h4>
-                            <div className="flex items-center justify-between p-6 bg-white/[0.02] border border-white/[0.04] rounded-[2rem] group hover:bg-white/[0.03] transition-all cursor-not-allowed opacity-60">
+                            <div className="flex items-center justify-between p-6 glass-panel/[0.02] border border-white/[0.04] rounded-[2rem] group hover:glass-panel/[0.03] transition-all cursor-not-allowed opacity-60">
                                 <div className="flex items-center gap-4">
-                                    <div className="w-12 h-12 rounded-2xl bg-zinc-900 flex items-center justify-center text-zinc-600">
+                                    <div className="w-12 h-12 rounded-2xl glass-panel-dark flex items-center justify-center text-zinc-600">
                                         <Shield size={20} />
                                     </div>
                                     <div>
