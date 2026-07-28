@@ -192,7 +192,7 @@ jobs:
           DERIVED_DATA_PATH="${GITHUB_WORKSPACE}/DerivedData"
 
           if [ "$PROJECT_TYPE" = "flutter" ]; then
-            cd ..
+            cd "$GITHUB_WORKSPACE"
             if [ "$USE_SIGNING" = "true" ]; then
               echo "Building Flutter IPA (Release)..."
               flutter build ipa --release
@@ -273,25 +273,23 @@ jobs:
           # Create IPA
           if [ "$USE_SIGNING" = "true" ]; then
             # For signed builds, use xcodebuild -exportArchive
-            cd ..
+            cd "$GITHUB_WORKSPACE"
             printf '%s\n' \
               '<?xml version="1.0" encoding="UTF-8"?>' \
               '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">' \
               '<plist version="1.0">' \
               '<dict>' \
               '    <key>method</key>' \
-              '    <string>ad-hoc</string>' \
+              '    <string>development</string>' \
               '    <key>signingStyle</key>' \
-              '    <string>manual</string>' \
-              '    <key>provisioningProfiles</key>' \
-              '    <dict>' \
-              '        <key>com.connectapp.co</key>' \
-              '        <string>241e0d99-a85c-468f-945e-c778aa597b71</string>' \
-              '    </dict>' \
+              '    <string>automatic</string>' \
               '</dict>' \
               '</plist>' > ExportOptions.plist
             
-            xcodebuild -exportArchive -archivePath build/App.xcarchive -exportPath build/export -exportOptionsPlist ExportOptions.plist
+            xcodebuild -exportArchive \
+              -archivePath build/App.xcarchive \
+              -exportOptionsPlist ExportOptions.plist \
+              -exportPath build/export
 
             # Move IPA to expected location
             mv build/export/*.ipa "build/$BUILD_ID.ipa"
@@ -311,7 +309,7 @@ jobs:
               exit 1
             fi
             echo "Found app at: $APP_PATH"
-            cd ..
+            cd "$GITHUB_WORKSPACE"
             mkdir -p build/Payload
             cp -R "$APP_PATH" build/Payload/
             cd build
