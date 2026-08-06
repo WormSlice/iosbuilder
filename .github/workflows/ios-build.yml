@@ -209,11 +209,7 @@ jobs:
                 -scheme Runner \
                 -configuration Release \
                 -archivePath "${GITHUB_WORKSPACE}/build/App.xcarchive" \
-                archive \
-                CODE_SIGN_STYLE=Manual \
-                PROVISIONING_PROFILE_SPECIFIER=CONNECT \
-                DEVELOPMENT_TEAM=G2JK99ANGN \
-                "CODE_SIGN_IDENTITY=Apple Distribution"
+                archive
 
               cd "$GITHUB_WORKSPACE"
               printf '%s\n' \
