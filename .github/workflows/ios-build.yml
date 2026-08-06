@@ -200,10 +200,22 @@ jobs:
           if [ "$PROJECT_TYPE" = "flutter" ]; then
             cd "$GITHUB_WORKSPACE"
             if [ "$USE_SIGNING" = "true" ]; then
-              echo "Building Flutter IPA (Release)..."
-              flutter build ipa --release
+              echo "Building Flutter IPA (Signed AdHoc)..."
+              printf '%s\n' \
+                '<?xml version="1.0" encoding="UTF-8"?>' \
+                '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">' \
+                '<plist version="1.0">' \
+                '<dict>' \
+                '    <key>method</key>' \
+                '    <string>ad-hoc</string>' \
+                '    <key>signingStyle</key>' \
+                '    <string>automatic</string>' \
+                '</dict>' \
+                '</plist>' > ExportOptions.plist
+
+              flutter build ipa --release --export-options-plist ExportOptions.plist
               mkdir -p build
-              cp -R build/ios/archive/Runner.xcarchive build/App.xcarchive
+              cp build/ios/ipa/*.ipa "build/$BUILD_ID.ipa"
             else
               if [ "$CONFIGURATION" = "Debug" ]; then
                 echo "Building Flutter iOS Debug..."
