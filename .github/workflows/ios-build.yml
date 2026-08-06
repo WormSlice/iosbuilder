@@ -142,8 +142,8 @@ jobs:
           CERTIFICATE_PATH=$RUNNER_TEMP/certificate.p12
           echo "$IOS_CERTIFICATE" | base64 --decode > "$CERTIFICATE_PATH"
           security import "$CERTIFICATE_PATH" -P "$IOS_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
-          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-          security list-keychain -d user -s "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security list-keychains -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | tr -d '"')
 
           # Install provisioning profile
           PROFILE_PATH=$RUNNER_TEMP/profile.mobileprovision
@@ -200,17 +200,27 @@ jobs:
           if [ "$PROJECT_TYPE" = "flutter" ]; then
             cd "$GITHUB_WORKSPACE"
             if [ "$USE_SIGNING" = "true" ]; then
-              echo "Building Flutter Archive with xcodebuild..."
-              flutter build ios --release --no-codesign
-              cd ios
-              xcodebuild -workspace Runner.xcworkspace \
-                -scheme Runner \
-                -configuration Release \
-                -archivePath "${GITHUB_WORKSPACE}/build/App.xcarchive" \
-                archive \
-                CODE_SIGN_STYLE=Manual \
-                PROVISIONING_PROFILE_SPECIFIER=CONNECT \
-                DEVELOPMENT_TEAM=G2JK99ANGN
+              echo "Building Flutter IPA (Signed AdHoc)..."
+              printf '%s\n' \
+                '<?xml version="1.0" encoding="UTF-8"?>' \
+                '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">' \
+                '<plist version="1.0">' \
+                '<dict>' \
+                '    <key>method</key>' \
+                '    <string>ad-hoc</string>' \
+                '    <key>signingStyle</key>' \
+                '    <string>manual</string>' \
+                '    <key>provisioningProfiles</key>' \
+                '    <dict>' \
+                '        <key>com.connectapp.co</key>' \
+                '        <string>CONNECT</string>' \
+                '    </dict>' \
+                '</dict>' \
+                '</plist>' > ExportOptions.plist
+
+              flutter build ipa --release --export-options-plist ExportOptions.plist
+              mkdir -p build
+              cp build/ios/ipa/*.ipa "build/$BUILD_ID.ipa"
             else
               if [ "$CONFIGURATION" = "Debug" ]; then
                 echo "Building Flutter iOS Debug..."
