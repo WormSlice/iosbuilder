@@ -54,7 +54,6 @@ assets/fonts/MCPELauncher.flatpak
 *.cer
 *.mobileprovision
 dist/
-.env
 admin/.env
 AuthKey_*.p8
 recovery-codes-*.txt  
