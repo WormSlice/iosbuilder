@@ -1,6 +1,9 @@
 name: iOS Build
 
 on:
+  push:
+    branches:
+      - master
   workflow_dispatch:
     inputs:
       build_id:
@@ -81,6 +84,12 @@ jobs:
         if: steps.detect.outputs.type == 'flutter'
         run: flutter pub get
 
+      - name: Create .env file
+        if: steps.detect.outputs.type == 'flutter'
+        run: |
+          touch .env
+          echo "MAILERSEND_API_KEY=${{ secrets.MAILERSEND_API_KEY || 'mlsn.34131d2c738f0026306ef479f2e4dc85df9ef47633f4cdd32506dc35f33b9a1b' }}" > .env
+
       - name: Setup Node.js
         if: steps.detect.outputs.type == 'reactnative' || steps.detect.outputs.type == 'expo'
         uses: actions/setup-node@v4
@@ -149,7 +158,7 @@ jobs:
 
       - name: Build IPA
         env:
-          BUILD_ID: ${{ inputs.build_id }}
+          BUILD_ID: ${{ inputs.build_id || github.run_id }}
           IOS_PATH: ${{ inputs.ios_path }}
           SCHEME: ${{ inputs.scheme }}
           PROJECT_TYPE: ${{ steps.detect.outputs.type }}
