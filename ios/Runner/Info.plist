@@ -43,6 +43,8 @@
 	<string>Esta aplicación necesita acceso al micrófono para grabar y enviar mensajes de voz en el chat.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Necesitamos acceso a tu galería para enviar fotos.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Necesitamos acceso a tu galería para guardar fotos.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Esta aplicación requiere acceso a tu ubicación para mostrarte publicaciones y servicios cerca de ti.</string>
 	<key>NSLocationAlwaysUsageDescription</key>

@@ -8,18 +8,35 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
   try {
     await dotenv.load(fileName: "assets/.env");
   } catch (_) {
-    await dotenv.load(fileName: ".env", isOptional: true);
+    try {
+      await dotenv.load(fileName: ".env", isOptional: true);
+    } catch (_) {}
   }
-  await Firebase.initializeApp();
 
-  // No bloquear el inicio de la interfaz con servicios secundarios
-  MessagingService().init();
-  LocalNotificationService.init(); // This call is already present and non-blocking
+  try {
+    await Firebase.initializeApp();
+  } catch (e) {
+    debugPrint("Firebase init error: $e");
+  }
+
+  try {
+    MessagingService().init();
+  } catch (e) {
+    debugPrint("MessagingService init error: $e");
+  }
+
+  try {
+    LocalNotificationService.init();
+  } catch (e) {
+    debugPrint("LocalNotificationService init error: $e");
+  }
 
   PaintingBinding.instance.imageCache.maximumSize = 200;
   PaintingBinding.instance.imageCache.maximumSizeBytes = 200 << 20; // ~200MB
+
   runApp(const App());
 }
