@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import '../services/music_service.dart';
 
 class MusicPlayerPill extends StatefulWidget {
@@ -282,19 +281,22 @@ class _MusicPlayerPillState extends State<MusicPlayerPill> {
 
   @override
   Widget build(BuildContext context) {
-    return LiquidGlass.withOwnLayer(
-      settings: const LiquidGlassSettings(
-        thickness: 20,
-        blur: 10,
-        glassColor: Color(0x33FFFFFF),
-        lightIntensity: 1.5,
-        saturation: 1.3,
+    return Container(
+      height: 36,
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.96),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFF0094FF), width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0094FF).withValues(alpha: 0.12),
+            blurRadius: 4,
+            offset: const Offset(0, 1.5),
+          ),
+        ],
       ),
-      shape: LiquidRoundedSuperellipse(borderRadius: 18),
-      child: Container(
-        height: 36,
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-        child: Row(
+      child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           // 1. Portada/Carátula de la canción completamente cuadrada
@@ -398,7 +400,7 @@ class _MusicPlayerPillState extends State<MusicPlayerPill> {
           ),
         ],
       ),
-    ));
+    );
   }
 }
 
