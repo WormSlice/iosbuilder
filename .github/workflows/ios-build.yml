@@ -200,7 +200,22 @@ jobs:
           if [ "$PROJECT_TYPE" = "flutter" ]; then
             cd "$GITHUB_WORKSPACE"
             if [ "$USE_SIGNING" = "true" ]; then
-              echo "Building Flutter IPA (Signed AdHoc)..."
+              echo "Building Flutter Release iOS bundle..."
+              flutter build ios --release --no-codesign
+
+              echo "Creating Xcode Archive with manual code signing..."
+              cd ios
+              xcodebuild -workspace Runner.xcworkspace \
+                -scheme Runner \
+                -configuration Release \
+                -archivePath "${GITHUB_WORKSPACE}/build/App.xcarchive" \
+                archive \
+                CODE_SIGN_STYLE=Manual \
+                PROVISIONING_PROFILE_SPECIFIER=CONNECT \
+                DEVELOPMENT_TEAM=G2JK99ANGN \
+                "CODE_SIGN_IDENTITY=Apple Distribution"
+
+              cd "$GITHUB_WORKSPACE"
               printf '%s\n' \
                 '<?xml version="1.0" encoding="UTF-8"?>' \
                 '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">' \
@@ -220,9 +235,13 @@ jobs:
                 '</dict>' \
                 '</plist>' > ExportOptions.plist
 
-              flutter build ipa --release --export-options-plist ExportOptions.plist
-              mkdir -p build
-              cp build/ios/ipa/*.ipa "build/$BUILD_ID.ipa"
+              xcodebuild -exportArchive \
+                -archivePath "${GITHUB_WORKSPACE}/build/App.xcarchive" \
+                -exportOptionsPlist ExportOptions.plist \
+                -exportPath "${GITHUB_WORKSPACE}/build/export"
+
+              mv "${GITHUB_WORKSPACE}/build/export"/*.ipa "${GITHUB_WORKSPACE}/build/$BUILD_ID.ipa"
+              echo "Created signed IPA: ${GITHUB_WORKSPACE}/build/$BUILD_ID.ipa"
             else
               if [ "$CONFIGURATION" = "Debug" ]; then
                 echo "Building Flutter iOS Debug..."
