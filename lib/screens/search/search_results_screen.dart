@@ -5,6 +5,8 @@ import '../../widgets/post_card.dart';
 import '../../services/location_service.dart';
 import '../../services/search_service.dart';
 
+import '../../widgets/liquid_glass_filter_modal.dart';
+
 /// Pantalla de resultados de busqueda basada en Algolia.
 /// Soporta busqueda por texto libre, filtros por categoria,
 /// tolerancia a errores de escritura y paginacion.
@@ -45,8 +47,10 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
     });
 
     try {
+      final city = _locationService.currentCity;
       final result = await _algolia.searchPosts(
         widget.query,
+        city: city != null && city != 'Todo' ? city : null,
         filter: widget.category != null ? {'category': widget.category} : null,
         limit: 60,
       );
@@ -88,11 +92,35 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
   }
 
   String _getImageUrl(Map<String, dynamic> d) {
-    final img = d['imageUrl'] ?? d['image'];
-    if (img != null) return img.toString();
-    final imgs = d['images'];
-    if (imgs is List && imgs.isNotEmpty) return imgs.first.toString();
+    final direct = d['imageUrl'] ??
+        d['image'] ??
+        d['coverUrl'] ??
+        d['coverImage'] ??
+        d['portada'] ??
+        d['foto'] ??
+        d['thumbnail'];
+    if (direct != null && direct.toString().isNotEmpty) return direct.toString();
+
+    final dImages = d['images'] ?? d['imageUrls'] ?? d['media'] ?? d['photos'] ?? d['pictures'];
+    if (dImages is List && dImages.isNotEmpty) {
+      final first = dImages.first;
+      if (first != null && first.toString().isNotEmpty) return first.toString();
+    }
     return '';
+  }
+
+  void _openFilterModal() {
+    LiquidGlassFilterModal.show(
+      context: context,
+      currentSort: _selectedSort,
+      currentCity: _locationService.currentCity ?? 'Todo',
+      onApply: (selectedSort, selectedCity) {
+        setState(() {
+          _selectedSort = selectedSort;
+        });
+        _fetchResults();
+      },
+    );
   }
 
   @override
@@ -135,18 +163,9 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
           ],
         ),
         actions: [
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.sort, color: Color(0xFF0094FF)),
-            onSelected: (value) {
-              setState(() => _selectedSort = value);
-              _fetchResults();
-            },
-            itemBuilder: (context) => [
-              const PopupMenuItem(value: 'relevancia', child: Text('Por relevancia')),
-              const PopupMenuItem(value: 'reciente', child: Text('Más reciente')),
-              const PopupMenuItem(value: 'precio_asc', child: Text('Precio: menor a mayor')),
-              const PopupMenuItem(value: 'precio_desc', child: Text('Precio: mayor a menor')),
-            ],
+          IconButton(
+            icon: const Icon(Icons.tune, color: Color(0xFF0094FF)),
+            onPressed: _openFilterModal,
           ),
         ],
       ),

@@ -57,6 +57,18 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
   bool _isGeocoding = false;
   bool _hasSearchFocus = false;
 
+  double _getZoomForRadius(double radiusKm) {
+    if (radiusKm <= 0.5) return 15.2;
+    if (radiusKm <= 1.0) return 14.5;
+    if (radiusKm <= 2.0) return 13.8;
+    if (radiusKm <= 5.0) return 12.8;
+    if (radiusKm <= 10.0) return 11.8;
+    if (radiusKm <= 20.0) return 10.8;
+    if (radiusKm <= 50.0) return 9.5;
+    if (radiusKm <= 100.0) return 8.5;
+    return 7.5;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -219,7 +231,7 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
                 GoogleMap(
                   initialCameraPosition: CameraPosition(
                     target: _currentCenter,
-                    zoom: 13,
+                    zoom: _getZoomForRadius(_currentRadius),
                   ),
                   onMapCreated: (controller) {
                     _mapController = controller;
@@ -543,15 +555,9 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
                 setState(() {
                   _currentRadius = val;
                 });
-                // Ajustar zoom dinámicamente según el radio
-                double zoom = 13;
-                if (_currentRadius <= 1) {
-                  zoom = 15;
-                } else if (_currentRadius <= 5)
-                  zoom = 14;
-                else if (_currentRadius > 50)
-                  zoom = 10;
-                _mapController.animateCamera(CameraUpdate.zoomTo(zoom));
+                _mapController.animateCamera(
+                  CameraUpdate.zoomTo(_getZoomForRadius(_currentRadius)),
+                );
               },
             ),
             Padding(

@@ -36,11 +36,30 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
   final TextEditingController _messageController = TextEditingController();
   final PageController _pageController = PageController();
   int _currentImageIndex = 0;
+  late Map<String, dynamic> _fullData;
 
   @override
   void initState() {
     super.initState();
+    _fullData = Map<String, dynamic>.from(widget.data);
+    _loadFullDataFromFirestoreIfNeeded();
     _trackVisit();
+  }
+
+  Future<void> _loadFullDataFromFirestoreIfNeeded() async {
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('posts')
+          .doc(widget.postId)
+          .get();
+      if (doc.exists && doc.data() != null && mounted) {
+        setState(() {
+          _fullData = {...widget.data, ...doc.data()!};
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading full post data: $e');
+    }
   }
 
   void _trackVisit() async {
@@ -81,12 +100,13 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final d = widget.data;
+    final d = _fullData;
     List<String> images = [];
-    if (d['images'] is List && (d['images'] as List).isNotEmpty) {
-      images = List<String>.from(d['images']);
+    final dImages = d['images'] ?? d['imageUrls'] ?? d['media'] ?? d['photos'] ?? d['pictures'];
+    if (dImages is List && dImages.isNotEmpty) {
+      images = dImages.map((e) => e.toString()).where((e) => e.isNotEmpty).toList();
     } else {
-      String? main = d['imageUrl'] ?? d['image'];
+      String? main = (d['imageUrl'] ?? d['image'] ?? d['coverUrl'] ?? d['coverImage'] ?? d['portada'] ?? d['foto'] ?? d['thumbnail'])?.toString();
       if (main != null && main.isNotEmpty) images.add(main);
     }
 
