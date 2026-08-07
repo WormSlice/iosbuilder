@@ -111,7 +111,7 @@ class _MusicSearchSheetState extends State<MusicSearchSheet> {
   Future<void> _toggleSaveSong(Map<String, String> song) async {
     final id = song['id']!;
     if (_savedSongIds.contains(id)) {
-      await MusicService.removeSong(id);
+      await MusicService.unsaveSong(id);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
