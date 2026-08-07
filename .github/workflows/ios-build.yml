@@ -215,7 +215,7 @@ jobs:
                 '    <key>provisioningProfiles</key>' \
                 '    <dict>' \
                 '        <key>com.connectapp.co</key>' \
-                '        <string>CONNECT</string>' \
+                '        <string>688ce43f-5a08-404c-9869-e765ccac7438</string>' \
                 '    </dict>' \
                 '</dict>' \
                 '</plist>' > ExportOptions.plist
