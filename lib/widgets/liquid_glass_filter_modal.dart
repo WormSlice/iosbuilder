@@ -56,9 +56,9 @@ class _LiquidGlassFilterModalState extends State<LiquidGlassFilterModal> {
       context,
       MaterialPageRoute(
         builder: (context) => MapPickerScreen(
-          initialLat: locService.currentLat ?? 8.7479,
-          initialLng: locService.currentLng ?? -75.8814,
-          initialRadius: locService.currentRadius ?? 10,
+          initialLat: locService.selectedLat ?? 8.7479,
+          initialLng: locService.selectedLng ?? -75.8814,
+          initialRadius: locService.currentRadius,
         ),
       ),
     );
