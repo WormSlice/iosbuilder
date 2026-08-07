@@ -47,6 +47,111 @@ export const Mail: React.FC = () => {
     const [selectedAccount, setSelectedAccount] = useState('contacto@connectapp.com.co');
     const [selectedMail, setSelectedMail] = useState<MailLog | null>(null);
 
+    // Estado para simulación de correo entrante
+    const [isSimulatingInbound, setIsSimulatingInbound] = useState(false);
+    const [inboundFrom, setInboundFrom] = useState('');
+    const [inboundSubject, setInboundSubject] = useState('');
+    const [inboundMessage, setInboundMessage] = useState('');
+
+    const handleSimulateInbound = async () => {
+        if (!inboundFrom || !inboundSubject || !inboundMessage) return;
+        try {
+            await saveMail({
+                from: inboundFrom,
+                to: selectedAccount,
+                subject: inboundSubject,
+                message: inboundMessage,
+                status: 'received',
+                category: 'principal',
+                timestamp: Timestamp.now()
+            });
+            setIsSimulatingInbound(false);
+            setInboundFrom('');
+            setInboundSubject('');
+            setInboundMessage('');
+        } catch (e: any) {
+            alert('Error al simular recibo: ' + e.message);
+        }
+    };
+
+    const decodeMimeHeader = (str: string) => {
+        if (!str) return '(Sin asunto)';
+        let s = str;
+        s = s.replace(/=\?[uU][tT][fF]-8\?[qQ]\?(.*?)\?=/gi, (_, content) => {
+            try {
+                let dec = content.replace(/=/g, '%');
+                return decodeURIComponent(dec);
+            } catch (e) {
+                return content;
+            }
+        });
+        s = s.replace(/=\?[uU][tT][fF]-8\?[bB]\?(.*?)\?=/gi, (_, content) => {
+            try {
+                return atob(content);
+            } catch (e) {
+                return content;
+            }
+        });
+        return decodeQuotedPrintable(s);
+    };
+
+    const decodeQuotedPrintable = (str: string) => {
+        if (!str) return '';
+        let decoded = str;
+        decoded = decoded.replace(/=\r?\n/g, '');
+        try {
+            decoded = decoded.replace(/=([0-9A-Fa-f]{2})/g, (_, hex) => {
+                return String.fromCharCode(parseInt(hex, 16));
+            });
+            decoded = decodeURIComponent(escape(decoded));
+        } catch (e) {}
+        return decoded;
+    };
+
+    const processEmailContent = (msg: string) => {
+        if (!msg) return { isHtml: false, content: 'Sin contenido.' };
+        let decoded = decodeQuotedPrintable(msg);
+
+        if (decoded.includes('Content-Type: text/html')) {
+            const htmlParts = decoded.split('Content-Type: text/html');
+            let htmlSection = htmlParts[1] || '';
+            if (htmlSection.includes('\r\n\r\n')) {
+                htmlSection = htmlSection.split('\r\n\r\n').slice(1).join('\r\n\r\n');
+            } else if (htmlSection.includes('\n\n')) {
+                htmlSection = htmlSection.split('\n\n').slice(1).join('\n\n');
+            }
+            if (htmlSection.includes('--')) {
+                htmlSection = htmlSection.split('--')[0];
+            }
+            decoded = htmlSection.trim();
+        } else if (decoded.includes('Content-Type: text/plain')) {
+            const textParts = decoded.split('Content-Type: text/plain');
+            let textSection = textParts[1] || '';
+            if (textSection.includes('\r\n\r\n')) {
+                textSection = textSection.split('\r\n\r\n').slice(1).join('\r\n\r\n');
+            } else if (textSection.includes('\n\n')) {
+                textSection = textSection.split('\n\n').slice(1).join('\n\n');
+            }
+            if (textSection.includes('--')) {
+                textSection = textSection.split('--')[0];
+            }
+            decoded = textSection.trim();
+        }
+
+        decoded = decoded
+            .replace(/--[a-zA-Z0-9_-]+/g, '')
+            .replace(/Content-Type:[^\n]+/g, '')
+            .replace(/charset=[^\n]+/g, '')
+            .replace(/Content-Transfer-Encoding:[^\n]+/g, '')
+            .trim();
+
+        const hasHtmlTags = /<[a-z][\s\S]*>/i.test(decoded);
+        return {
+            isHtml: hasHtmlTags,
+            content: decoded
+        };
+    };
+
     const fileInputRef = useRef<HTMLInputElement>(null!);
 
     useEffect(() => {
@@ -243,12 +348,20 @@ export const Mail: React.FC = () => {
                 <div className="flex-1 glass-panel border border-zinc-100 rounded-[3rem] p-8 shadow-sm relative flex flex-col min-w-0">
                     <div className="flex justify-between items-center mb-6">
                         <h2 className="text-lg font-black tracking-tighter uppercase">{categories.find(c => c.id === activeCategory)?.label}</h2>
-                        <button
-                            onClick={handleRefresh}
-                            className="p-3 text-zinc-400 hover:text-black glass-button rounded-xl transition-all flex items-center gap-2 text-[9px] font-black uppercase tracking-widest"
-                        >
-                            <RefreshCw size={14} /> Actualizar
-                        </button>
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => setIsSimulatingInbound(true)}
+                                className="p-3 text-primary hover:bg-primary/10 glass-button rounded-xl transition-all flex items-center gap-2 text-[9px] font-black uppercase tracking-widest border border-primary/20"
+                            >
+                                <Plus size={14} /> Simular Recibo
+                            </button>
+                            <button
+                                onClick={handleRefresh}
+                                className="p-3 text-zinc-400 hover:text-black glass-button rounded-xl transition-all flex items-center gap-2 text-[9px] font-black uppercase tracking-widest"
+                            >
+                                <RefreshCw size={14} /> Actualizar
+                            </button>
+                        </div>
                     </div>
 
                     <div className="space-y-1 overflow-y-auto flex-1 pr-2 custom-scrollbar">
@@ -278,7 +391,7 @@ export const Mail: React.FC = () => {
                                             {log.attachmentsCount ? <LucidePaperclip size={10} className="text-primary" /> : null}
                                         </div>
                                         <p className="text-[10px] font-bold text-zinc-400 truncate leading-none mt-1.5 opacity-80">
-                                            {log.subject}: <span className="font-medium opacity-60">{log.message?.substring(0, 100)}...</span>
+                                            {decodeMimeHeader(log.subject)}: <span className="font-medium opacity-60">{log.message?.substring(0, 100)}...</span>
                                         </p>
                                     </div>
                                     <div className="text-right flex items-center gap-4 shrink-0">
@@ -493,7 +606,7 @@ export const Mail: React.FC = () => {
                             <div className="p-8 pb-4 flex justify-between items-start">
                                 <div className="flex-1 pr-8">
                                     <p className="text-[10px] font-black uppercase text-primary tracking-[0.2em] mb-2">{selectedMail.category}</p>
-                                    <h3 className="text-2xl font-black tracking-tighter leading-tight">{selectedMail.subject}</h3>
+                                    <h3 className="text-2xl font-black tracking-tighter leading-tight">{decodeMimeHeader(selectedMail.subject)}</h3>
                                 </div>
                                 <button onClick={() => setSelectedMail(null)} className="text-zinc-300 hover:text-black p-2 glass-button rounded-xl transition-all">
                                     <X size={24} />
@@ -518,14 +631,26 @@ export const Mail: React.FC = () => {
                                     </div>
                                 </div>
 
-                                <div className="glass-button p-8 rounded-[2.5rem] relative overflow-hidden">
-                                    {/* Background Decor */}
-                                    <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-2xl -mr-16 -mt-16"></div>
+                                {(() => {
+                                    const parsed = processEmailContent(selectedMail.message);
+                                    return (
+                                        <div className="glass-button p-6 rounded-[2.5rem] relative overflow-hidden bg-black/60 border border-white/10 shadow-2xl">
+                                            {/* Background Decor */}
+                                            <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full blur-2xl -mr-16 -mt-16"></div>
 
-                                    <div className="relative z-10 text-xs font-medium text-zinc-700 leading-relaxed whitespace-pre-wrap">
-                                        {selectedMail.message}
-                                    </div>
-                                </div>
+                                            {parsed.isHtml ? (
+                                                <div 
+                                                    className="relative z-10 text-sm font-medium leading-relaxed bg-white text-zinc-900 p-6 rounded-2xl overflow-x-auto shadow-xl border border-zinc-200 min-h-[180px] email-content-wrapper"
+                                                    dangerouslySetInnerHTML={{ __html: parsed.content }}
+                                                />
+                                            ) : (
+                                                <div className="relative z-10 text-sm font-bold text-white leading-relaxed whitespace-pre-wrap tracking-wide p-6 bg-zinc-900/90 rounded-2xl border border-zinc-700/60 shadow-inner">
+                                                    {parsed.content}
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })()}
 
                                 {selectedMail.attachmentsCount ? (
                                     <div className="p-4 glass-button rounded-2xl border border-zinc-100 flex items-center gap-3">
@@ -564,7 +689,97 @@ export const Mail: React.FC = () => {
                 )}
             </AnimatePresence>
 
+            {/* Modal para Simular Recibo de Correo Entrante */}
+            <AnimatePresence>
+                {isSimulatingInbound && (
+                    <div className="fixed inset-0 glass-panel-dark backdrop-blur-sm z-[100] flex items-center justify-center p-4 sm:p-8">
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                            className="glass-panel rounded-[2.5rem] w-full max-w-xl shadow-2xl relative flex flex-col overflow-hidden"
+                        >
+                            <div className="flex justify-between items-center p-6 border-b border-zinc-100">
+                                <h3 className="text-sm font-black uppercase tracking-tight">Simular Recibo de Correo Entrante</h3>
+                                <button
+                                    onClick={() => setIsSimulatingInbound(false)}
+                                    className="p-2 hover:bg-zinc-100 rounded-full transition-colors text-zinc-400 hover:text-black"
+                                >
+                                    <X size={18} />
+                                </button>
+                            </div>
+
+                            <div className="p-6 space-y-4">
+                                <div>
+                                    <label className="text-[10px] font-black uppercase text-zinc-400 tracking-wider mb-1 block">Remitente (De:)</label>
+                                    <input
+                                        type="email"
+                                        placeholder="cliente@ejemplo.com"
+                                        value={inboundFrom}
+                                        onChange={(e) => setInboundFrom(e.target.value)}
+                                        className="w-full glass-panel border border-zinc-100 px-4 py-3 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-[10px] font-black uppercase text-zinc-400 tracking-wider mb-1 block">Asunto</label>
+                                    <input
+                                        type="text"
+                                        placeholder="Consulta sobre servicios / producto"
+                                        value={inboundSubject}
+                                        onChange={(e) => setInboundSubject(e.target.value)}
+                                        className="w-full glass-panel border border-zinc-100 px-4 py-3 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-[10px] font-black uppercase text-zinc-400 tracking-wider mb-1 block">Mensaje / Contenido</label>
+                                    <textarea
+                                        rows={4}
+                                        placeholder="Escribe el mensaje que el usuario o cliente te envió..."
+                                        value={inboundMessage}
+                                        onChange={(e) => setInboundMessage(e.target.value)}
+                                        className="w-full glass-panel border border-zinc-100 p-4 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="p-6 pt-2 flex justify-end gap-3 border-t border-zinc-100">
+                                <button
+                                    onClick={() => setIsSimulatingInbound(false)}
+                                    className="px-6 py-3 text-zinc-500 hover:bg-zinc-100 rounded-xl text-xs font-bold transition-all"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    onClick={handleSimulateInbound}
+                                    className="px-6 py-3 bg-primary text-white rounded-xl text-xs font-bold shadow-lg hover:bg-primary/90 transition-all"
+                                >
+                                    Guardar en Recibidos
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
             <style>{`
+                .email-content-wrapper {
+                    color: #18181b !important;
+                    background-color: #ffffff !important;
+                }
+                .email-content-wrapper p, 
+                .email-content-wrapper span, 
+                .email-content-wrapper td, 
+                .email-content-wrapper h1, 
+                .email-content-wrapper h2, 
+                .email-content-wrapper h3, 
+                .email-content-wrapper div {
+                    color: #18181b;
+                }
+                .email-content-wrapper a {
+                    color: #0094FF !important;
+                    text-decoration: underline;
+                    font-weight: bold;
+                }
                 .custom-scrollbar::-webkit-scrollbar {
                     width: 4px;
                 }

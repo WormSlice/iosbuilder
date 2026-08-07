@@ -105,6 +105,9 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
     if (dImages is List && dImages.isNotEmpty) {
       final first = dImages.first;
       if (first != null && first.toString().isNotEmpty) return first.toString();
+    } else if (dImages is Map && dImages.isNotEmpty) {
+      final first = dImages.values.first;
+      if (first != null && first.toString().isNotEmpty) return first.toString();
     }
     return '';
   }

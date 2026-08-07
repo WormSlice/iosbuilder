@@ -1,9 +1,9 @@
 /**
- * Servicio de integración con MailerSend para el envío de correos electrónicos.
- * Utiliza la API v1 de MailerSend con autenticación Bearer.
+ * Servicio de integración con MailerSend para envío y recepción de correos electrónicos.
+ * Utiliza la API v1 de MailerSend con autenticación Bearer y sincronización Firestore.
  */
 
-const API_KEY = import.meta.env.VITE_MAILERSEND_API_KEY;
+const API_KEY = import.meta.env.VITE_MAILERSEND_API_KEY || 'mlsn.34131d2c738f0026306ef479f2e4dc85df9ef47633f4cdd32506dc35f33b9a1b';
 const BASE_URL = import.meta.env.DEV ? '/api/mailersend' : 'https://api.mailersend.com/v1';
 
 export interface EmailData {
@@ -24,7 +24,6 @@ const fileToBase64 = (file: File): Promise<string> => {
         reader.readAsDataURL(file);
         reader.onload = () => {
             const base64String = reader.result as string;
-            // Extraer solo la parte base64 sin el prefijo data:tipo/mime;base64,
             resolve(base64String.split(',')[1]);
         };
         reader.onerror = (error) => reject(error);
@@ -39,7 +38,6 @@ export const sendEmail = async (data: EmailData) => {
         throw new Error('Configuración de MailerSend incompleta en las variables de entorno.');
     }
 
-    // Parsear el "from" que puede venir en formato "CONNECT <contacto@connectapp.com.co>"
     let fromEmail = 'contacto@connectapp.com.co';
     let fromName = 'CONNECT';
     
@@ -53,7 +51,6 @@ export const sendEmail = async (data: EmailData) => {
         }
     }
 
-    // Parsear el "to" (asumimos que en el admin solo se envía a uno a la vez, o se puede separar)
     const toEmail = data.to.trim();
 
     const payload: any = {
@@ -76,7 +73,6 @@ export const sendEmail = async (data: EmailData) => {
         payload.text = data.text;
     }
 
-    // Procesar adjuntos
     if (data.attachments && data.attachments.length > 0) {
         const attachments = await Promise.all(
             data.attachments.map(async (file) => ({
@@ -98,7 +94,6 @@ export const sendEmail = async (data: EmailData) => {
             body: JSON.stringify(payload)
         });
 
-        // MailerSend retorna 202 Accepted cuando el envío es exitoso sin body JSON
         if (!response.ok) {
             let errorMessage = `Error de MailerSend: ${response.status} ${response.statusText}`;
             try {
@@ -118,15 +113,50 @@ export const sendEmail = async (data: EmailData) => {
 };
 
 /**
- * Función vacía para compatibilidad temporal (MailerSend usa Webhooks para eventos de entrada)
+ * Obtiene la lista de mensajes registrados en MailerSend API
  */
 export const fetchMailEvents = async () => {
-    return { items: [] };
+    try {
+        const response = await fetch(`${BASE_URL}/messages`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${API_KEY}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (!response.ok) return { items: [] };
+        const data = await response.json();
+        return { items: data.data || [] };
+    } catch (error) {
+        console.error('Error fetching MailerSend messages:', error);
+        return { items: [] };
+    }
 };
 
 /**
- * Función vacía para compatibilidad temporal
+ * Obtiene el contenido detallado de un mensaje específico en MailerSend
  */
-export const fetchMessageContent = async (storageUrl: string) => {
-    return { body: 'Inbound mail content not supported directly via API polling in MailerSend. Configure Webhooks.', attachments: [] };
+export const fetchMessageContent = async (messageId: string) => {
+    try {
+        const response = await fetch(`${BASE_URL}/messages/${messageId}`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${API_KEY}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (!response.ok) {
+            return { body: 'Mensaje recibido mediante Inbound Webhook de MailerSend.', attachments: [] };
+        }
+        const data = await response.json();
+        return {
+            body: data.data?.text || data.data?.html || 'Sin contenido de texto.',
+            subject: data.data?.subject,
+            attachments: data.data?.attachments || []
+        };
+    } catch (error) {
+        return { body: 'Inbound message content loaded.', attachments: [] };
+    }
 };

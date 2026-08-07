@@ -188,9 +188,11 @@ class PostCard extends StatelessWidget {
                                            data!['thumbnail'])?.toString();
                               
                               if (displayUrl == null || displayUrl.isEmpty) {
-                                final dImages = data!['images'];
+                                final dImages = data!['images'] ?? data!['imageUrls'] ?? data!['media'] ?? data!['photos'] ?? data!['pictures'];
                                 if (dImages is List && dImages.isNotEmpty) {
                                   displayUrl = dImages.first.toString();
+                                } else if (dImages is Map && dImages.isNotEmpty) {
+                                  displayUrl = dImages.values.first.toString();
                                 }
                               }
                             }

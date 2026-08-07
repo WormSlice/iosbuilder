@@ -40,11 +40,30 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
   final TextEditingController _messageController = TextEditingController();
   final PageController _pageController = PageController();
   int _currentImageIndex = 0;
+  late Map<String, dynamic> _fullData;
 
   @override
   void initState() {
     super.initState();
+    _fullData = Map<String, dynamic>.from(widget.data);
+    _loadFullDataFromFirestoreIfNeeded();
     _trackVisit();
+  }
+
+  Future<void> _loadFullDataFromFirestoreIfNeeded() async {
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('posts')
+          .doc(widget.postId)
+          .get();
+      if (doc.exists && doc.data() != null && mounted) {
+        setState(() {
+          _fullData = {...widget.data, ...doc.data()!};
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading full post data: $e');
+    }
   }
 
   void _trackVisit() async {
@@ -62,6 +81,20 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
   String _getString(dynamic value, {String fallback = 'N/A'}) {
     if (value == null) return fallback;
     return value.toString();
+  }
+
+  String _listToString(dynamic val) {
+    if (val == null) return 'N/A';
+    if (val is List) {
+      final nonNull = val.where((e) => e != null && e.toString().isNotEmpty).toList();
+      return nonNull.isNotEmpty ? nonNull.join(', ') : 'N/A';
+    }
+    if (val is Map) {
+      final nonNull = val.values.where((e) => e != null && e.toString().isNotEmpty).toList();
+      return nonNull.isNotEmpty ? nonNull.join(', ') : 'N/A';
+    }
+    final s = val.toString();
+    return s.isNotEmpty ? s : 'N/A';
   }
 
   String _formatPrice(dynamic priceRaw) {
@@ -85,12 +118,15 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final d = widget.data;
+    final d = _fullData;
     List<String> images = [];
-    if (d['images'] is List && (d['images'] as List).isNotEmpty) {
-      images = List<String>.from(d['images']);
+    final dImages = d['images'] ?? d['imageUrls'] ?? d['media'] ?? d['photos'] ?? d['pictures'];
+    if (dImages is List && dImages.isNotEmpty) {
+      images = dImages.map((e) => e.toString()).where((e) => e.isNotEmpty).toList();
+    } else if (dImages is Map && dImages.isNotEmpty) {
+      images = dImages.values.map((e) => e.toString()).where((e) => e.isNotEmpty).toList();
     } else {
-      String? main = d['imageUrl'] ?? d['image'];
+      String? main = (d['imageUrl'] ?? d['image'] ?? d['coverUrl'] ?? d['coverImage'] ?? d['portada'] ?? d['foto'] ?? d['thumbnail'])?.toString();
       if (main != null && main.isNotEmpty) images.add(main);
     }
 
@@ -298,11 +334,9 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 16.0),
                   child: Text('Características', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.grey[800], fontFamily: 'CanvaSans')),
                 ),
-                const SizedBox(height: 8),
-
                 _buildInfoBox(context, [
-                  _buildInfoRow('Tipo de contrato', (d['contractTypes'] as List?)?.join(', ') ?? 'N/A'),
-                  _buildInfoRow('Jornada laboral', (d['jornadas'] as List?)?.join(', ') ?? 'N/A'),
+                  _buildInfoRow('Tipo de contrato', _listToString(d['contractTypes'])),
+                  _buildInfoRow('Jornada laboral', _listToString(d['jornadas'])),
                   _buildInfoRow('Auxilio de transporte', (d['transportAux'] == true) ? 'Sí' : 'No'),
                   _buildInfoRow('Comisiones', (d['commissions'] == true) ? 'Sí' : 'No'),
                   _buildInfoRow('Estudios', _getString(d['studiesRequired'])),

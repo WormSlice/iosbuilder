@@ -1,9 +1,9 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:liquid_glass_easy/liquid_glass_easy.dart';
 import '../services/location_service.dart';
 import 'location_picker/map_picker_screen.dart';
 
-/// Modal de Filtro con diseño Liquid Glass super transparente.
+/// Modal de Filtro con diseño PURE LIQUID GLASS idéntico a Brexcel ERP.
 class LiquidGlassFilterModal extends StatefulWidget {
   final String currentSort;
   final String currentCity;
@@ -26,7 +26,7 @@ class LiquidGlassFilterModal extends StatefulWidget {
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      barrierColor: Colors.black.withOpacity(0.35),
+      barrierColor: Colors.black.withValues(alpha: 0.65), // Oscurece el fondo para que el cristal resalte y sea legible
       builder: (ctx) => LiquidGlassFilterModal(
         currentSort: currentSort,
         currentCity: currentCity,
@@ -81,122 +81,142 @@ class _LiquidGlassFilterModalState extends State<LiquidGlassFilterModal> {
         right: 16,
         bottom: bottomPadding + 20,
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(28),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 25, sigmaY: 25),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 20),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.25),
-              borderRadius: BorderRadius.circular(28),
-              border: Border.all(
-                color: Colors.white.withOpacity(0.6),
-                width: 1.5,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.12),
-                  blurRadius: 20,
-                  spreadRadius: 2,
-                  offset: const Offset(0, 10),
-                ),
-              ],
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Header Flotante / Píldora Superior
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 5,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.8),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
+      child: LiquidGlassLens(
+        style: const LiquidGlassStyle(
+          shape: LiquidGlassShape.squircle(cornerRadius: 32),
+          appearance: LiquidGlassAppearance(
+            color: Colors.white10,
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Píldora superior Liquid Glass
+              Center(
+                child: Container(
+                  width: 44,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.7),
+                    borderRadius: BorderRadius.circular(10),
                   ),
                 ),
-                const SizedBox(height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Filtros de Búsqueda',
-                      style: TextStyle(
-                        fontFamily: 'CanvaSans',
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black.withOpacity(0.85),
-                        shadows: [
-                          Shadow(
-                            color: Colors.white.withOpacity(0.8),
-                            blurRadius: 4,
-                          ),
-                        ],
+              ),
+              const SizedBox(height: 16),
+
+              // Header con Título y Botón Cerrar (Círculo Liquid Glass)
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Filtros de Búsqueda',
+                    style: TextStyle(
+                      fontFamily: 'CanvaSans',
+                      fontSize: 19,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      shadows: [
+                        Shadow(
+                          color: Colors.black87,
+                          blurRadius: 8,
+                          offset: Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                  ),
+                  InkWell(
+                    onTap: () => Navigator.pop(context),
+                    borderRadius: BorderRadius.circular(20),
+                    child: LiquidGlassLens(
+                      style: const LiquidGlassStyle(
+                        shape: LiquidGlassShape.squircle(cornerRadius: 18),
+                        appearance: LiquidGlassAppearance(
+                          color: Colors.white10,
+                        ),
+                      ),
+                      child: Container(
+                        width: 38,
+                        height: 38,
+                        alignment: Alignment.center,
+                        child: const Icon(
+                          Icons.close_rounded,
+                          size: 20,
+                          color: Colors.white,
+                        ),
                       ),
                     ),
-                    IconButton(
-                      icon: Icon(Icons.close, color: Colors.black.withOpacity(0.7)),
-                      onPressed: () => Navigator.pop(context),
-                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 18),
+
+              // Sección Ubicación
+              const Text(
+                'Ubicación',
+                style: TextStyle(
+                  fontFamily: 'CanvaSans',
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white70,
+                  shadows: [
+                    Shadow(color: Colors.black87, blurRadius: 4),
                   ],
                 ),
-                const SizedBox(height: 16),
-
-                // Sección 1: Ubicación
-                Text(
-                  'Ubicación',
-                  style: TextStyle(
-                    fontFamily: 'CanvaSans',
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black.withOpacity(0.7),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                InkWell(
-                  onTap: _openMapPicker,
-                  borderRadius: BorderRadius.circular(16),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.4),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: Colors.white.withOpacity(0.7),
-                        width: 1,
-                      ),
+              ),
+              const SizedBox(height: 8),
+              InkWell(
+                onTap: _openMapPicker,
+                borderRadius: BorderRadius.circular(20),
+                child: LiquidGlassLens(
+                  style: const LiquidGlassStyle(
+                    shape: LiquidGlassShape.squircle(cornerRadius: 20),
+                    appearance: LiquidGlassAppearance(
+                      color: Colors.white10,
                     ),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                     child: Row(
                       children: [
-                        const Icon(Icons.location_on, color: Color(0xFF0094FF), size: 20),
+                        const Icon(Icons.location_on, color: Color(0xFF0094FF), size: 22),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
                             _selectedCity.isEmpty ? 'Todo Colombia' : _selectedCity,
                             style: const TextStyle(
                               fontFamily: 'CanvaSans',
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.black87,
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                              shadows: [
+                                Shadow(color: Colors.black87, blurRadius: 6),
+                              ],
                             ),
                           ),
                         ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF0094FF).withOpacity(0.15),
-                            borderRadius: BorderRadius.circular(12),
+                        LiquidGlassLens(
+                          style: const LiquidGlassStyle(
+                            shape: LiquidGlassShape.squircle(cornerRadius: 14),
+                            appearance: LiquidGlassAppearance(
+                              color: Color(0x660094FF),
+                            ),
                           ),
-                          child: const Text(
-                            'Cambiar',
-                            style: TextStyle(
-                              fontFamily: 'CanvaSans',
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF0094FF),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                            child: const Text(
+                              'Cambiar',
+                              style: TextStyle(
+                                fontFamily: 'CanvaSans',
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                                shadows: [
+                                  Shadow(color: Colors.black87, blurRadius: 4),
+                                ],
+                              ),
                             ),
                           ),
                         ),
@@ -204,54 +224,68 @@ class _LiquidGlassFilterModalState extends State<LiquidGlassFilterModal> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 20),
+              ),
+              const SizedBox(height: 20),
 
-                // Sección 2: Ordenamiento
-                Text(
-                  'Ordenar resultados',
-                  style: TextStyle(
-                    fontFamily: 'CanvaSans',
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black.withOpacity(0.7),
-                  ),
+              // Sección Ordenamiento
+              const Text(
+                'Ordenar resultados',
+                style: TextStyle(
+                  fontFamily: 'CanvaSans',
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white70,
+                  shadows: [
+                    Shadow(color: Colors.black87, blurRadius: 4),
+                  ],
                 ),
-                const SizedBox(height: 8),
-                _buildSortTile('relevancia', 'Por relevancia', Icons.auto_awesome),
-                _buildSortTile('reciente', 'Más reciente', Icons.access_time),
-                _buildSortTile('precio_asc', 'Precio: menor a mayor', Icons.arrow_upward),
-                _buildSortTile('precio_desc', 'Precio: mayor a menor', Icons.arrow_downward),
-                const SizedBox(height: 24),
+              ),
+              const SizedBox(height: 8),
+              _buildSortTile('relevancia', 'Por relevancia', Icons.auto_awesome),
+              _buildSortTile('reciente', 'Más reciente', Icons.access_time),
+              _buildSortTile('precio_asc', 'Precio: menor a mayor', Icons.arrow_upward),
+              _buildSortTile('precio_desc', 'Precio: mayor a menor', Icons.arrow_downward),
+              const SizedBox(height: 24),
 
-                // Botón Aplicar
-                SizedBox(
-                  width: double.infinity,
-                  height: 48,
-                  child: ElevatedButton(
-                    onPressed: () {
+              // Botón Aplicar Filtros (Liquid Glass resaltado)
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: LiquidGlassLens(
+                  style: const LiquidGlassStyle(
+                    shape: LiquidGlassShape.squircle(cornerRadius: 18),
+                    appearance: LiquidGlassAppearance(
+                      color: Color(0xCC0094FF),
+                    ),
+                  ),
+                  child: InkWell(
+                    onTap: () {
                       Navigator.pop(context);
                       widget.onApply(_selectedSort, _selectedCity);
                     },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF0094FF),
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                    ),
-                    child: const Text(
-                      'Aplicar Filtros',
-                      style: TextStyle(
-                        fontFamily: 'CanvaSans',
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
+                    borderRadius: BorderRadius.circular(18),
+                    child: const Center(
+                      child: Text(
+                        'Aplicar Filtros',
+                        style: TextStyle(
+                          fontFamily: 'CanvaSans',
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                          shadows: [
+                            Shadow(
+                              color: Colors.black87,
+                              blurRadius: 6,
+                              offset: Offset(0, 1),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
@@ -264,43 +298,44 @@ class _LiquidGlassFilterModalState extends State<LiquidGlassFilterModal> {
       padding: const EdgeInsets.only(bottom: 6),
       child: InkWell(
         onTap: () => setState(() => _selectedSort = value),
-        borderRadius: BorderRadius.circular(14),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          decoration: BoxDecoration(
-            color: isSelected
-                ? const Color(0xFF0094FF).withOpacity(0.18)
-                : Colors.white.withOpacity(0.3),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
+        borderRadius: BorderRadius.circular(16),
+        child: LiquidGlassLens(
+          style: LiquidGlassStyle(
+            shape: const LiquidGlassShape.squircle(cornerRadius: 16),
+            appearance: LiquidGlassAppearance(
               color: isSelected
-                  ? const Color(0xFF0094FF).withOpacity(0.6)
-                  : Colors.white.withOpacity(0.5),
-              width: isSelected ? 1.5 : 1,
+                  ? const Color(0x660094FF)
+                  : Colors.white10,
             ),
           ),
-          child: Row(
-            children: [
-              Icon(
-                icon,
-                size: 18,
-                color: isSelected ? const Color(0xFF0094FF) : Colors.black54,
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  title,
-                  style: TextStyle(
-                    fontFamily: 'CanvaSans',
-                    fontSize: 13,
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                    color: isSelected ? const Color(0xFF0094FF) : Colors.black87,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            child: Row(
+              children: [
+                Icon(
+                  icon,
+                  size: 20,
+                  color: isSelected ? const Color(0xFF0094FF) : Colors.white70,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: TextStyle(
+                      fontFamily: 'CanvaSans',
+                      fontSize: 14,
+                      fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                      color: isSelected ? Colors.white : Colors.white70,
+                      shadows: const [
+                        Shadow(color: Colors.black87, blurRadius: 4),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-              if (isSelected)
-                const Icon(Icons.check_circle, color: Color(0xFF0094FF), size: 18),
-            ],
+                if (isSelected)
+                  const Icon(Icons.check_circle, color: Color(0xFF0094FF), size: 20),
+              ],
+            ),
           ),
         ),
       ),

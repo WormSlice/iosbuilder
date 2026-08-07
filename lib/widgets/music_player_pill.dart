@@ -5,6 +5,8 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/music_service.dart';
 
+import 'package:liquid_glass_easy/liquid_glass_easy.dart';
+
 class MusicPlayerPill extends StatefulWidget {
   final String musicId;
   final String musicTitle;
@@ -281,22 +283,29 @@ class _MusicPlayerPillState extends State<MusicPlayerPill> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 36,
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.96),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFF0094FF), width: 1.2),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF0094FF).withValues(alpha: 0.12),
-            blurRadius: 4,
-            offset: const Offset(0, 1.5),
-          ),
-        ],
+    return LiquidGlassLens(
+      style: const LiquidGlassStyle(
+        shape: LiquidGlassShape.squircle(cornerRadius: 20),
+        appearance: LiquidGlassAppearance(
+          color: Colors.white10,
+        ),
       ),
-      child: Row(
+      child: Container(
+        height: 38,
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.88),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: const Color(0xFF0094FF), width: 1.2),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF0094FF).withValues(alpha: 0.15),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           // 1. Portada/Carátula de la canción completamente cuadrada
@@ -400,8 +409,9 @@ class _MusicPlayerPillState extends State<MusicPlayerPill> {
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 }
 
 class AnimatedEqualizer extends StatefulWidget {

@@ -56,4 +56,5 @@ assets/fonts/MCPELauncher.flatpak
 dist/
 admin/.env
 AuthKey_*.p8
-recovery-codes-*.txt  
+recovery-codes-*.txt
+*.ipa
