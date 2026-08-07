@@ -10,7 +10,7 @@ class AlgoliaService {
   AlgoliaService._internal();
 
   final String _appId = 'P2CJMQDDSH';
-  final String _apiKey = '4aa72340abeb49d79d888cc3271c23b1';
+  final String _apiKey = '6b69cf2f3a3fab9332efc9ee38ea1643';
   static const String _adminApiKey = '4aa72340abeb49d79d888cc3271c23b1';
 
   late SearchClient _client;
