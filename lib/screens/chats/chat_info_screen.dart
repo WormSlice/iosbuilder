@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:audioplayers/audioplayers.dart';
+import 'package:just_audio/just_audio.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../profile/profile_screen.dart';
 
@@ -40,8 +40,10 @@ class _ChatInfoScreenState extends State<ChatInfoScreen>
     _tabController = TabController(length: 3, vsync: this);
     _loadLocalRecordings();
 
-    _audioPlayer.onPlayerComplete.listen((_) {
-      if (mounted) setState(() => _playingPath = null);
+    _audioPlayer.playerStateStream.listen((state) {
+      if (state.processingState == ProcessingState.completed) {
+        if (mounted) setState(() => _playingPath = null);
+      }
     });
   }
 
@@ -74,8 +76,11 @@ class _ChatInfoScreenState extends State<ChatInfoScreen>
       await _audioPlayer.pause();
       setState(() => _playingPath = null);
     } else {
-      await _audioPlayer.play(DeviceFileSource(path));
-      setState(() => _playingPath = path);
+      try {
+        await _audioPlayer.setFilePath(path);
+        await _audioPlayer.play();
+        setState(() => _playingPath = path);
+      } catch (_) {}
     }
   }
 

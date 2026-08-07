@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:audioplayers/audioplayers.dart';
+import 'package:just_audio/just_audio.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../services/music_service.dart';
 
@@ -37,10 +37,10 @@ class _MusicSearchSheetState extends State<MusicSearchSheet> {
     _loadSavedSongs();
     
     // Escuchamos cambios en la reproducción para actualizar la UI si termina la pista
-    _previewPlayer.onPlayerStateChanged.listen((state) {
+    _previewPlayer.playerStateStream.listen((state) {
       if (mounted) {
         setState(() {
-          _isPlaying = state == PlayerState.playing;
+          _isPlaying = state.playing;
         });
       }
     });
@@ -55,48 +55,48 @@ class _MusicSearchSheetState extends State<MusicSearchSheet> {
     super.dispose();
   }
 
-  void _loadInitialSongs() async {
+  Future<void> _loadInitialSongs() async {
     setState(() => _isLoading = true);
-    final songs = await MusicService.getCuratedSongs();
+    final results = await MusicService.searchSongs('');
     if (mounted) {
       setState(() {
-        _songs = songs;
+        _songs = results;
         _isLoading = false;
       });
     }
   }
 
-  void _loadSavedSongs() async {
-    final songs = await MusicService.getSavedSongs();
+  Future<void> _loadSavedSongs() async {
+    final saved = await MusicService.getSavedSongs();
     if (mounted) {
       setState(() {
-        _savedSongs = songs;
-        _savedSongIds = songs.map((s) => s['id']!).toSet();
-        _filterSavedSongs(_searchController.text);
+        _savedSongs = saved;
+        _filteredSavedSongs = saved;
+        _savedSongIds = saved.map((s) => s['id']!).toSet();
       });
     }
   }
 
-  void _filterSavedSongs(String query) {
-    if (query.trim().isEmpty) {
-      _filteredSavedSongs = _savedSongs;
-    } else {
-      final q = query.toLowerCase();
-      _filteredSavedSongs = _savedSongs
-          .where((s) =>
-              s['title']!.toLowerCase().contains(q) ||
-              s['artist']!.toLowerCase().contains(q))
-          .toList();
-    }
-  }
-
   void _onSearchChanged(String query) {
-    setState(() {
-      _filterSavedSongs(query);
-    });
-
     if (_debounce?.isActive ?? false) _debounce!.cancel();
     _debounce = Timer(const Duration(milliseconds: 500), () async {
+      // Filtrar locamente las guardadas
+      if (mounted) {
+        setState(() {
+          _filteredSavedSongs = _savedSongs.where((s) {
+            final title = s['title']?.toLowerCase() ?? '';
+            final artist = s['artist']?.toLowerCase() ?? '';
+            final q = query.toLowerCase();
+            return title.contains(q) || artist.contains(q);
+          }).toList();
+        });
+      }
+
+      if (query.trim().isEmpty) {
+        _loadInitialSongs();
+        return;
+      }
+      
       setState(() => _isLoading = true);
       final results = await MusicService.searchSongs(query);
       if (mounted) {
@@ -111,11 +111,11 @@ class _MusicSearchSheetState extends State<MusicSearchSheet> {
   Future<void> _toggleSaveSong(Map<String, String> song) async {
     final id = song['id']!;
     if (_savedSongIds.contains(id)) {
-      await MusicService.unsaveSong(id);
+      await MusicService.removeSong(id);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Eliminada de Guardados'),
+            content: Text('Eliminada de tus guardadas'),
             duration: Duration(milliseconds: 800),
           ),
         );
@@ -142,7 +142,7 @@ class _MusicSearchSheetState extends State<MusicSearchSheet> {
         await _previewPlayer.pause();
         setState(() => _isPlaying = false);
       } else {
-        await _previewPlayer.resume();
+        await _previewPlayer.play();
         setState(() => _isPlaying = true);
       }
     } else {
@@ -161,7 +161,8 @@ class _MusicSearchSheetState extends State<MusicSearchSheet> {
         
         if (url != null) {
           try {
-            await _previewPlayer.play(UrlSource(url));
+            await _previewPlayer.setUrl(url);
+            await _previewPlayer.play();
             setState(() => _isPlaying = true);
           } catch (e) {
             ScaffoldMessenger.of(context).showSnackBar(

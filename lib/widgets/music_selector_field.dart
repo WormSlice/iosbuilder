@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:audioplayers/audioplayers.dart';
+import 'package:just_audio/just_audio.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../services/music_service.dart';
 import 'music_search_sheet.dart';
@@ -36,16 +36,16 @@ class _MusicSelectorFieldState extends State<MusicSelectorField> {
   @override
   void initState() {
     super.initState();
-    _audioPlayer.onPlayerStateChanged.listen((state) {
+    _audioPlayer.playerStateStream.listen((state) {
       if (mounted) {
         setState(() {
-          _isPlaying = state == PlayerState.playing;
+          _isPlaying = state.playing;
         });
       }
     });
 
     // Control de bucle para previsualizar (estilo Instagram)
-    _audioPlayer.onPositionChanged.listen((pos) {
+    _audioPlayer.positionStream.listen((pos) {
       if (widget.musicId != null && _isPlaying) {
         final start = Duration(seconds: widget.musicStartSeconds);
         final end = Duration(seconds: widget.musicStartSeconds + widget.musicDuration);
@@ -90,8 +90,9 @@ class _MusicSelectorFieldState extends State<MusicSelectorField> {
       
       if (url != null) {
         try {
-          await _audioPlayer.play(UrlSource(url));
+          await _audioPlayer.setUrl(url);
           await _audioPlayer.seek(Duration(seconds: startSec));
+          await _audioPlayer.play();
           setState(() => _isPlaying = true);
         } catch (e) {
           ScaffoldMessenger.of(context).showSnackBar(

@@ -1,6 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import 'package:audioplayers/audioplayers.dart';
+import 'package:just_audio/just_audio.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/music_service.dart';
@@ -66,15 +66,15 @@ class _MusicPlayerPillState extends State<MusicPlayerPill> {
 
   Future<void> _initAudio() async {
     try {
-      _player.onPlayerStateChanged.listen((state) {
+      _player.playerStateStream.listen((state) {
         if (mounted) {
           setState(() {
-            _isPlaying = state == PlayerState.playing;
+            _isPlaying = state.playing;
           });
         }
       });
 
-      _player.onPositionChanged.listen((pos) {
+      _player.positionStream.listen((pos) {
         final start = Duration(seconds: widget.startSeconds);
         final end = Duration(seconds: widget.startSeconds + widget.duration);
         if (pos >= end) {
@@ -86,9 +86,10 @@ class _MusicPlayerPillState extends State<MusicPlayerPill> {
       
       if (url != null && mounted) {
         await _player.setVolume(_calculateVolume());
-        await _player.setReleaseMode(ReleaseMode.loop);
-        await _player.play(UrlSource(url));
+        await _player.setLoopMode(LoopMode.one);
+        await _player.setUrl(url);
         await _player.seek(Duration(seconds: widget.startSeconds));
+        await _player.play();
 
         if (mounted) {
           setState(() {

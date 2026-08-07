@@ -10,7 +10,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:record/record.dart';
-import 'package:audioplayers/audioplayers.dart';
+import 'package:just_audio/just_audio.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:geolocator/geolocator.dart';
@@ -1735,9 +1735,17 @@ class _AudioMessageWidgetState extends State<AudioMessageWidget> {
   @override
   void initState() {
     super.initState();
-    _player.onDurationChanged.listen((d) => setState(() => duration = d));
-    _player.onPositionChanged.listen((p) => setState(() => position = p));
-    _player.onPlayerComplete.listen((_) => setState(() => isPlaying = false));
+    _player.durationStream.listen((d) {
+      if (d != null && mounted) setState(() => duration = d);
+    });
+    _player.positionStream.listen((p) {
+      if (mounted) setState(() => position = p);
+    });
+    _player.playerStateStream.listen((state) {
+      if (state.processingState == ProcessingState.completed) {
+        if (mounted) setState(() => isPlaying = false);
+      }
+    });
   }
 
   @override
@@ -1761,8 +1769,15 @@ class _AudioMessageWidgetState extends State<AudioMessageWidget> {
               await _player.pause();
               setState(() => isPlaying = false);
             } else {
-              await _player.play(UrlSource(widget.url));
-              setState(() => isPlaying = true);
+              try {
+                if (widget.url.startsWith('http')) {
+                  await _player.setUrl(widget.url);
+                } else {
+                  await _player.setFilePath(widget.url);
+                }
+                await _player.play();
+                setState(() => isPlaying = true);
+              } catch (_) {}
             }
           },
         ),
