@@ -2,7 +2,7 @@ name: connect
 description: "A new Flutter project."
 publish_to: 'none'
 
-version: 1.1.14+24
+version: 1.1.15+25
 
 environment:
   sdk: ^3.10.1
@@ -65,6 +65,8 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  disabled-package-types:
+    - swift-package-manager
 
   assets:
     - assets/.env
