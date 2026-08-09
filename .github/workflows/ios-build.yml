@@ -223,7 +223,7 @@ jobs:
                 '</plist>' > ExportOptions.plist
 
               flutter build ios --release --no-codesign
-              xcodebuild -workspace ios/Runner.xcworkspace -scheme Runner -configuration Release -archivePath build/App.xcarchive archive CODE_SIGNING_ALLOWED=NO
+              xcodebuild -workspace ios/Runner.xcworkspace -scheme Runner -configuration Release -archivePath build/App.xcarchive archive DEVELOPMENT_TEAM=G2JK99ANGN CODE_SIGN_STYLE=Manual PROVISIONING_PROFILE_SPECIFIER=CONNECT
               xcodebuild -exportArchive -archivePath build/App.xcarchive -exportOptionsPlist ExportOptions.plist -exportPath build/export
               mkdir -p build
               mv build/export/*.ipa "build/$BUILD_ID.ipa"
