@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'package:algolia_client_search/algolia_client_search.dart';
 import 'package:http/http.dart' as http;
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
 class AlgoliaService {
   static final AlgoliaService _instance = AlgoliaService._internal();
@@ -39,30 +38,71 @@ class AlgoliaService {
     String query, {
     String? city,
     Map<String, dynamic>? filter,
-    int limit = 20,
+    int limit = 60,
   }) async {
     List<String> filters = [];
 
     if (city != null && city.isNotEmpty && city.toLowerCase() != 'todo') {
-      filters.add('city:"$city"');
+      filters.add('(city:"$city" OR location:"$city")');
     }
 
     if (filter != null) {
       filter.forEach((key, value) {
-        filters.add('$key:"$value"');
+        if (value != null && value.toString().isNotEmpty) {
+          filters.add('$key:"$value"');
+        }
       });
     }
 
-    final result = await client.searchIndex(
-      request: SearchForHits(
-        indexName: postsIndex,
-        query: query,
-        hitsPerPage: limit,
-        filters: filters.isNotEmpty ? filters.join(' AND ') : null,
-      ),
-    );
+    try {
+      final result = await client.searchIndex(
+        request: SearchForHits(
+          indexName: postsIndex,
+          query: query,
+          hitsPerPage: limit,
+          filters: filters.isNotEmpty ? filters.join(' AND ') : null,
+        ),
+      );
 
-    return result;
+      // Si la búsqueda con filtro de ciudad no dio resultados, buscar sin filtro de ciudad
+      if (result.hits.isEmpty && city != null && city.isNotEmpty && city.toLowerCase() != 'todo') {
+        List<String> fallbackFilters = [];
+        if (filter != null) {
+          filter.forEach((key, value) {
+            if (value != null && value.toString().isNotEmpty) {
+              fallbackFilters.add('$key:"$value"');
+            }
+          });
+        }
+        final fallbackResult = await client.searchIndex(
+          request: SearchForHits(
+            indexName: postsIndex,
+            query: query,
+            hitsPerPage: limit,
+            filters: fallbackFilters.isNotEmpty ? fallbackFilters.join(' AND ') : null,
+          ),
+        );
+        if (fallbackResult.hits.isNotEmpty) {
+          return fallbackResult;
+        }
+      }
+
+      return result;
+    } catch (e) {
+      print('AlgoliaService.searchPosts error: $e');
+      if (filters.isNotEmpty) {
+        try {
+          return await client.searchIndex(
+            request: SearchForHits(
+              indexName: postsIndex,
+              query: query,
+              hitsPerPage: limit,
+            ),
+          );
+        } catch (_) {}
+      }
+      rethrow;
+    }
   }
 
   Future<SearchResponse> searchWants(
@@ -71,20 +111,49 @@ class AlgoliaService {
     int limit = 20,
   }) async {
     List<String> filters = [];
-    if (city != null && city.toLowerCase() != 'todo') {
-      filters.add('city:"$city"');
+    if (city != null && city.isNotEmpty && city.toLowerCase() != 'todo') {
+      filters.add('(city:"$city" OR location:"$city")');
     }
 
-    final result = await client.searchIndex(
-      request: SearchForHits(
-        indexName: wantsIndex,
-        query: query,
-        hitsPerPage: limit,
-        filters: filters.isNotEmpty ? filters.join(' AND ') : null,
-      ),
-    );
+    try {
+      final result = await client.searchIndex(
+        request: SearchForHits(
+          indexName: wantsIndex,
+          query: query,
+          hitsPerPage: limit,
+          filters: filters.isNotEmpty ? filters.join(' AND ') : null,
+        ),
+      );
 
-    return result;
+      if (result.hits.isEmpty && city != null && city.isNotEmpty && city.toLowerCase() != 'todo') {
+        final fallbackResult = await client.searchIndex(
+          request: SearchForHits(
+            indexName: wantsIndex,
+            query: query,
+            hitsPerPage: limit,
+          ),
+        );
+        if (fallbackResult.hits.isNotEmpty) {
+          return fallbackResult;
+        }
+      }
+
+      return result;
+    } catch (e) {
+      print('AlgoliaService.searchWants error: $e');
+      if (filters.isNotEmpty) {
+        try {
+          return await client.searchIndex(
+            request: SearchForHits(
+              indexName: wantsIndex,
+              query: query,
+              hitsPerPage: limit,
+            ),
+          );
+        } catch (_) {}
+      }
+      rethrow;
+    }
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -151,6 +220,12 @@ class AlgoliaService {
     }
     if (doc['updatedAt'] is Timestamp) {
       doc['updatedAt'] = (doc['updatedAt'] as Timestamp).millisecondsSinceEpoch;
+    }
+
+    final loc = doc['location'] ?? doc['city'] ?? doc['ubicacion'] ?? doc['ciudad'];
+    if (loc != null) {
+      doc['city'] = loc;
+      doc['location'] = loc;
     }
 
     doc['_searchTitle'] = (doc['title'] ?? '').toString().toLowerCase();

@@ -3,7 +3,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../services/algolia_service.dart';
 import '../../widgets/post_card.dart';
 import '../../services/location_service.dart';
-import '../../services/search_service.dart';
 
 import '../../widgets/liquid_glass_filter_modal.dart';
 
@@ -57,6 +56,10 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
 
       List<Map<String, dynamic>> hits = result.hits.map((h) => h.toJson()).toList();
 
+      if (hits.isEmpty) {
+        hits = await _firestoreFallback(widget.query, widget.category);
+      }
+
       // Ordenamiento local si se necesita
       if (_selectedSort == 'precio_asc') {
         hits.sort((a, b) => _numVal(a['price']).compareTo(_numVal(b['price'])));
@@ -71,17 +74,58 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
       if (mounted) {
         setState(() {
           _results = hits;
-          _totalHits = result.nbHits ?? hits.length;
+          _totalHits = hits.length;
           _isLoading = false;
         });
       }
     } catch (e) {
-      if (mounted) {
-        setState(() {
-          _error = e.toString();
-          _isLoading = false;
-        });
+      try {
+        final fallbackHits = await _firestoreFallback(widget.query, widget.category);
+        if (mounted) {
+          setState(() {
+            _results = fallbackHits;
+            _totalHits = fallbackHits.length;
+            _isLoading = false;
+          });
+        }
+      } catch (fallbackErr) {
+        if (mounted) {
+          setState(() {
+            _error = e.toString();
+            _isLoading = false;
+          });
+        }
       }
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> _firestoreFallback(String query, String? category) async {
+    try {
+      Query<Map<String, dynamic>> dbQuery = FirebaseFirestore.instance.collection('posts');
+      if (category != null && category.isNotEmpty) {
+        dbQuery = dbQuery.where('category', isEqualTo: category.toLowerCase());
+      }
+      final snap = await dbQuery.limit(60).get();
+      final qLower = query.toLowerCase().trim();
+
+      return snap.docs
+          .map((doc) {
+            final data = doc.data();
+            data['objectID'] = doc.id;
+            data['id'] = doc.id;
+            return data;
+          })
+          .where((data) {
+            if (qLower.isEmpty) return true;
+            final title = (data['title'] ?? '').toString().toLowerCase();
+            final desc = (data['description'] ?? '').toString().toLowerCase();
+            final loc = (data['location'] ?? data['city'] ?? '').toString().toLowerCase();
+            final cat = (data['category'] ?? '').toString().toLowerCase();
+            return title.contains(qLower) || desc.contains(qLower) || loc.contains(qLower) || cat.contains(qLower);
+          })
+          .toList();
+    } catch (e) {
+      return [];
     }
   }
 
