@@ -212,8 +212,6 @@ jobs:
                 '    <string>G2JK99ANGN</string>' \
                 '    <key>signingStyle</key>' \
                 '    <string>manual</string>' \
-                '    <key>signingCertificate</key>' \
-                '    <string>Apple Distribution</string>' \
                 '    <key>provisioningProfiles</key>' \
                 '    <dict>' \
                 '        <key>com.connectapp.co</key>' \
