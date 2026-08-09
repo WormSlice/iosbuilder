@@ -207,7 +207,7 @@ class _LocationBottomSheetState extends State<LocationBottomSheet> {
         clipBehavior: Clip.antiAlias,
         child: IgnorePointer(
           child: GoogleMap(
-            key: ValueKey('preview_${lat}_${lng}'),
+            key: ValueKey('preview_${lat}_$lng'),
             initialCameraPosition: CameraPosition(
               target: LatLng(lat, lng),
               zoom: 13,
