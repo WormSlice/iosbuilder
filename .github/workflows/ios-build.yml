@@ -226,10 +226,23 @@ jobs:
 
               echo "Codesigning app bundle with identity: $EXP_IDENTITY"
               cp "$RUNNER_TEMP/profile.mobileprovision" "$APP_PATH/embedded.mobileprovision"
+
+              # 1. Sign all inner frameworks individually
+              if [ -d "$APP_PATH/Frameworks" ]; then
+                find "$APP_PATH/Frameworks" -maxdepth 2 \( -name "*.framework" -o -name "*.dylib" \) | while read -r fw; do
+                  if [ -n "$KEYCHAIN_PATH" ] && [ -f "$KEYCHAIN_PATH" ]; then
+                    codesign --force --sign "$EXP_IDENTITY" --keychain "$KEYCHAIN_PATH" "$fw" || true
+                  else
+                    codesign --force --sign "$EXP_IDENTITY" "$fw" || true
+                  fi
+                done
+              fi
+
+              # 2. Sign main app bundle with entitlements
               if [ -n "$KEYCHAIN_PATH" ] && [ -f "$KEYCHAIN_PATH" ]; then
-                codesign --force --deep --sign "$EXP_IDENTITY" --keychain "$KEYCHAIN_PATH" "$APP_PATH"
+                codesign --force --sign "$EXP_IDENTITY" --keychain "$KEYCHAIN_PATH" --entitlements ios/Runner/Runner.entitlements "$APP_PATH"
               else
-                codesign --force --deep --sign "$EXP_IDENTITY" "$APP_PATH"
+                codesign --force --sign "$EXP_IDENTITY" --entitlements ios/Runner/Runner.entitlements "$APP_PATH"
               fi
 
               cd "$GITHUB_WORKSPACE"
