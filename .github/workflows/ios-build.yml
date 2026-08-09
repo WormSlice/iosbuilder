@@ -208,15 +208,10 @@ jobs:
                 '<dict>' \
                 '    <key>method</key>' \
                 '    <string>ad-hoc</string>' \
+                '    <key>signingStyle</key>' \
+                '    <string>automatic</string>' \
                 '    <key>teamID</key>' \
                 '    <string>G2JK99ANGN</string>' \
-                '    <key>signingStyle</key>' \
-                '    <string>manual</string>' \
-                '    <key>provisioningProfiles</key>' \
-                '    <dict>' \
-                '        <key>com.connectapp.co</key>' \
-                '        <string>CONNECT</string>' \
-                '    </dict>' \
                 '</dict>' \
                 '</plist>' > ExportOptions.plist
 
