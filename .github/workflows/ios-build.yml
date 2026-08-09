@@ -222,9 +222,11 @@ jobs:
                 '</dict>' \
                 '</plist>' > ExportOptions.plist
 
-              flutter build ipa --release --export-options-plist ExportOptions.plist
+              flutter build ios --release --no-codesign
+              xcodebuild -workspace ios/Runner.xcworkspace -scheme Runner -configuration Release -archivePath build/App.xcarchive archive CODE_SIGNING_ALLOWED=NO
+              xcodebuild -exportArchive -archivePath build/App.xcarchive -exportOptionsPlist ExportOptions.plist -exportPath build/export
               mkdir -p build
-              cp build/ios/ipa/*.ipa "build/$BUILD_ID.ipa"
+              mv build/export/*.ipa "build/$BUILD_ID.ipa"
             else
               if [ "$CONFIGURATION" = "Debug" ]; then
                 echo "Building Flutter iOS Debug..."
