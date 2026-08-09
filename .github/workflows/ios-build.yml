@@ -226,7 +226,11 @@ jobs:
 
               echo "Codesigning app bundle with identity: $EXP_IDENTITY"
               cp "$RUNNER_TEMP/profile.mobileprovision" "$APP_PATH/embedded.mobileprovision"
-              codesign --force --deep --sign "$EXP_IDENTITY" "$APP_PATH"
+              if [ -n "$KEYCHAIN_PATH" ] && [ -f "$KEYCHAIN_PATH" ]; then
+                codesign --force --deep --sign "$EXP_IDENTITY" --keychain "$KEYCHAIN_PATH" "$APP_PATH"
+              else
+                codesign --force --deep --sign "$EXP_IDENTITY" "$APP_PATH"
+              fi
 
               cd "$GITHUB_WORKSPACE"
               mkdir -p build/Payload
