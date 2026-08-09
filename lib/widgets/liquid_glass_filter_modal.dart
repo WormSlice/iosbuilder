@@ -85,7 +85,7 @@ class _LiquidGlassFilterModalState extends State<LiquidGlassFilterModal> {
         style: const LiquidGlassStyle(
           shape: LiquidGlassShape.squircle(cornerRadius: 32),
           appearance: LiquidGlassAppearance(
-            color: Colors.white10,
+            color: Color(0xD91C1E26), // Cristalline dark frosted glass (un poquitico menos transparente)
           ),
         ),
         child: Padding(
@@ -304,8 +304,8 @@ class _LiquidGlassFilterModalState extends State<LiquidGlassFilterModal> {
             shape: const LiquidGlassShape.squircle(cornerRadius: 16),
             appearance: LiquidGlassAppearance(
               color: isSelected
-                  ? const Color(0x660094FF)
-                  : Colors.white10,
+                  ? const Color(0x880094FF)
+                  : const Color(0x22FFFFFF),
             ),
           ),
           child: Padding(

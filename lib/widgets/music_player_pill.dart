@@ -288,21 +288,21 @@ class _MusicPlayerPillState extends State<MusicPlayerPill> {
       style: const LiquidGlassStyle(
         shape: LiquidGlassShape.squircle(cornerRadius: 20),
         appearance: LiquidGlassAppearance(
-          color: Colors.white10,
+          color: Color(0x33FFFFFF),
         ),
       ),
       child: Container(
         height: 38,
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.88),
+          color: Colors.white.withValues(alpha: 0.65),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: const Color(0xFF0094FF), width: 1.2),
+          border: Border.all(color: const Color(0xFF0094FF).withValues(alpha: 0.5), width: 1.0),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFF0094FF).withValues(alpha: 0.15),
-              blurRadius: 6,
-              offset: const Offset(0, 2),
+              color: const Color(0xFF0094FF).withValues(alpha: 0.12),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
             ),
           ],
         ),

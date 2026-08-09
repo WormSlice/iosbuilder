@@ -20,11 +20,45 @@ class _LocationBottomSheetState extends State<LocationBottomSheet> {
   final LocationService _locationService = LocationService();
   List<String> _recentLocations = ['Medellín']; // Mock para UI inicial
   final List<String> _suggestions = ['Bogotá', 'Bucaramanga'];
+  double? _mapLat;
+  double? _mapLng;
 
   @override
   void initState() {
     super.initState();
     _loadRecents();
+    _resolveLocationCoords();
+  }
+
+  Future<void> _resolveLocationCoords() async {
+    if (_locationService.selectedLat != null && _locationService.selectedLng != null) {
+      if (mounted) {
+        setState(() {
+          _mapLat = _locationService.selectedLat;
+          _mapLng = _locationService.selectedLng;
+        });
+      }
+      return;
+    }
+
+    final city = widget.currentLocation ?? _locationService.currentCity;
+    if (city != null && city.isNotEmpty && city.toLowerCase() != 'todo') {
+      final coords = await _locationService.getCoordinatesFromAddress(city);
+      if (coords != null && mounted) {
+        setState(() {
+          _mapLat = coords['latitude'];
+          _mapLng = coords['longitude'];
+        });
+        return;
+      }
+    }
+
+    if (_locationService.currentPosition != null && mounted) {
+      setState(() {
+        _mapLat = _locationService.currentPosition!.latitude;
+        _mapLng = _locationService.currentPosition!.longitude;
+      });
+    }
   }
 
   /// Carga las ubicaciones recientes guardadas.
@@ -42,8 +76,8 @@ class _LocationBottomSheetState extends State<LocationBottomSheet> {
 
   /// Abre el selector de mapa a pantalla completa.
   Future<void> _openMapPicker() async {
-    final lat = _locationService.currentPosition?.latitude ?? 7.8939;
-    final lng = _locationService.currentPosition?.longitude ?? -72.5078;
+    final lat = _mapLat ?? _locationService.currentPosition?.latitude ?? 7.8939;
+    final lng = _mapLng ?? _locationService.currentPosition?.longitude ?? -72.5078;
 
     final result = await Navigator.push(
       context,
@@ -56,6 +90,10 @@ class _LocationBottomSheetState extends State<LocationBottomSheet> {
         result['latitude'],
         result['longitude'],
       );
+      setState(() {
+        _mapLat = result['latitude'];
+        _mapLng = result['longitude'];
+      });
       Navigator.pop(context, result['name']);
     }
   }
@@ -154,8 +192,8 @@ class _LocationBottomSheetState extends State<LocationBottomSheet> {
 
   /// Genera una vista previa del mapa con dimensiones compactas.
   Widget _buildMapPreview() {
-    final lat = _locationService.currentPosition?.latitude ?? 7.8939;
-    final lng = _locationService.currentPosition?.longitude ?? -72.5078;
+    final lat = _mapLat ?? _locationService.selectedLat ?? _locationService.currentPosition?.latitude ?? 7.8939;
+    final lng = _mapLng ?? _locationService.selectedLng ?? _locationService.currentPosition?.longitude ?? -72.5078;
 
     return GestureDetector(
       onTap: _openMapPicker,
@@ -169,6 +207,7 @@ class _LocationBottomSheetState extends State<LocationBottomSheet> {
         clipBehavior: Clip.antiAlias,
         child: IgnorePointer(
           child: GoogleMap(
+            key: ValueKey('preview_${lat}_${lng}'),
             initialCameraPosition: CameraPosition(
               target: LatLng(lat, lng),
               zoom: 13,
