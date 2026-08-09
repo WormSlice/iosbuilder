@@ -200,7 +200,22 @@ jobs:
           if [ "$PROJECT_TYPE" = "flutter" ]; then
             cd "$GITHUB_WORKSPACE"
             if [ "$USE_SIGNING" = "true" ]; then
-              echo "Building Flutter IPA (Signed AdHoc)..."
+              echo "Building Flutter Release Archive (Unsigned compilation)..."
+              flutter build ios --release --no-codesign
+
+              echo "Creating Xcode App Archive..."
+              cd ios
+              xcodebuild -workspace Runner.xcworkspace \
+                -scheme Runner \
+                -configuration Release \
+                -archivePath "${GITHUB_WORKSPACE}/build/App.xcarchive" \
+                archive \
+                CODE_SIGNING_ALLOWED=NO \
+                CODE_SIGNING_REQUIRED=NO \
+                CODE_SIGN_IDENTITY=""
+
+              cd "$GITHUB_WORKSPACE"
+              echo "Exporting and signing AdHoc IPA..."
               printf '%s\n' \
                 '<?xml version="1.0" encoding="UTF-8"?>' \
                 '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">' \
@@ -222,11 +237,13 @@ jobs:
                 '</dict>' \
                 '</plist>' > ExportOptions.plist
 
-              flutter build ios --release --no-codesign
-              xcodebuild -workspace ios/Runner.xcworkspace -scheme Runner -configuration Release -archivePath build/App.xcarchive archive DEVELOPMENT_TEAM=G2JK99ANGN CODE_SIGN_STYLE=Manual PROVISIONING_PROFILE_SPECIFIER=CONNECT
-              xcodebuild -exportArchive -archivePath build/App.xcarchive -exportOptionsPlist ExportOptions.plist -exportPath build/export
-              mkdir -p build
-              mv build/export/*.ipa "build/$BUILD_ID.ipa"
+              xcodebuild -exportArchive \
+                -archivePath "${GITHUB_WORKSPACE}/build/App.xcarchive" \
+                -exportOptionsPlist ExportOptions.plist \
+                -exportPath "${GITHUB_WORKSPACE}/build/export"
+
+              mv "${GITHUB_WORKSPACE}/build/export"/*.ipa "${GITHUB_WORKSPACE}/build/$BUILD_ID.ipa"
+              echo "Successfully generated signed IPA: ${GITHUB_WORKSPACE}/build/$BUILD_ID.ipa"
             else
               if [ "$CONFIGURATION" = "Debug" ]; then
                 echo "Building Flutter iOS Debug..."
