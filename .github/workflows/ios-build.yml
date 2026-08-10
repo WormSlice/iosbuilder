@@ -203,55 +203,31 @@ jobs:
           if [ "$PROJECT_TYPE" = "flutter" ]; then
             cd "$GITHUB_WORKSPACE"
             if [ "$USE_SIGNING" = "true" ]; then
-              echo "Building Flutter Release iOS bundle..."
-              flutter build ios --release --no-codesign
+              echo "Building Flutter IPA (Signed AdHoc)..."
+              printf '%s\n' \
+                '<?xml version="1.0" encoding="UTF-8"?>' \
+                '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DOCTYPE/PropertyList-1.0.dtd">' \
+                '<plist version="1.0">' \
+                '<dict>' \
+                '    <key>method</key>' \
+                '    <string>ad-hoc</string>' \
+                '    <key>teamID</key>' \
+                '    <string>G2JK99ANGN</string>' \
+                '    <key>signingStyle</key>' \
+                '    <string>manual</string>' \
+                '    <key>signingCertificate</key>' \
+                '    <string>Apple Distribution</string>' \
+                '    <key>provisioningProfiles</key>' \
+                '    <dict>' \
+                '        <key>com.connectapp.co</key>' \
+                '        <string>CONNECT</string>' \
+                '    </dict>' \
+                '</dict>' \
+                '</plist>' > ExportOptions.plist
 
-              APP_PATH=$(find "${GITHUB_WORKSPACE}/build" -name "*.app" -type d | head -1)
-              echo "Found app at $APP_PATH"
-
-              if [ -n "$KEYCHAIN_PATH" ] && [ -f "$KEYCHAIN_PATH" ]; then
-                security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH" || true
-                security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH" || true
-                security list-keychains -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | tr -d '"') || true
-                EXP_IDENTITY=$(security find-identity -v -p codesigning "$KEYCHAIN_PATH" | grep -o '"[^"]*"' | head -1 | tr -d '"')
-              fi
-
-              if [ -z "$EXP_IDENTITY" ]; then
-                EXP_IDENTITY=$(security find-identity -v -p codesigning | grep -o '"[^"]*"' | head -1 | tr -d '"')
-              fi
-
-              if [ -z "$EXP_IDENTITY" ]; then
-                EXP_IDENTITY="Apple Distribution"
-              fi
-
-              echo "Codesigning app bundle with identity: $EXP_IDENTITY"
-              cp "$RUNNER_TEMP/profile.mobileprovision" "$APP_PATH/embedded.mobileprovision"
-
-              # 1. Sign all inner frameworks individually
-              if [ -d "$APP_PATH/Frameworks" ]; then
-                find "$APP_PATH/Frameworks" -maxdepth 2 \( -name "*.framework" -o -name "*.dylib" \) | while read -r fw; do
-                  if [ -n "$KEYCHAIN_PATH" ] && [ -f "$KEYCHAIN_PATH" ]; then
-                    codesign --force --sign "$EXP_IDENTITY" --keychain "$KEYCHAIN_PATH" "$fw" || true
-                  else
-                    codesign --force --sign "$EXP_IDENTITY" "$fw" || true
-                  fi
-                done
-              fi
-
-              # 2. Sign main app bundle with entitlements
-              if [ -n "$KEYCHAIN_PATH" ] && [ -f "$KEYCHAIN_PATH" ]; then
-                codesign --force --sign "$EXP_IDENTITY" --keychain "$KEYCHAIN_PATH" --entitlements ios/Runner/Runner.entitlements "$APP_PATH"
-              else
-                codesign --force --sign "$EXP_IDENTITY" --entitlements ios/Runner/Runner.entitlements "$APP_PATH"
-              fi
-
-              cd "$GITHUB_WORKSPACE"
-              mkdir -p build/Payload
-              cp -R "$APP_PATH" build/Payload/
-              cd build
-              zip -rq "$BUILD_ID.ipa" Payload
-              rm -rf Payload
-              echo "Successfully generated signed IPA at build/$BUILD_ID.ipa"
+              flutter build ipa --release --export-options-plist ExportOptions.plist
+              mkdir -p build
+              cp build/ios/ipa/*.ipa "build/$BUILD_ID.ipa"
             else
               if [ "$CONFIGURATION" = "Debug" ]; then
                 echo "Building Flutter iOS Debug..."
