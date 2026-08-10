@@ -152,6 +152,7 @@ jobs:
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
           PROFILE_UUID=$(security cms -D -i "$PROFILE_PATH" | plutil -extract UUID raw -)
           PROFILE_NAME=$(security cms -D -i "$PROFILE_PATH" | plutil -extract Name raw -)
+          PROFILE_BUNDLE_ID=$(security cms -D -i "$PROFILE_PATH" | plutil -extract Entitlements.application-identifier raw - | sed 's/^[^\.]*\.//')
           cp "$PROFILE_PATH" ~/Library/MobileDevice/Provisioning\ Profiles/"$PROFILE_UUID".mobileprovision
 
           CERT_IDENTITY=$(security find-identity -v -p codesigning "$KEYCHAIN_PATH" | grep -o '"[^"]*"' | head -1 | tr -d '"')
@@ -159,8 +160,9 @@ jobs:
           echo "KEYCHAIN_PATH=$KEYCHAIN_PATH" >> $GITHUB_ENV
           echo "KEYCHAIN_PASSWORD=$KEYCHAIN_PASSWORD" >> $GITHUB_ENV
           echo "PROFILE_NAME=$PROFILE_NAME" >> $GITHUB_ENV
+          echo "PROFILE_BUNDLE_ID=$PROFILE_BUNDLE_ID" >> $GITHUB_ENV
           echo "CERT_IDENTITY=$CERT_IDENTITY" >> $GITHUB_ENV
-          echo "Certificate installed: $CERT_IDENTITY ($PROFILE_NAME / $PROFILE_UUID)"
+          echo "Certificate installed: $CERT_IDENTITY ($PROFILE_NAME / $PROFILE_BUNDLE_ID / $PROFILE_UUID)"
 
       - name: Build IPA
         env:
@@ -221,7 +223,7 @@ jobs:
                 CODE_SIGN_IDENTITY=""
 
               cd "$GITHUB_WORKSPACE"
-              echo "Exporting and signing AdHoc IPA with profile '$PROFILE_NAME'..."
+              echo "Exporting and signing AdHoc IPA for '$PROFILE_BUNDLE_ID' with profile '$PROFILE_NAME'..."
               printf '%s\n' \
                 '<?xml version="1.0" encoding="UTF-8"?>' \
                 '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DOCTYPE/PropertyList-1.0.dtd">' \
@@ -229,10 +231,17 @@ jobs:
                 '<dict>' \
                 '    <key>method</key>' \
                 '    <string>ad-hoc</string>' \
-                '    <key>compileBitcode</key>' \
-                '    <false/>' \
-                '    <key>thinning</key>' \
-                '    <string>&lt;none&gt;</string>' \
+                '    <key>teamID</key>' \
+                '    <string>G2JK99ANGN</string>' \
+                '    <key>signingStyle</key>' \
+                '    <string>manual</string>' \
+                '    <key>signingCertificate</key>' \
+                '    <string>Apple Distribution</string>' \
+                '    <key>provisioningProfiles</key>' \
+                '    <dict>' \
+                "        <key>${PROFILE_BUNDLE_ID}</key>" \
+                "        <string>${PROFILE_NAME}</string>" \
+                '    </dict>' \
                 '</dict>' \
                 '</plist>' > ExportOptions.plist
 
