@@ -144,6 +144,7 @@ jobs:
           security import "$CERTIFICATE_PATH" -P "$IOS_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
           security set-key-partition-list -S apple-tool:,apple:,codesign: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
           security list-keychains -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | tr -d '"')
+          security default-keychain -s "$KEYCHAIN_PATH"
 
           # Install provisioning profile
           PROFILE_PATH=$RUNNER_TEMP/profile.mobileprovision
@@ -174,6 +175,11 @@ jobs:
           CONFIGURATION: ${{ inputs.configuration }}
         run: |
           set -e
+
+          if [ -n "$KEYCHAIN_PATH" ] && [ -f "$KEYCHAIN_PATH" ]; then
+            security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH" || true
+            security default-keychain -s "$KEYCHAIN_PATH" || true
+          fi
 
           # Navigate to iOS project
           cd "$IOS_PATH"
