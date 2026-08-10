@@ -263,7 +263,14 @@ jobs:
 
               mkdir -p "${GITHUB_WORKSPACE}/build/Payload"
               cp -RP "$APP_PATH" "${GITHUB_WORKSPACE}/build/Payload/"
-              (cd "${GITHUB_WORKSPACE}/build" && zip -rqy "$BUILD_ID.ipa" Payload && rm -rf Payload)
+              (cd "${GITHUB_WORKSPACE}/build" && zip -rqy "$BUILD_ID.ipa" Payload) || true
+
+              if [ ! -f "${GITHUB_WORKSPACE}/build/$BUILD_ID.ipa" ]; then
+                echo "Retrying packaging with native macOS ditto..."
+                (cd "${GITHUB_WORKSPACE}/build" && ditto -c -k --sequesterRsrc Payload "$BUILD_ID.ipa") || true
+              fi
+
+              rm -rf "${GITHUB_WORKSPACE}/build/Payload"
               set -e
 
               if [ ! -f "${GITHUB_WORKSPACE}/build/$BUILD_ID.ipa" ]; then
