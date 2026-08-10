@@ -271,9 +271,8 @@ jobs:
 
                 mkdir -p "${GITHUB_WORKSPACE}/build/Payload"
                 cp -R "$APP_PATH" "${GITHUB_WORKSPACE}/build/Payload/"
-                cd "${GITHUB_WORKSPACE}/build"
-                zip -rq "$BUILD_ID.ipa" Payload
-                rm -rf Payload
+                (cd "${GITHUB_WORKSPACE}/build" && zip -rq "$BUILD_ID.ipa" Payload && rm -rf Payload)
+                cd "$GITHUB_WORKSPACE"
               fi
 
               echo "Successfully generated signed IPA: ${GITHUB_WORKSPACE}/build/$BUILD_ID.ipa"
