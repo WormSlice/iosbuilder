@@ -203,7 +203,7 @@ jobs:
           if [ "$PROJECT_TYPE" = "flutter" ]; then
             cd "$GITHUB_WORKSPACE"
             if [ "$USE_SIGNING" = "true" ]; then
-              echo "Building Flutter IPA (Signed AdHoc)..."
+              echo "Building Flutter IPA (Signed AdHoc with profile '$PROFILE_NAME')..."
               printf '%s\n' \
                 '<?xml version="1.0" encoding="UTF-8"?>' \
                 '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DOCTYPE/PropertyList-1.0.dtd">' \
@@ -215,12 +215,10 @@ jobs:
                 '    <string>G2JK99ANGN</string>' \
                 '    <key>signingStyle</key>' \
                 '    <string>manual</string>' \
-                '    <key>signingCertificate</key>' \
-                '    <string>Apple Distribution</string>' \
                 '    <key>provisioningProfiles</key>' \
                 '    <dict>' \
                 '        <key>com.connectapp.co</key>' \
-                '        <string>CONNECT</string>' \
+                "        <string>${PROFILE_NAME}</string>" \
                 '    </dict>' \
                 '</dict>' \
                 '</plist>' > ExportOptions.plist
