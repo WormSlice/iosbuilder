@@ -206,37 +206,35 @@ jobs:
           if [ "$PROJECT_TYPE" = "flutter" ]; then
             cd "$GITHUB_WORKSPACE"
             if [ "$USE_SIGNING" = "true" ]; then
-              if echo "$CERT_IDENTITY" | grep -qi "Development"; then
-                CERT_TYPE="Apple Development"
-                EXPORT_METHOD="development"
-              else
-                CERT_TYPE="Apple Distribution"
-                EXPORT_METHOD="ad-hoc"
-              fi
+              echo "Building Flutter Release iOS bundle (Unsigned compilation)..."
+              flutter build ios --release --no-codesign
 
-              echo "Injecting signing configuration (CERT_TYPE='$CERT_TYPE', PROFILE='$PROFILE_NAME') into Release.xcconfig..."
-              cat <<EOF >> ios/Flutter/Release.xcconfig
-CODE_SIGN_STYLE = Manual
-DEVELOPMENT_TEAM = G2JK99ANGN
-PROVISIONING_PROFILE_SPECIFIER = $PROFILE_NAME
-CODE_SIGN_IDENTITY = $CERT_TYPE
-CODE_SIGN_IDENTITY[sdk=iphoneos*] = $CERT_TYPE
-EOF
+              echo "Creating Xcode App Archive..."
+              cd ios
+              xcodebuild -workspace Runner.xcworkspace \
+                -scheme Runner \
+                -configuration Release \
+                -archivePath "${GITHUB_WORKSPACE}/build/App.xcarchive" \
+                archive \
+                CODE_SIGNING_ALLOWED=NO \
+                CODE_SIGNING_REQUIRED=NO \
+                CODE_SIGN_IDENTITY=""
 
-              echo "Building Flutter IPA (Signed $EXPORT_METHOD with profile '$PROFILE_NAME')..."
+              cd "$GITHUB_WORKSPACE"
+              echo "Exporting and signing AdHoc IPA with profile '$PROFILE_NAME'..."
               printf '%s\n' \
                 '<?xml version="1.0" encoding="UTF-8"?>' \
                 '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DOCTYPE/PropertyList-1.0.dtd">' \
                 '<plist version="1.0">' \
                 '<dict>' \
                 '    <key>method</key>' \
-                "    <string>${EXPORT_METHOD}</string>" \
+                '    <string>ad-hoc</string>' \
                 '    <key>teamID</key>' \
                 '    <string>G2JK99ANGN</string>' \
                 '    <key>signingStyle</key>' \
                 '    <string>manual</string>' \
                 '    <key>signingCertificate</key>' \
-                "    <string>${CERT_TYPE}</string>" \
+                '    <string>Apple Distribution</string>' \
                 '    <key>provisioningProfiles</key>' \
                 '    <dict>' \
                 '        <key>com.connectapp.co</key>' \
@@ -245,9 +243,13 @@ EOF
                 '</dict>' \
                 '</plist>' > ExportOptions.plist
 
-              flutter build ipa --release --export-options-plist ExportOptions.plist --verbose
-              mkdir -p build
-              cp build/ios/ipa/*.ipa "build/$BUILD_ID.ipa"
+              xcodebuild -exportArchive \
+                -archivePath "${GITHUB_WORKSPACE}/build/App.xcarchive" \
+                -exportOptionsPlist ExportOptions.plist \
+                -exportPath "${GITHUB_WORKSPACE}/build/export"
+
+              mv "${GITHUB_WORKSPACE}/build/export"/*.ipa "${GITHUB_WORKSPACE}/build/$BUILD_ID.ipa"
+              echo "Successfully generated signed IPA: ${GITHUB_WORKSPACE}/build/$BUILD_ID.ipa"
             else
               if [ "$CONFIGURATION" = "Debug" ]; then
                 echo "Building Flutter iOS Debug..."
