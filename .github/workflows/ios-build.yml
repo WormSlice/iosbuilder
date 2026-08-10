@@ -262,8 +262,8 @@ jobs:
               fi
 
               mkdir -p "${GITHUB_WORKSPACE}/build/Payload"
-              cp -R "$APP_PATH" "${GITHUB_WORKSPACE}/build/Payload/"
-              (cd "${GITHUB_WORKSPACE}/build" && zip -rq "$BUILD_ID.ipa" Payload && rm -rf Payload)
+              cp -RP "$APP_PATH" "${GITHUB_WORKSPACE}/build/Payload/"
+              (cd "${GITHUB_WORKSPACE}/build" && zip -rqy "$BUILD_ID.ipa" Payload && rm -rf Payload)
               set -e
 
               if [ ! -f "${GITHUB_WORKSPACE}/build/$BUILD_ID.ipa" ]; then
