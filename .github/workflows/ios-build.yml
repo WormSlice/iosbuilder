@@ -252,7 +252,8 @@ jobs:
               xcodebuild -exportArchive \
                 -archivePath "${GITHUB_WORKSPACE}/build/App.xcarchive" \
                 -exportOptionsPlist ExportOptions.plist \
-                -exportPath "${GITHUB_WORKSPACE}/build/export"
+                -exportPath "${GITHUB_WORKSPACE}/build/export" \
+                -allowProvisioningUpdates
 
               mv "${GITHUB_WORKSPACE}/build/export"/*.ipa "${GITHUB_WORKSPACE}/build/$BUILD_ID.ipa"
               echo "Successfully generated signed IPA: ${GITHUB_WORKSPACE}/build/$BUILD_ID.ipa"
