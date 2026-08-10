@@ -245,7 +245,7 @@ EOF
                 '</dict>' \
                 '</plist>' > ExportOptions.plist
 
-              flutter build ipa --release --export-options-plist ExportOptions.plist
+              flutter build ipa --release --export-options-plist ExportOptions.plist --verbose
               mkdir -p build
               cp build/ios/ipa/*.ipa "build/$BUILD_ID.ipa"
             else
