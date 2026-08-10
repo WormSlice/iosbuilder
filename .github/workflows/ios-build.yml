@@ -203,6 +203,15 @@ jobs:
           if [ "$PROJECT_TYPE" = "flutter" ]; then
             cd "$GITHUB_WORKSPACE"
             if [ "$USE_SIGNING" = "true" ]; then
+              echo "Injecting signing configuration for profile '$PROFILE_NAME' into Release.xcconfig..."
+              cat <<EOF >> ios/Flutter/Release.xcconfig
+CODE_SIGN_STYLE = Manual
+DEVELOPMENT_TEAM = G2JK99ANGN
+PROVISIONING_PROFILE_SPECIFIER = $PROFILE_NAME
+CODE_SIGN_IDENTITY = Apple Distribution
+CODE_SIGN_IDENTITY[sdk=iphoneos*] = Apple Distribution
+EOF
+
               echo "Building Flutter IPA (Signed AdHoc with profile '$PROFILE_NAME')..."
               printf '%s\n' \
                 '<?xml version="1.0" encoding="UTF-8"?>' \
@@ -215,6 +224,8 @@ jobs:
                 '    <string>G2JK99ANGN</string>' \
                 '    <key>signingStyle</key>' \
                 '    <string>manual</string>' \
+                '    <key>signingCertificate</key>' \
+                '    <string>Apple Distribution</string>' \
                 '    <key>provisioningProfiles</key>' \
                 '    <dict>' \
                 '        <key>com.connectapp.co</key>' \
