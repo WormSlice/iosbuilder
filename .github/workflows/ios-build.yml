@@ -244,16 +244,19 @@ jobs:
                 '</dict>' \
                 '</plist>' > ExportOptions.plist
 
+              set +e
               xcodebuild -exportArchive \
                 -archivePath "${GITHUB_WORKSPACE}/build/App.xcarchive" \
                 -exportOptionsPlist ExportOptions.plist \
                 -exportPath "${GITHUB_WORKSPACE}/build/export" \
-                -allowProvisioningUpdates || true
+                -allowProvisioningUpdates
+              EXPORT_EXIT_CODE=$?
+              set -e
 
-              if [ -d "${GITHUB_WORKSPACE}/build/export" ] && [ -n "$(find "${GITHUB_WORKSPACE}/build/export" -name "*.ipa" 2>/dev/null)" ]; then
+              if [ $EXPORT_EXIT_CODE -eq 0 ] && [ -d "${GITHUB_WORKSPACE}/build/export" ] && [ -n "$(find "${GITHUB_WORKSPACE}/build/export" -name "*.ipa" 2>/dev/null)" ]; then
                 mv "${GITHUB_WORKSPACE}/build/export"/*.ipa "${GITHUB_WORKSPACE}/build/$BUILD_ID.ipa"
               else
-                echo "xcodebuild exportArchive failed or produced no IPA, executing direct signed bundle packaging fallback..."
+                echo "xcodebuild exportArchive exited with code $EXPORT_EXIT_CODE, executing direct signed bundle packaging fallback..."
                 APP_PATH="${GITHUB_WORKSPACE}/build/App.xcarchive/Products/Applications/Runner.app"
                 cp "$RUNNER_TEMP/profile.mobileprovision" "$APP_PATH/embedded.mobileprovision"
 
