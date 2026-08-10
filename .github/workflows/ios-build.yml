@@ -390,11 +390,11 @@ jobs:
             cd "$GITHUB_WORKSPACE"
             mkdir -p build/Payload
             cp -R "$APP_PATH" build/Payload/
-            cd build
-            zip -rq "$BUILD_ID.ipa" Payload
-            rm -rf Payload
+            (cd build && zip -rq "$BUILD_ID.ipa" Payload && rm -rf Payload)
             echo "Created unsigned IPA: build/$BUILD_ID.ipa"
           fi
+
+          cd "$GITHUB_WORKSPACE"
 
       - name: Upload IPA artifact
         uses: actions/upload-artifact@v4
