@@ -1,0 +1,39 @@
+workflows:
+  ios-release:
+    name: iOS Release & TestFlight
+    instance_type: mac_mini_m2
+    max_build_duration: 30
+    environment:
+      flutter: 3.44.1
+      xcode: latest
+      cocoapods: default
+      groups:
+        - app_store_credentials # Define APP_STORE_CONNECT_KEY_IDENTIFIER, APP_STORE_CONNECT_ISSUER_ID, APP_STORE_CONNECT_PRIVATE_KEY, CERTIFICATE_PRIVATE_KEY
+      vars:
+        BUNDLE_ID: "com.connectapp.co"
+        XCODE_WORKSPACE: "ios/Runner.xcworkspace"
+        XCODE_SCHEME: "Runner"
+    scripts:
+      - name: Set up .env
+        script: |
+          echo "MAILERSEND_API_KEY=${MAILERSEND_API_KEY:-mlsn.34131d2c738f0026306ef479f2e4dc85df9ef47633f4cdd32506dc35f33b9a1b}" > .env
+          mkdir -p assets
+          cp .env assets/.env
+      - name: Install CocoaPods dependencies
+        script: |
+          find . -maxdepth 3 -name "Podfile" -execdir pod install \;
+      - name: Set up code signing settings on Xcode project
+        script: |
+          xcode-project use-profiles
+      - name: Flutter build ipa and release
+        script: |
+          flutter build ipa --release \
+            --export-options-plist=$HOME/export_options.plist
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+      - flutter_drive.log
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
