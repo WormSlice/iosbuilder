@@ -1,9 +1,6 @@
-import 'dart:async';
 import 'dart:io';
-import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
-import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
-import 'package:flutter/foundation.dart';
+import 'package:image_picker/image_picker.dart';
 
 class FaceCaptureScreen extends StatefulWidget {
   final Function(File front, File left, File right) onCaptured;
@@ -15,256 +12,352 @@ class FaceCaptureScreen extends StatefulWidget {
 }
 
 class _FaceCaptureScreenState extends State<FaceCaptureScreen> {
-  CameraController? _controller;
-  FaceDetector? _faceDetector;
-  bool _isBusy = false;
-  String _instruction = 'Coloca tu rostro de frente';
-
+  final ImagePicker _picker = ImagePicker();
   File? _frontImage;
   File? _leftImage;
   File? _rightImage;
 
   int _step = 0; // 0: Front, 1: Left, 2: Right
 
-  @override
-  void initState() {
-    super.initState();
-    _initializeCamera();
-    _faceDetector = FaceDetector(
-      options: FaceDetectorOptions(
-        enableLandmarks: true,
-        enableClassification: true,
-        performanceMode: FaceDetectorMode.accurate,
-      ),
-    );
-  }
-
-  Future<void> _initializeCamera() async {
-    final cameras = await availableCameras();
-    final frontCamera = cameras.firstWhere(
-      (camera) => camera.lensDirection == CameraLensDirection.front,
-    );
-
-    _controller = CameraController(
-      frontCamera,
-      ResolutionPreset.medium,
-      enableAudio: false,
-    );
-
-    await _controller!.initialize();
-    if (!mounted) return;
-    setState(() {});
-
-    _startDetection();
-  }
-
-  void _startDetection() {
-    _controller!.startImageStream((CameraImage image) {
-      if (_isBusy) return;
-      _isBusy = true;
-      _processImage(image);
-    });
-  }
-
-  Future<void> _processImage(CameraImage image) async {
-    final WriteBuffer allBytes = WriteBuffer();
-    for (final Plane plane in image.planes) {
-      allBytes.putUint8List(plane.bytes);
+  String get _currentTitle {
+    switch (_step) {
+      case 0:
+        return 'Paso 1: Foto Frontal';
+      case 1:
+        return 'Paso 2: Rostro Perfil Izquierdo';
+      case 2:
+        return 'Paso 3: Rostro Perfil Derecho';
+      default:
+        return 'Completado';
     }
-    final bytes = allBytes.done().buffer.asUint8List();
+  }
 
-    final Size imageSize = Size(
-      image.width.toDouble(),
-      image.height.toDouble(),
-    );
-    final inputImage = InputImage.fromBytes(
-      bytes: bytes,
-      metadata: InputImageMetadata(
-        size: imageSize,
-        rotation: InputImageRotation.rotation270deg,
-        format:
-            InputImageFormatValue.fromRawValue(image.format.raw) ??
-            InputImageFormat.nv21,
-        bytesPerRow: image.planes[0].bytesPerRow,
-      ),
-    );
+  String get _instruction {
+    switch (_step) {
+      case 0:
+        return 'Toma una foto mirando directamente a la cámara frontal con buena iluminación.';
+      case 1:
+        return 'Gira tu cabeza ligeramente hacia la izquierda y toma la foto.';
+      case 2:
+        return 'Gira tu cabeza ligeramente hacia la derecha y toma la foto final.';
+      default:
+        return 'Verificación facial lista para enviar.';
+    }
+  }
 
-    final faces = await _faceDetector!.processImage(inputImage);
+  File? get _currentImage {
+    switch (_step) {
+      case 0:
+        return _frontImage;
+      case 1:
+        return _leftImage;
+      case 2:
+        return _rightImage;
+      default:
+        return null;
+    }
+  }
 
-    if (faces.isNotEmpty) {
-      final face = faces.first;
-      _evaluateFacePosition(face);
+  Future<void> _capturePhoto() async {
+    try {
+      final XFile? photo = await _picker.pickImage(
+        source: ImageSource.camera,
+        preferredCameraDevice: CameraDevice.front,
+        imageQuality: 85,
+        maxWidth: 1080,
+      );
+
+      if (photo == null) return;
+
+      setState(() {
+        if (_step == 0) {
+          _frontImage = File(photo.path);
+        } else if (_step == 1) {
+          _leftImage = File(photo.path);
+        } else if (_step == 2) {
+          _rightImage = File(photo.path);
+        }
+      });
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al acceder a la cámara: $e')),
+      );
+    }
+  }
+
+  void _nextStep() {
+    if (_currentImage == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Por favor toma la foto antes de continuar.')),
+      );
+      return;
     }
 
-    _isBusy = false;
-  }
-
-  void _evaluateFacePosition(Face face) {
-    // rotationY: > 0 is left, < 0 is right (relative to camera)
-    final double? rotY = face.headEulerAngleY;
-
-    if (!mounted) return;
-
-    setState(() {
-      if (_step == 0) {
-        if (rotY != null && rotY.abs() < 10) {
-          _instruction = '¡Excelente! Mantente así...';
-          _takeScreenshot();
-        } else {
-          _instruction = 'Coloca tu rostro de frente';
-        }
-      } else if (_step == 1) {
-        if (rotY != null && rotY > 20) {
-          _instruction = '¡Bien! Capturando lado izquierdo...';
-          _takeScreenshot();
-        } else {
-          _instruction = 'Gira tu cabeza a la IZQUIERDA';
-        }
-      } else if (_step == 2) {
-        if (rotY != null && rotY < -20) {
-          _instruction = '¡Bien! Capturando lado derecho...';
-          _takeScreenshot();
-        } else {
-          _instruction = 'Gira tu cabeza a la DERECHA';
-        }
-      }
-    });
-  }
-
-  Future<void> _takeScreenshot() async {
-    if (_isBusy) return;
-    _isBusy = true;
-
-    await _controller!.stopImageStream();
-    final XFile file = await _controller!.takePicture();
-
-    setState(() {
-      if (_step == 0) {
-        _frontImage = File(file.path);
-        _step = 1;
-      } else if (_step == 1) {
-        _leftImage = File(file.path);
-        _step = 2;
-      } else if (_step == 2) {
-        _rightImage = File(file.path);
-        _step = 3;
-      }
-    });
-
-    if (_step < 3) {
-      _isBusy = false;
-      _startDetection();
+    if (_step < 2) {
+      setState(() => _step++);
     } else {
-      widget.onCaptured(_frontImage!, _leftImage!, _rightImage!);
-      Navigator.pop(context);
+      if (_frontImage != null && _leftImage != null && _rightImage != null) {
+        widget.onCaptured(_frontImage!, _leftImage!, _rightImage!);
+        Navigator.pop(context);
+      }
     }
-  }
-
-  @override
-  void dispose() {
-    _controller?.dispose();
-    _faceDetector?.close();
-    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_controller == null || !_controller!.value.isInitialized) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
-    }
-
     return Scaffold(
       backgroundColor: Colors.black,
-      body: Stack(
-        children: [
-          Center(
-            child: AspectRatio(
-              aspectRatio: 1 / _controller!.value.aspectRatio,
-              child: CameraPreview(_controller!),
-            ),
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.close, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: const Text(
+          'VERIFICACIÓN FACIAL',
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 1.1,
+            fontSize: 16,
           ),
-          // Overlay mask
-          Center(
-            child: Container(
-              width: 250,
-              height: 350,
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.white, width: 2),
-                borderRadius: BorderRadius.circular(150),
+        ),
+        centerTitle: true,
+      ),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Step Indicators
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _stepIndicator(0, 'Frontal', _frontImage != null),
+                  _stepDivider(),
+                  _stepIndicator(1, 'Izquierda', _leftImage != null),
+                  _stepDivider(),
+                  _stepIndicator(2, 'Derecha', _rightImage != null),
+                ],
               ),
-            ),
-          ),
-          Positioned(
-            bottom: 80,
-            left: 0,
-            right: 0,
-            child: Column(
-              children: [
-                Text(
-                  _instruction,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  textAlign: TextAlign.center,
+              const SizedBox(height: 24),
+
+              Text(
+                _currentTitle,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
                 ),
-                const SizedBox(height: 20),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [_stepCircle(0), _stepCircle(1), _stepCircle(2)],
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                _instruction,
+                style: const TextStyle(
+                  color: Colors.white70,
+                  fontSize: 14,
                 ),
-                const SizedBox(height: 30),
-                SizedBox(
-                  width: 200,
-                  height: 50,
-                  child: ElevatedButton(
-                    onPressed: _takeScreenshot,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: Colors.black,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(25),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+
+              // Preview or Camera Placeholder
+              Expanded(
+                child: Center(
+                  child: GestureDetector(
+                    onTap: _capturePhoto,
+                    child: Container(
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1E1E1E),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: _currentImage != null ? Colors.green : Colors.white24,
+                          width: 2,
+                        ),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(18),
+                        child: _currentImage != null
+                            ? Stack(
+                                fit: StackFit.expand,
+                                children: [
+                                  Image.file(
+                                    _currentImage!,
+                                    fit: BoxFit.cover,
+                                  ),
+                                  Positioned(
+                                    bottom: 12,
+                                    right: 12,
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 6,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.black87,
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                      child: const Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(Icons.refresh, color: Colors.white, size: 16),
+                                          SizedBox(width: 4),
+                                          Text(
+                                            'Repetir',
+                                            style: TextStyle(color: Colors.white, fontSize: 12),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              )
+                            : Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(20),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withOpacity(0.08),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(
+                                      Icons.camera_alt_outlined,
+                                      color: Colors.white,
+                                      size: 48,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  const Text(
+                                    'Toca aquí para abrir la cámara',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  const Text(
+                                    'Usa la cámara frontal',
+                                    style: TextStyle(
+                                      color: Colors.white54,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ],
+                              ),
                       ),
                     ),
-                    child: const Text(
-                      'CAPTURAR FOTO',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 1.2,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // Action Buttons
+              Row(
+                children: [
+                  if (_step > 0)
+                    Expanded(
+                      flex: 1,
+                      child: Padding(
+                        padding: const EdgeInsets.only(right: 12),
+                        child: OutlinedButton(
+                          onPressed: () => setState(() => _step--),
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: Colors.white30),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(15),
+                            ),
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                          ),
+                          child: const Text(
+                            'Anterior',
+                            style: TextStyle(color: Colors.white),
+                          ),
+                        ),
+                      ),
+                    ),
+                  Expanded(
+                    flex: 2,
+                    child: ElevatedButton(
+                      onPressed: _currentImage == null ? _capturePhoto : _nextStep,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: Colors.black,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(15),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                      ),
+                      child: Text(
+                        _currentImage == null
+                            ? 'TOMAR FOTO'
+                            : (_step == 2 ? 'FINALIZAR' : 'CONTINUAR'),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1.1,
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ],
-            ),
+                ],
+              ),
+            ],
           ),
-          Positioned(
-            top: 50,
-            left: 20,
-            child: IconButton(
-              icon: const Icon(Icons.close, color: Colors.white),
-              onPressed: () => Navigator.pop(context),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
 
-  Widget _stepCircle(int step) {
-    bool active = _step == step;
-    bool completed = _step > step;
+  Widget _stepIndicator(int step, String label, bool isDone) {
+    final isCurrent = _step == step;
+    return Column(
+      children: [
+        Container(
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(
+            color: isDone
+                ? Colors.green
+                : (isCurrent ? Colors.white : const Color(0xFF2A2A2A)),
+            shape: BoxShape.circle,
+          ),
+          child: Center(
+            child: isDone
+                ? const Icon(Icons.check, color: Colors.white, size: 18)
+                : Text(
+                    '${step + 1}',
+                    style: TextStyle(
+                      color: isCurrent ? Colors.black : Colors.white70,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: TextStyle(
+            color: isCurrent ? Colors.white : Colors.white54,
+            fontSize: 11,
+            fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _stepDivider() {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 5),
-      width: 12,
-      height: 12,
-      decoration: BoxDecoration(
-        color: completed
-            ? Colors.green
-            : (active ? Colors.white : Colors.white24),
-        shape: BoxShape.circle,
-      ),
+      width: 28,
+      height: 2,
+      margin: const EdgeInsets.only(bottom: 16, left: 4, right: 4),
+      color: Colors.white24,
     );
   }
 }
