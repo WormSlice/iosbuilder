@@ -89,6 +89,8 @@ jobs:
         run: |
           touch .env
           echo "MAILERSEND_API_KEY=${{ secrets.MAILERSEND_API_KEY || 'mlsn.34131d2c738f0026306ef479f2e4dc85df9ef47633f4cdd32506dc35f33b9a1b' }}" > .env
+          mkdir -p assets
+          cp .env assets/.env
 
       - name: Setup Node.js
         if: steps.detect.outputs.type == 'reactnative' || steps.detect.outputs.type == 'expo'
@@ -208,8 +210,13 @@ jobs:
           if [ "$PROJECT_TYPE" = "flutter" ]; then
             cd "$GITHUB_WORKSPACE"
             if [ "$USE_SIGNING" = "true" ]; then
-              echo "Building Flutter Release iOS app..."
-              flutter build ios --release --no-codesign
+              if [ "$CONFIGURATION" = "Debug" ]; then
+                echo "Building Flutter Debug iOS app..."
+                flutter build ios --debug --no-codesign
+              else
+                echo "Building Flutter Release iOS app..."
+                flutter build ios --release --no-codesign
+              fi
 
               APP_PATH="${GITHUB_WORKSPACE}/build/ios/iphoneos/Runner.app"
               if [ ! -d "$APP_PATH" ]; then
