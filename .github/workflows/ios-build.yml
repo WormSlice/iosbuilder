@@ -235,8 +235,16 @@ jobs:
                 exit 1
               fi
 
-              echo "Found app bundle at: $APP_PATH"
-              cp "$RUNNER_TEMP/profile.mobileprovision" "$APP_PATH/embedded.mobileprovision"
+              echo "Preparing Payload directory for in-place signing..."
+              mkdir -p "${GITHUB_WORKSPACE}/build/Payload"
+              cp -RP "$APP_PATH" "${GITHUB_WORKSPACE}/build/Payload/"
+              TARGET_APP="${GITHUB_WORKSPACE}/build/Payload/$(basename "$APP_PATH")"
+
+              # Embed provisioning profile
+              cp "$RUNNER_TEMP/profile.mobileprovision" "$TARGET_APP/embedded.mobileprovision"
+
+              # Clean extended attributes
+              xattr -cr "$TARGET_APP" || true
 
               if [ -n "$KEYCHAIN_PATH" ] && [ -f "$KEYCHAIN_PATH" ]; then
                 security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH" || true
@@ -247,48 +255,50 @@ jobs:
               fi
               if [ -z "$EXP_ID" ]; then EXP_ID="-"; fi
 
-              echo "Codesigning app bundle with identity: $EXP_ID"
+              echo "Codesigning in-place with identity: $EXP_ID"
 
               set +e
               if [ -n "$EXP_ID" ] && [ "$EXP_ID" != "-" ]; then
                 echo "Signing with certificate identity: $EXP_ID"
-                # Sign all standalone dylibs (such as Runner.debug.dylib in debug builds)
-                find "$APP_PATH" -type f -name "*.dylib" | while read -r lib; do
+                # 1. Sign all standalone dylibs
+                find "$TARGET_APP" -type f -name "*.dylib" | while read -r lib; do
                   echo "Signing dylib: $lib"
                   codesign --force --sign "$EXP_ID" --timestamp=none "$lib" || true
                 done
-                # Sign all frameworks
-                find "$APP_PATH" -name "*.framework" | while read -r fw; do
+                # 2. Sign all frameworks
+                find "$TARGET_APP" -name "*.framework" | while read -r fw; do
                   echo "Signing framework: $fw"
-                  codesign --force --sign "$EXP_ID" --timestamp=none "$fw" || true
+                  codesign --force --sign "$EXP_ID" --timestamp=none --preserve-metadata=identifier,entitlements,flags "$fw" || true
                 done
-                # Sign all app bundles/resources
-                find "$APP_PATH" -name "*.bundle" | while read -r bnd; do
+                # 3. Sign all app bundles/resources
+                find "$TARGET_APP" -name "*.bundle" | while read -r bnd; do
                   echo "Signing bundle: $bnd"
-                  codesign --force --sign "$EXP_ID" --timestamp=none "$bnd" || true
+                  codesign --force --sign "$EXP_ID" --timestamp=none --preserve-metadata=identifier,entitlements,flags "$bnd" || true
                 done
-                # Sign main app with full entitlements
+                # 4. Sign main app with full entitlements
                 if [ -n "$ENTITLEMENTS_PATH" ] && [ -f "$ENTITLEMENTS_PATH" ]; then
                   echo "Signing with profile entitlements: $ENTITLEMENTS_PATH"
-                  codesign --force --sign "$EXP_ID" --entitlements "$ENTITLEMENTS_PATH" --timestamp=none "$APP_PATH"
+                  codesign --force --sign "$EXP_ID" --entitlements "$ENTITLEMENTS_PATH" --timestamp=none "$TARGET_APP"
                 elif [ -f "$GITHUB_WORKSPACE/ios/Runner/Runner.entitlements" ]; then
-                  codesign --force --sign "$EXP_ID" --entitlements "$GITHUB_WORKSPACE/ios/Runner/Runner.entitlements" --timestamp=none "$APP_PATH"
+                  codesign --force --sign "$EXP_ID" --entitlements "$GITHUB_WORKSPACE/ios/Runner/Runner.entitlements" --timestamp=none "$TARGET_APP"
                 else
-                  codesign --force --sign "$EXP_ID" --timestamp=none "$APP_PATH"
+                  codesign --force --sign "$EXP_ID" --timestamp=none "$TARGET_APP"
                 fi
               else
                 echo "Signing with ad-hoc identity (-)..."
-                find "$APP_PATH" -type f -name "*.dylib" | while read -r lib; do
+                find "$TARGET_APP" -type f -name "*.dylib" | while read -r lib; do
                   codesign --force --sign "-" --timestamp=none "$lib" || true
                 done
-                find "$APP_PATH" -name "*.framework" | while read -r fw; do
+                find "$TARGET_APP" -name "*.framework" | while read -r fw; do
                   codesign --force --sign "-" --timestamp=none "$fw" || true
                 done
-                codesign --force --sign "-" --timestamp=none "$APP_PATH" || true
+                codesign --force --sign "-" --timestamp=none "$TARGET_APP" || true
               fi
 
-              mkdir -p "${GITHUB_WORKSPACE}/build/Payload"
-              cp -RP "$APP_PATH" "${GITHUB_WORKSPACE}/build/Payload/"
+              # Verify signature
+              codesign -vvv --deep --strict "$TARGET_APP" || echo "Warning: Codesign verification reported issues"
+
+              # Package Payload directly into IPA
               (cd "${GITHUB_WORKSPACE}/build" && zip -rqy "$BUILD_ID.ipa" Payload) || true
 
               if [ ! -f "${GITHUB_WORKSPACE}/build/$BUILD_ID.ipa" ]; then
