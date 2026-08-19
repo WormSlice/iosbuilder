@@ -157,6 +157,9 @@ jobs:
           PROFILE_BUNDLE_ID=$(security cms -D -i "$PROFILE_PATH" | plutil -extract Entitlements.application-identifier raw - | sed 's/^[^\.]*\.//')
           cp "$PROFILE_PATH" ~/Library/MobileDevice/Provisioning\ Profiles/"$PROFILE_UUID".mobileprovision
 
+          # Extract full entitlements from profile
+          security cms -D -i "$PROFILE_PATH" | plutil -extract Entitlements xml1 - -o "$RUNNER_TEMP/entitlements.plist"
+
           CERT_IDENTITY=$(security find-identity -v -p codesigning "$KEYCHAIN_PATH" | grep -o '"[^"]*"' | head -1 | tr -d '"')
 
           echo "KEYCHAIN_PATH=$KEYCHAIN_PATH" >> $GITHUB_ENV
@@ -164,6 +167,7 @@ jobs:
           echo "PROFILE_NAME=$PROFILE_NAME" >> $GITHUB_ENV
           echo "PROFILE_BUNDLE_ID=$PROFILE_BUNDLE_ID" >> $GITHUB_ENV
           echo "CERT_IDENTITY=$CERT_IDENTITY" >> $GITHUB_ENV
+          echo "ENTITLEMENTS_PATH=$RUNNER_TEMP/entitlements.plist" >> $GITHUB_ENV
           echo "Certificate installed: $CERT_IDENTITY ($PROFILE_NAME / $PROFILE_BUNDLE_ID / $PROFILE_UUID)"
 
       - name: Build IPA
@@ -249,14 +253,20 @@ jobs:
               if [ -n "$EXP_ID" ] && [ "$EXP_ID" != "-" ]; then
                 echo "Signing with certificate identity: $EXP_ID"
                 if [ -d "$APP_PATH/Frameworks" ]; then
-                  find "$APP_PATH/Frameworks" -maxdepth 2 \( -name "*.framework" -o -name "*.dylib" \) | while read -r fw; do
-                    codesign --force --sign "$EXP_ID" "$fw" || true
+                  find "$APP_PATH/Frameworks" -mindepth 1 -maxdepth 2 \( -name "*.framework" -o -name "*.dylib" \) | while read -r fw; do
+                    codesign --force --sign "$EXP_ID" --timestamp=none "$fw" || true
                   done
                 fi
-                if [ -f "$GITHUB_WORKSPACE/ios/Runner/Runner.entitlements" ]; then
-                  codesign --force --sign "$EXP_ID" --entitlements "$GITHUB_WORKSPACE/ios/Runner/Runner.entitlements" "$APP_PATH" || codesign --force --sign "$EXP_ID" "$APP_PATH" || true
+                find "$APP_PATH" -mindepth 1 -maxdepth 2 -name "*.bundle" | while read -r bnd; do
+                  codesign --force --sign "$EXP_ID" --timestamp=none "$bnd" || true
+                done
+                if [ -n "$ENTITLEMENTS_PATH" ] && [ -f "$ENTITLEMENTS_PATH" ]; then
+                  echo "Signing with profile entitlements: $ENTITLEMENTS_PATH"
+                  codesign --force --sign "$EXP_ID" --entitlements "$ENTITLEMENTS_PATH" --timestamp=none "$APP_PATH"
+                elif [ -f "$GITHUB_WORKSPACE/ios/Runner/Runner.entitlements" ]; then
+                  codesign --force --sign "$EXP_ID" --entitlements "$GITHUB_WORKSPACE/ios/Runner/Runner.entitlements" --timestamp=none "$APP_PATH"
                 else
-                  codesign --force --sign "$EXP_ID" "$APP_PATH" || true
+                  codesign --force --sign "$EXP_ID" --timestamp=none "$APP_PATH"
                 fi
               else
                 echo "Signing with ad-hoc identity (-)..."
