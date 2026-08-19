@@ -6,8 +6,6 @@
 	<true/>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
-	<key>FLTEnableImpeller</key>
-	<false/>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>

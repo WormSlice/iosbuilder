@@ -7,7 +7,13 @@ class MessagingService {
   final FirebaseMessaging _fm = FirebaseMessaging.instance;
 
   Future<void> init() async {
-    await _fm.requestPermission();
-    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+    try {
+      await _fm.requestPermission(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+      FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+    } catch (_) {}
   }
 }
