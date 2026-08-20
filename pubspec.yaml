@@ -2,7 +2,7 @@ name: connect
 description: "A new Flutter project."
 publish_to: 'none'
 
-version: 1.1.23+39
+version: 1.1.23+40
 
 environment:
   sdk: ^3.10.1
@@ -29,7 +29,7 @@ dependencies:
   intl: ^0.19.0
   google_maps_flutter: ^2.5.3
   flutter_local_notifications: ^20.0.0
-  record: ^6.1.2
+  record: ^7.1.1
   just_audio: ^0.9.44
   path_provider: ^2.1.5
   permission_handler: ^12.0.1
