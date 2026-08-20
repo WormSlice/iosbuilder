@@ -126,23 +126,14 @@ class AuthService {
 
     if (method == 'email') {
       try {
-        final token = dotenv.env['MAILERSEND_API_KEY'] ?? '';
         final response = await http.post(
-          Uri.parse('https://api.mailersend.com/v1/email'),
+          Uri.parse('https://connect-email-receiver.irenzulsierra.workers.dev'),
           headers: {
-            'Authorization': 'Bearer $token',
             'Content-Type': 'application/json',
           },
           body: jsonEncode({
-            'from': {
-              'email': 'contacto@connectapp.com.co',
-              'name': 'CONNECT'
-            },
-            'to': [
-              {
-                'email': email
-              }
-            ],
+            'from': 'contacto@connectapp.com.co',
+            'to': email,
             'subject': 'Código de Verificación 2FA - CONNECT',
             'text': 'Tu código de verificación es: $code\nEste código expira en 5 minutos.',
             'html': '<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px; text-align: center; background-color: #f9f9f9;"><h2 style="color: #1E88E5; margin-bottom: 20px; font-weight: bold; letter-spacing: 2px;">CONNECT</h2><p style="font-size: 16px; color: #333;">Hola,</p><p style="font-size: 16px; color: #333;">Tu código de verificación seguro de dos pasos es:</p><div style="font-size: 32px; font-weight: bold; color: #fff; background-color: #1E88E5; padding: 15px 30px; margin: 20px auto; width: fit-content; border-radius: 8px; letter-spacing: 4px;">$code</div><p style="font-size: 14px; color: #777;">Este código expira en 5 minutos. No compartas esto con nadie.</p></div>'
@@ -150,12 +141,12 @@ class AuthService {
         );
 
         if (response.statusCode >= 200 && response.statusCode < 300) {
-          print('DEBUG: 2FA Code sent to Email ($email) via MailerSend API: $code');
+          print('DEBUG: 2FA Code sent to Email ($email) via Cloudflare Worker: $code');
         } else {
-          print('Error en MailerSend 2FA: ${response.statusCode} - ${response.body}');
+          print('Error en Cloudflare Worker Email: ${response.statusCode} - ${response.body}');
         }
       } catch (e) {
-        print('Error de conexión MailerSend 2FA: $e');
+        print('Error enviando correo 2FA: $e');
       }
     } else if (method == 'sms') {
       // Logic to send SMS (Firebase Auth verification could be used or external provider)
@@ -297,17 +288,43 @@ class AuthService {
     return userCredential;
   }
 
+  Future<UserCredential> linkWithEmailPassword(String email, String password) async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw Exception('No hay sesión de usuario activa.');
+    }
+    final credential = EmailAuthProvider.credential(email: email, password: password);
+    final result = await user.linkWithCredential(credential);
+    await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+      'email': email,
+    }, SetOptions(merge: true));
+    return result;
+  }
+
   Future<UserCredential> linkWithGoogle() async {
+    try {
+      await _google.signOut();
+    } catch (_) {}
     final googleUser = await _google.signIn();
     if (googleUser == null) {
-      throw Exception('Inicio de sesión con Google cancelado.');
+      throw Exception('Operación cancelada por el usuario.');
     }
     final googleAuth = await googleUser.authentication;
     final credential = GoogleAuthProvider.credential(
       accessToken: googleAuth.accessToken,
       idToken: googleAuth.idToken,
     );
-    return await _auth.currentUser!.linkWithCredential(credential);
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw Exception('No hay sesión de usuario activa.');
+    }
+    final result = await user.linkWithCredential(credential);
+    if (googleUser.email.isNotEmpty) {
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+        'googleEmail': googleUser.email,
+      }, SetOptions(merge: true));
+    }
+    return result;
   }
 
   Future<UserCredential> linkWithApple() async {

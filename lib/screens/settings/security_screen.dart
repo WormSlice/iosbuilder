@@ -470,23 +470,23 @@ class _SecurityScreenState extends State<SecurityScreen> {
           _buildMethodIcon(
             child: const Icon(Icons.email_outlined, size: 20, color: Colors.blue),
             isActive: _linkedProviders.contains('password'),
-            onTap: () => {},
+            onTap: () => _linkedProviders.contains('password') ? null : _showLinkEmailDialog(),
           ),
           _buildMethodIcon(
             child: Image.network(
               'https://www.gstatic.com/images/branding/product/2x/googleg_48dp.png',
               width: 18,
               height: 18,
+              errorBuilder: (_, __, ___) => const Icon(Icons.g_mobiledata, size: 24, color: Colors.red),
             ),
             isActive: _linkedProviders.contains('google.com'),
             onTap: () => _linkedProviders.contains('google.com') ? null : _handleLinkProvider('google.com'),
           ),
           _buildMethodIcon(
-            child: Image.network(
-              'https://upload.wikimedia.org/wikipedia/commons/thumb/f/fa/Apple_logo_black.svg/200px-Apple_logo_black.svg.png',
-              width: 18,
-              height: 18,
-              color: _linkedProviders.contains('apple.com') ? Colors.black : Colors.grey,
+            child: Icon(
+              Icons.apple,
+              size: 22,
+              color: _linkedProviders.contains('apple.com') ? Colors.black : Colors.grey[700],
             ),
             isActive: _linkedProviders.contains('apple.com'),
             onTap: () => _linkedProviders.contains('apple.com') ? null : _handleLinkProvider('apple.com'),
@@ -496,19 +496,154 @@ class _SecurityScreenState extends State<SecurityScreen> {
     );
   }
 
+  void _showLinkEmailDialog() {
+    final emailController = TextEditingController(text: _email != 'N/A' ? _email : '');
+    final passwordController = TextEditingController();
+    bool obscurePassword = true;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text('Vincular Correo y Contraseña', style: TextStyle(fontFamily: 'Poppins', fontWeight: FontWeight.bold, fontSize: 18)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Ingresa un correo y una contraseña para poder acceder también mediante correo electrónico.',
+                style: TextStyle(fontFamily: 'Poppins', fontSize: 13, color: Colors.black54),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: emailController,
+                keyboardType: TextInputType.emailAddress,
+                decoration: InputDecoration(
+                  labelText: 'Correo electrónico',
+                  prefixIcon: const Icon(Icons.email_outlined),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: passwordController,
+                obscureText: obscurePassword,
+                decoration: InputDecoration(
+                  labelText: 'Contraseña',
+                  prefixIcon: const Icon(Icons.lock_outline),
+                  suffixIcon: IconButton(
+                    icon: Icon(obscurePassword ? Icons.visibility_off : Icons.visibility),
+                    onPressed: () => setDialogState(() => obscurePassword = !obscurePassword),
+                  ),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancelar', style: TextStyle(fontFamily: 'Poppins')),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF0094FF),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              onPressed: () async {
+                final email = emailController.text.trim();
+                final password = passwordController.text.trim();
+                if (email.isEmpty || !email.contains('@')) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Por favor ingresa un correo válido')),
+                  );
+                  return;
+                }
+                if (password.length < 6) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('La contraseña debe tener al menos 6 caracteres')),
+                  );
+                  return;
+                }
+                Navigator.pop(ctx);
+                setState(() => _isLoading = true);
+                try {
+                  await AuthService().linkWithEmailPassword(email, password);
+                  await _checkMfaStatus();
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Correo y contraseña vinculados con éxito'), backgroundColor: Colors.green),
+                    );
+                  }
+                } on FirebaseAuthException catch (e) {
+                  if (mounted) {
+                    String msg = 'Error al vincular: ${e.message}';
+                    if (e.code == 'email-already-in-use') {
+                      msg = 'Este correo ya está registrado en otra cuenta.';
+                    } else if (e.code == 'weak-password') {
+                      msg = 'La contraseña es demasiado débil.';
+                    } else if (e.code == 'provider-already-linked') {
+                      msg = 'El acceso con correo ya está vinculado.';
+                    }
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(msg), backgroundColor: Colors.red),
+                    );
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+                    );
+                  }
+                } finally {
+                  if (mounted) setState(() => _isLoading = false);
+                }
+              },
+              child: const Text('Vincular', style: TextStyle(color: Colors.white, fontFamily: 'Poppins', fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _handleLinkProvider(String providerId) async {
     setState(() => _isLoading = true);
     try {
       if (providerId == 'google.com') {
         await AuthService().linkWithGoogle();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Cuenta de Google vinculada con éxito'), backgroundColor: Colors.green),
+          );
+        }
       } else if (providerId == 'apple.com') {
         await AuthService().linkWithApple();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Cuenta de Apple vinculada con éxito'), backgroundColor: Colors.green),
+          );
+        }
       }
       await _checkMfaStatus();
-    } catch (e) {
+    } on FirebaseAuthException catch (e) {
       if (mounted) {
+        String msg = 'Error al vincular: ${e.message}';
+        if (e.code == 'credential-already-in-use') {
+          msg = 'Esta cuenta ya está vinculada a otro usuario.';
+        } else if (e.code == 'provider-already-linked') {
+          msg = 'Este método ya está vinculado.';
+        } else if (e.code == 'email-already-in-use') {
+          msg = 'El correo electrónico ya está en uso.';
+        }
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al vincular: $e')),
+          SnackBar(content: Text(msg), backgroundColor: Colors.red),
+        );
+      }
+    } catch (e) {
+      if (mounted && !e.toString().contains('cancelad') && !e.toString().contains('canceled')) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al vincular: $e'), backgroundColor: Colors.red),
         );
       }
     } finally {
