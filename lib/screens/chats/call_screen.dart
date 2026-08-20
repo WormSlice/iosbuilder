@@ -6,7 +6,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_ringtone_player/flutter_ringtone_player.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
-import 'package:record/record.dart';
+import '../../services/audio_recorder_helper.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
 import '../../services/signaling_service.dart';
