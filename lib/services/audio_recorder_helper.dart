@@ -1,5 +1,21 @@
+enum AudioEncoder {
+  aacLc,
+  aacEld,
+  aacHe,
+  amrNb,
+  amrWb,
+  opus,
+  flac,
+  pcm16bit,
+  wav,
+}
+
 class RecordConfig {
-  const RecordConfig();
+  final AudioEncoder encoder;
+
+  const RecordConfig({
+    this.encoder = AudioEncoder.aacLc,
+  });
 }
 
 class AudioRecorder {
