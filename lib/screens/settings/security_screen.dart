@@ -477,7 +477,7 @@ class _SecurityScreenState extends State<SecurityScreen> {
               'https://www.gstatic.com/images/branding/product/2x/googleg_48dp.png',
               width: 18,
               height: 18,
-              errorBuilder: (_, __, ___) => const Icon(Icons.g_mobiledata, size: 24, color: Colors.red),
+              errorBuilder: (context, error, stackTrace) => const Icon(Icons.g_mobiledata, size: 24, color: Colors.red),
             ),
             isActive: _linkedProviders.contains('google.com'),
             onTap: () => _linkedProviders.contains('google.com') ? null : _handleLinkProvider('google.com'),
