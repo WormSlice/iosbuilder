@@ -360,7 +360,7 @@ class _CallScreenState extends State<CallScreen> {
         _currentRecordingPath = '${chatDir.path}/$fileName';
 
         await _audioRecorder.start(
-          const RecordConfig(encoder: AudioEncoder.aacLc),
+          const RecordConfig(),
           path: _currentRecordingPath!,
         );
 
