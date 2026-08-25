@@ -32,13 +32,13 @@ workflows:
           xcode-project use-profiles
       - name: Flutter build ipa and release
         script: |
-          LATEST_BUILD=$(app-store-connect get-latest-testflight-build-number "$BUNDLE_ID" 2>/dev/null || echo "50")
-          if [ -z "$LATEST_BUILD" ] || [ "$LATEST_BUILD" -lt 50 ]; then
-            NEXT_BUILD=55
-          else
+          LATEST_BUILD=$(app-store-connect get-latest-testflight-build-number "$BUNDLE_ID" 2>/dev/null || true)
+          if [[ "$LATEST_BUILD" =~ ^[0-9]+$ ]] && [ "$LATEST_BUILD" -ge 50 ]; then
             NEXT_BUILD=$((LATEST_BUILD + 1))
+          else
+            NEXT_BUILD=55
           fi
-          echo "Compilando con Build Number: $NEXT_BUILD"
+          echo "Building iOS Release version 1.1.24 (Build $NEXT_BUILD)"
           flutter build ipa --release \
             --build-name=1.1.24 \
             --build-number=$NEXT_BUILD \
