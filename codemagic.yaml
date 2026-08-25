@@ -32,7 +32,16 @@ workflows:
           xcode-project use-profiles
       - name: Flutter build ipa and release
         script: |
+          LATEST_BUILD=$(app-store-connect get-latest-testflight-build-number "$BUNDLE_ID" 2>/dev/null || echo "50")
+          if [ -z "$LATEST_BUILD" ] || [ "$LATEST_BUILD" -lt 50 ]; then
+            NEXT_BUILD=55
+          else
+            NEXT_BUILD=$((LATEST_BUILD + 1))
+          fi
+          echo "Compilando con Build Number: $NEXT_BUILD"
           flutter build ipa --release \
+            --build-name=1.1.24 \
+            --build-number=$NEXT_BUILD \
             --export-options-plist=$HOME/export_options.plist
     artifacts:
       - build/ios/ipa/*.ipa
