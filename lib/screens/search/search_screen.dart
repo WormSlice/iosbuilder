@@ -224,7 +224,39 @@ class _SearchScreenState extends State<SearchScreen> {
               ),
             ),
 
-            const SizedBox(height: 8),
+            // City location badge
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8.0),
+              child: GestureDetector(
+                onTap: _showLocationPicker,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE3F2FD),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFF90CAF9), width: 0.8),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.location_on, size: 14, color: Color(0xFF0094FF)),
+                      const SizedBox(width: 4),
+                      Text(
+                        _selectedLocation ?? 'Buscando...',
+                        style: const TextStyle(
+                          fontFamily: 'Poppins',
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF0094FF),
+                        ),
+                      ),
+                      const SizedBox(width: 2),
+                      const Icon(Icons.arrow_drop_down, size: 14, color: Color(0xFF0094FF)),
+                    ],
+                  ),
+                ),
+              ),
+            ),
 
             // Recent searches
             if (_recentSearches.isNotEmpty) ...[

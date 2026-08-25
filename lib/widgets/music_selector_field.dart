@@ -4,6 +4,8 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../services/music_service.dart';
 import 'music_search_sheet.dart';
 
+import 'instagram_audio_trimmer_sheet.dart';
+
 class MusicSelectorField extends StatefulWidget {
   final String? musicId;
   final String? musicTitle;
@@ -95,14 +97,18 @@ class _MusicSelectorFieldState extends State<MusicSelectorField> {
           await _audioPlayer.play();
           setState(() => _isPlaying = true);
         } catch (e) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Error al reproducir previsualización')),
-          );
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Error al reproducir previsualización')),
+            );
+          }
         }
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No se pudo obtener el audio')),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('No se pudo obtener el audio')),
+          );
+        }
       }
     }
   }
@@ -116,24 +122,66 @@ class _MusicSelectorFieldState extends State<MusicSelectorField> {
     }
   }
 
-  Future<void> _openMusicSearch(BuildContext context) async {
+  Future<void> _openMusicSearch(BuildContext ctx) async {
     await _stopPlayer();
+    if (!mounted) return;
     
     final selectedSong = await showModalBottomSheet<Map<String, String>>(
-      context: context,
+      context: ctx,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => const MusicSearchSheet(),
+      builder: (c) => const MusicSearchSheet(),
     );
 
-    if (selectedSong != null) {
+    if (selectedSong != null && mounted) {
+      // Abre inmediatamente el recortador estilo Instagram
+      final trimResult = await InstagramAudioTrimmerSheet.show(
+        context: context,
+        musicId: selectedSong['id']!,
+        title: selectedSong['title']!,
+        artist: selectedSong['artist']!,
+        thumbnail: selectedSong['thumbnail']!,
+        initialStartSeconds: 0,
+        initialDuration: 30,
+      );
+
+      final startSec = trimResult?['startSeconds'] ?? 0;
+      final duration = trimResult?['duration'] ?? 30;
+
       widget.onMusicSelected(
         selectedSong['id'],
         selectedSong['title'],
         selectedSong['artist'],
         selectedSong['thumbnail'],
-        0, // Inicia en 0s
-        30, // 30s por defecto
+        startSec,
+        duration,
+      );
+    }
+  }
+
+  Future<void> _openTrimmer(BuildContext ctx) async {
+    if (widget.musicId == null) return;
+    await _stopPlayer();
+    if (!mounted) return;
+
+    final trimResult = await InstagramAudioTrimmerSheet.show(
+      context: ctx,
+      musicId: widget.musicId!,
+      title: widget.musicTitle ?? 'Canción',
+      artist: widget.musicArtist ?? '',
+      thumbnail: widget.musicThumbnail ?? '',
+      initialStartSeconds: widget.musicStartSeconds,
+      initialDuration: widget.musicDuration,
+    );
+
+    if (trimResult != null) {
+      widget.onMusicSelected(
+        widget.musicId,
+        widget.musicTitle,
+        widget.musicArtist,
+        widget.musicThumbnail,
+        trimResult['startSeconds'] ?? 0,
+        trimResult['duration'] ?? 30,
       );
     }
   }
@@ -141,7 +189,6 @@ class _MusicSelectorFieldState extends State<MusicSelectorField> {
   @override
   Widget build(BuildContext context) {
     final hasMusic = widget.musicId != null && widget.musicId!.isNotEmpty;
-    final maxStartSec = 30 - widget.musicDuration;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -196,96 +243,133 @@ class _MusicSelectorFieldState extends State<MusicSelectorField> {
               border: Border.all(color: Colors.grey[200]!),
             ),
             padding: const EdgeInsets.all(12),
-            child: Row(
+            child: Column(
               children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(6),
-                  child: CachedNetworkImage(
-                    imageUrl: widget.musicThumbnail!,
-                    width: 46,
-                    height: 46,
-                    fit: BoxFit.cover,
-                    placeholder: (context, url) => Container(color: Colors.grey[200]),
-                    errorWidget: (context, url, error) => const Icon(Icons.music_note, color: Colors.grey),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        widget.musicTitle!,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontFamily: 'CanvaSans',
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13,
-                          color: Colors.black87,
-                        ),
+                Row(
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(6),
+                      child: CachedNetworkImage(
+                        imageUrl: widget.musicThumbnail!,
+                        width: 46,
+                        height: 46,
+                        fit: BoxFit.cover,
+                        placeholder: (context, url) => Container(color: Colors.grey[200]),
+                        errorWidget: (context, url, error) => const Icon(Icons.music_note, color: Colors.grey),
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        widget.musicArtist!,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontFamily: 'CanvaSans',
-                          fontSize: 11,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                
-                GestureDetector(
-                  onTap: () => _playPreview(widget.musicStartSeconds),
-                  child: Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: _isPlaying ? const Color(0xFF0094FF).withOpacity(0.1) : Colors.grey[200],
                     ),
-                    child: Center(
-                      child: _isLoadingPreview
-                          ? const SizedBox(
-                              width: 14,
-                              height: 14,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF0094FF)),
-                              ),
-                            )
-                          : Icon(
-                              _isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                              color: _isPlaying ? const Color(0xFF0094FF) : Colors.black87,
-                              size: 18,
+                    const SizedBox(width: 12),
+                    
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            widget.musicTitle!,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontFamily: 'CanvaSans',
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                              color: Colors.black87,
                             ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            widget.musicArtist!,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontFamily: 'CanvaSans',
+                              fontSize: 11,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF0094FF).withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              'Fragmento: ${_formatDuration(widget.musicStartSeconds)} - ${_formatDuration(widget.musicStartSeconds + widget.musicDuration)} (${widget.musicDuration}s)',
+                              style: const TextStyle(
+                                fontFamily: 'Poppins',
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF0094FF),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                
-                GestureDetector(
-                  onTap: () {
-                    _stopPlayer();
-                    widget.onMusicSelected(null, null, null, null, 0, 30);
-                  },
-                  child: Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Colors.red[50],
+                    
+                    GestureDetector(
+                      onTap: () => _playPreview(widget.musicStartSeconds),
+                      child: Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: _isPlaying ? const Color(0xFF0094FF).withOpacity(0.1) : Colors.grey[200],
+                        ),
+                        child: Center(
+                          child: _isLoadingPreview
+                              ? const SizedBox(
+                                  width: 14,
+                                  height: 14,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF0094FF)),
+                                  ),
+                                )
+                              : Icon(
+                                  _isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                                  color: _isPlaying ? const Color(0xFF0094FF) : Colors.black87,
+                                  size: 18,
+                                ),
+                        ),
+                      ),
                     ),
-                    child: const Center(
-                      child: Icon(Icons.close_rounded, color: Colors.red, size: 18),
+                    const SizedBox(width: 8),
+
+                    GestureDetector(
+                      onTap: () => _openTrimmer(context),
+                      child: Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: const Color(0xFFE3F2FD),
+                        ),
+                        child: const Center(
+                          child: Icon(Icons.tune_rounded, color: Color(0xFF0094FF), size: 16),
+                        ),
+                      ),
                     ),
-                  ),
+                    const SizedBox(width: 8),
+                    
+                    GestureDetector(
+                      onTap: () {
+                        _stopPlayer();
+                        widget.onMusicSelected(null, null, null, null, 0, 30);
+                      },
+                      child: Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.red[50],
+                        ),
+                        child: const Center(
+                          child: Icon(Icons.close_rounded, color: Colors.red, size: 18),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),

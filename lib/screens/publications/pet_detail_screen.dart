@@ -17,6 +17,7 @@ import '../../widgets/boost_button.dart';
 import '../../services/algolia_service.dart';
 import '../../services/user_activity_service.dart';
 import '../../widgets/fullscreen_image_viewer.dart';
+import '../../widgets/publication_meta_helper.dart';
 
 class PetDetailScreen extends StatefulWidget {
   final Map<String, dynamic> data;
@@ -248,15 +249,9 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
                   padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
                   child: Text(_getString(d['title'], fallback: 'Mascota sin título'), style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black, fontFamily: 'CanvaSans')),
                 ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Text(_getDisplayPrice(d), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0094FF), fontFamily: 'Arimo')),
-                    ],
-                  ),
+                buildPriceAndMetaRow(
+                  priceText: _getDisplayPrice(d),
+                  data: d,
                 ),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
@@ -492,7 +487,7 @@ class _PetDetailScreenState extends State<PetDetailScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text('Publicado por', style: TextStyle(fontSize: 10, color: Colors.grey, fontFamily: 'CanvaSans')),
-                  Text(name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, fontFamily: 'CanvaSans')),
+                  buildVerifiedAuthorName(name, userData['isVerified'] == true),
                   Text(joinedText, style: const TextStyle(fontSize: 10, color: Colors.grey, fontFamily: 'CanvaSans')),
                 ],
               ),

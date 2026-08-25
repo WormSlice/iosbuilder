@@ -49,7 +49,14 @@ class AlgoliaService {
     if (filter != null) {
       filter.forEach((key, value) {
         if (value != null && value.toString().isNotEmpty) {
-          filters.add('$key:"$value"');
+          if (key == 'category' &&
+              (value == 'trueques' || value == 'barter' || value == 'trueque')) {
+            filters.add(
+              '(category:"trueques" OR type:"barter" OR isBarter:true OR acceptsTrade:true OR barterMode:true)',
+            );
+          } else {
+            filters.add('$key:"$value"');
+          }
         }
       });
     }
@@ -64,43 +71,9 @@ class AlgoliaService {
         ),
       );
 
-      // Si la búsqueda con filtro de ciudad no dio resultados, buscar sin filtro de ciudad
-      if (result.hits.isEmpty && city != null && city.isNotEmpty && city.toLowerCase() != 'todo') {
-        List<String> fallbackFilters = [];
-        if (filter != null) {
-          filter.forEach((key, value) {
-            if (value != null && value.toString().isNotEmpty) {
-              fallbackFilters.add('$key:"$value"');
-            }
-          });
-        }
-        final fallbackResult = await client.searchIndex(
-          request: SearchForHits(
-            indexName: postsIndex,
-            query: query,
-            hitsPerPage: limit,
-            filters: fallbackFilters.isNotEmpty ? fallbackFilters.join(' AND ') : null,
-          ),
-        );
-        if (fallbackResult.hits.isNotEmpty) {
-          return fallbackResult;
-        }
-      }
-
       return result;
     } catch (e) {
       print('AlgoliaService.searchPosts error: $e');
-      if (filters.isNotEmpty) {
-        try {
-          return await client.searchIndex(
-            request: SearchForHits(
-              indexName: postsIndex,
-              query: query,
-              hitsPerPage: limit,
-            ),
-          );
-        } catch (_) {}
-      }
       rethrow;
     }
   }
@@ -125,39 +98,15 @@ class AlgoliaService {
         ),
       );
 
-      if (result.hits.isEmpty && city != null && city.isNotEmpty && city.toLowerCase() != 'todo') {
-        final fallbackResult = await client.searchIndex(
-          request: SearchForHits(
-            indexName: wantsIndex,
-            query: query,
-            hitsPerPage: limit,
-          ),
-        );
-        if (fallbackResult.hits.isNotEmpty) {
-          return fallbackResult;
-        }
-      }
-
       return result;
     } catch (e) {
       print('AlgoliaService.searchWants error: $e');
-      if (filters.isNotEmpty) {
-        try {
-          return await client.searchIndex(
-            request: SearchForHits(
-              indexName: wantsIndex,
-              query: query,
-              hitsPerPage: limit,
-            ),
-          );
-        } catch (_) {}
-      }
       rethrow;
     }
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // ESCRITURA (Restaurados mediante peticiones HTTP para asegurar su funcionamiento)
+  // ESCRITURA
   // ─────────────────────────────────────────────────────────────────────────
 
   Future<void> indexPost(String id, Map<String, dynamic> data) async {
@@ -235,7 +184,7 @@ class AlgoliaService {
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // RECOMENDACIONES (Restaurado para FirebaseFallback)
+  // RECOMENDACIONES
   // ─────────────────────────────────────────────────────────────────────────
 
   Future<List<Map<String, dynamic>>> getRecommendations({

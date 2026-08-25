@@ -458,7 +458,7 @@ class ConnectProfileHeader extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
                             SizedBox(
-                              height: 22,
+                              height: 28,
                               child: Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [

@@ -4,7 +4,10 @@
  */
 
 const API_KEY = import.meta.env.VITE_MAILERSEND_API_KEY || 'mlsn.34131d2c738f0026306ef479f2e4dc85df9ef47633f4cdd32506dc35f33b9a1b';
-const BASE_URL = import.meta.env.DEV ? '/api/mailersend' : 'https://api.mailersend.com/v1';
+const WORKER_URL = import.meta.env.VITE_MAIL_WORKER_URL || '';
+const BASE_URL = WORKER_URL 
+    ? WORKER_URL 
+    : (import.meta.env.DEV ? '/api/mailersend' : 'https://api.mailersend.com/v1');
 
 export interface EmailData {
     to: string;
@@ -31,13 +34,9 @@ const fileToBase64 = (file: File): Promise<string> => {
 };
 
 /**
- * Envía un correo electrónico utilizando la API de MailerSend.
+ * Envía un correo electrónico utilizando la API de MailerSend (directo o vía Cloudflare Worker).
  */
 export const sendEmail = async (data: EmailData) => {
-    if (!API_KEY) {
-        throw new Error('Configuración de MailerSend incompleta en las variables de entorno.');
-    }
-
     let fromEmail = 'contacto@connectapp.com.co';
     let fromName = 'CONNECT';
     
@@ -85,17 +84,26 @@ export const sendEmail = async (data: EmailData) => {
     }
 
     try {
-        const response = await fetch(`${BASE_URL}/email`, {
+        const endpoint = WORKER_URL 
+            ? WORKER_URL 
+            : (import.meta.env.DEV ? '/api/mailersend/email' : 'https://api.mailersend.com/v1/email');
+
+        const headers: Record<string, string> = {
+            'Content-Type': 'application/json'
+        };
+
+        if (API_KEY) {
+            headers['Authorization'] = `Bearer ${API_KEY}`;
+        }
+
+        const response = await fetch(endpoint, {
             method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${API_KEY}`,
-                'Content-Type': 'application/json'
-            },
+            headers,
             body: JSON.stringify(payload)
         });
 
         if (!response.ok) {
-            let errorMessage = `Error de MailerSend: ${response.status} ${response.statusText}`;
+            let errorMessage = `Error al enviar correo: ${response.status} ${response.statusText}`;
             try {
                 const errorData = await response.json();
                 console.error('MailerSend Detailed Error:', errorData);

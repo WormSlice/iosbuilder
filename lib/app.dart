@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter/cupertino.dart';
 import 'screens/home/home_screen.dart';
 import 'screens/wants/wants_screen.dart';
 import 'screens/chats/chats_screen.dart';
@@ -55,10 +57,19 @@ class App extends StatelessWidget {
               debugShowCheckedModeBanner: false,
               locale: lang.currentLocale,
               theme: ThemeData(
-                colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+                colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF0094FF)),
                 useMaterial3: true,
                 fontFamily: 'Poppins',
                 scaffoldBackgroundColor: Colors.white,
+                canvasColor: Colors.white,
+                cardColor: Colors.white,
+                dialogBackgroundColor: Colors.white,
+                pageTransitionsTheme: PageTransitionsTheme(
+                  builders: {
+                    TargetPlatform.android: CupertinoPageTransitionsBuilder(),
+                    TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+                  },
+                ),
                 navigationBarTheme: NavigationBarThemeData(
                   height: 48,
                   indicatorColor: Colors.transparent,
@@ -335,7 +346,35 @@ class _AppShellState extends State<AppShell> {
   @override
   Widget build(BuildContext context) {
     final lang = Provider.of<LanguageProvider>(context);
-    return Scaffold(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+        if (showPublishPanel) {
+          setState(() => showPublishPanel = false);
+          return;
+        }
+        // 1. Verificar si hay pantallas superpuestas en el navegador raíz (detalles de publicaciones, modales, etc.)
+        final rootNav = App.navigatorKey.currentState;
+        if (rootNav != null && rootNav.canPop()) {
+          rootNav.pop();
+          return;
+        }
+        // 2. Verificar si la pestaña actual tiene historial de navegación interno
+        final currentNav = _navKeys[index].currentState;
+        if (currentNav != null && currentNav.canPop()) {
+          currentNav.pop();
+          return;
+        }
+        // 3. Si está en una pestaña secundaria (Lo Tienes, Chats, Perfil), regresar a Inicio
+        if (index != 0) {
+          setState(() => index = 0);
+          return;
+        }
+        // 4. Si ya está en la pestaña 0 (Inicio) en la raíz sin nada más que cerrar, salir de la app
+        SystemNavigator.pop();
+      },
+      child: Scaffold(
       body: Stack(
         children: [
           IndexedStack(index: index, children: pages),
@@ -416,45 +455,120 @@ class _AppShellState extends State<AppShell> {
           ),
         ],
       ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: index,
-        labelBehavior: NavigationDestinationLabelBehavior.alwaysHide,
-        destinations: [
-          NavigationDestination(
-            icon: const _NavImage('imgenes/inicio.png', size: 44),
-            label: lang.translate('inicio'),
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: const Color(0xFFF8F9FA),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.06),
+              blurRadius: 10,
+              offset: const Offset(0, -2),
+            ),
+          ],
+        ),
+        child: SafeArea(
+          top: false,
+          child: SizedBox(
+            height: 52,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _buildNavItem(
+                  navIndex: 0,
+                  icon: const _NavImage('assets/nav_icons/inicio.png', height: 30),
+                  label: '',
+                  isSelected: index == 0 && !showPublishPanel,
+                ),
+                _buildNavItem(
+                  navIndex: 1,
+                  icon: const _NavImage('assets/nav_icons/lo_tienes.png', height: 30),
+                  label: '',
+                  isSelected: index == 1 && !showPublishPanel,
+                ),
+                _buildNavItem(
+                  navIndex: 2,
+                  icon: const _NavImage('assets/nav_icons/publicar.png', height: 30),
+                  label: '',
+                  isSelected: showPublishPanel,
+                  isAction: true,
+                ),
+                _buildNavItem(
+                  navIndex: 3,
+                  icon: const _NavImage('assets/nav_icons/chats.png', height: 30),
+                  label: '',
+                  isSelected: index == 3 && !showPublishPanel,
+                ),
+                _buildNavItem(
+                  navIndex: 4,
+                  icon: _ProfileNavIcon(size: 22, isSelected: index == 4 && !showPublishPanel),
+                  label: lang.translate('perfil'),
+                  isSelected: index == 4 && !showPublishPanel,
+                  showLabel: true,
+                ),
+              ],
+            ),
           ),
-          NavigationDestination(
-            icon: const _NavImage('imgenes/lo tienes.png', size: 48),
-            label: lang.translate('lo_tienes'),
+        ),
+      ),
+    ),
+  );
+}
+
+  Widget _buildNavItem({
+    required int navIndex,
+    required Widget icon,
+    required String label,
+    required bool isSelected,
+    bool isAction = false,
+    bool showLabel = false,
+  }) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () {
+        if (isAction || navIndex == 2) {
+          setState(() => showPublishPanel = true);
+          return;
+        }
+        if (index == navIndex && !showPublishPanel) {
+          _navKeys[navIndex].currentState?.popUntil((r) => r.isFirst);
+        } else {
+          setState(() {
+            index = navIndex;
+            showPublishPanel = false;
+          });
+        }
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        child: AnimatedOpacity(
+          duration: const Duration(milliseconds: 200),
+          opacity: isSelected ? 1.0 : 0.60,
+          child: AnimatedScale(
+            duration: const Duration(milliseconds: 200),
+            scale: isSelected ? 1.08 : 0.95,
+            child: showLabel
+                ? Column(
+                    mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      icon,
+                      const SizedBox(height: 2),
+                      Text(
+                        label,
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                          color: isSelected ? const Color(0xFF0094FF) : Colors.black87,
+                          fontFamily: 'Poppins',
+                          height: 1.0,
+                        ),
+                      ),
+                    ],
+                  )
+                : icon,
           ),
-          NavigationDestination(
-            icon: const _NavImage('imgenes/publicar.png', size: 48),
-            label: lang.translate('publicar'),
-          ),
-          NavigationDestination(
-            icon: const _NavImage('imgenes/chats.png', size: 38),
-            label: lang.translate('chats'),
-          ),
-          NavigationDestination(icon: const _ProfileNavIcon(size: 28), label: lang.translate('perfil')),
-        ],
-        onDestinationSelected: (i) {
-          if (i == 2 || i == 4) {
-            if (!_isVerified) {
-              _showUnverifiedDialog();
-              return;
-            }
-          }
-          if (i == 2) {
-            setState(() => showPublishPanel = true);
-            return;
-          }
-          if (index == i) {
-            _navKeys[i].currentState?.popUntil((r) => r.isFirst);
-          } else {
-            setState(() => index = i);
-          }
-        },
+        ),
       ),
     );
   }
@@ -462,18 +576,25 @@ class _AppShellState extends State<AppShell> {
 
 class _NavImage extends StatelessWidget {
   final String path;
-  final double size;
-  const _NavImage(this.path, {this.size = 40});
+  final double? width;
+  final double? height;
+  const _NavImage(this.path, {this.width, this.height = 42});
 
   @override
   Widget build(BuildContext context) {
-    return Image.asset(path, width: size, height: size, fit: BoxFit.contain);
+    return Image.asset(
+      path,
+      width: width,
+      height: height,
+      fit: BoxFit.contain,
+    );
   }
 }
 
 class _ProfileNavIcon extends StatelessWidget {
   final double size;
-  const _ProfileNavIcon({required this.size});
+  final bool isSelected;
+  const _ProfileNavIcon({required this.size, this.isSelected = false});
 
   @override
   Widget build(BuildContext context) {
@@ -508,32 +629,38 @@ class _ProfileNavIcon extends StatelessWidget {
         url ??= user.photoURL;
         if (url != null) debugPrint('DEBUG: Final URL for NavIcon: $url');
 
-        return ClipOval(
-          child: Container(
-            width: size,
-            height: size,
-            decoration: BoxDecoration(
+        return Container(
+          width: size + (isSelected ? 4 : 0),
+          height: size + (isSelected ? 4 : 0),
+          padding: EdgeInsets.all(isSelected ? 1.5 : 0),
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: isSelected
+                ? Border.all(color: const Color(0xFF0094FF), width: 2)
+                : null,
+          ),
+          child: ClipOval(
+            child: Container(
               color: Colors.grey[200],
-              shape: BoxShape.circle,
-            ),
-            child: (url != null && url.isNotEmpty)
-                ? CachedNetworkImage(
-                    imageUrl: url,
-                    width: size,
-                    height: size,
-                    fit: BoxFit.cover,
-                    errorWidget: (context, url, error) => Icon(
-                      Icons.person,
-                      size: size * 0.8,
-                      color: Colors.grey,
-                    ),
-                    placeholder: (context, url) => Container(
+              child: (url != null && url.isNotEmpty)
+                  ? CachedNetworkImage(
+                      imageUrl: url,
                       width: size,
                       height: size,
-                      color: Colors.grey[200],
-                    ),
-                  )
-                : Icon(Icons.person, size: size * 0.8, color: Colors.grey),
+                      fit: BoxFit.cover,
+                      errorWidget: (context, url, error) => Icon(
+                        Icons.person,
+                        size: size * 0.8,
+                        color: Colors.grey,
+                      ),
+                      placeholder: (context, url) => Container(
+                        width: size,
+                        height: size,
+                        color: Colors.grey[200],
+                      ),
+                    )
+                  : Icon(Icons.person, size: size * 0.8, color: Colors.grey),
+            ),
           ),
         );
       },

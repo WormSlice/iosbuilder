@@ -3,8 +3,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../services/algolia_service.dart';
 import '../../widgets/post_card.dart';
 import '../../services/location_service.dart';
-
 import '../../widgets/liquid_glass_filter_modal.dart';
+import '../../widgets/location_picker/location_bottom_sheet.dart';
 
 /// Pantalla de resultados de busqueda basada en Algolia.
 /// Soporta busqueda por texto libre, filtros por categoria,
@@ -26,6 +26,8 @@ class SearchResultsScreen extends StatefulWidget {
 class _SearchResultsScreenState extends State<SearchResultsScreen> {
   final _algolia = AlgoliaService();
   final _locationService = LocationService();
+  late final TextEditingController _searchController;
+  late String _currentQuery;
 
   List<Map<String, dynamic>> _results = [];
   bool _isLoading = true;
@@ -36,7 +38,15 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
   @override
   void initState() {
     super.initState();
+    _currentQuery = widget.query;
+    _searchController = TextEditingController(text: widget.query);
     _fetchResults();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _fetchResults() async {
@@ -47,17 +57,33 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
 
     try {
       final city = _locationService.currentCity;
+      final isBarterCategory = widget.category != null &&
+          (widget.category!.toLowerCase() == 'trueques' ||
+              widget.category!.toLowerCase() == 'barter' ||
+              widget.category!.toLowerCase() == 'trueque');
+
       final result = await _algolia.searchPosts(
-        widget.query,
-        city: city != null && city != 'Todo' ? city : null,
-        filter: widget.category != null ? {'category': widget.category} : null,
+        _currentQuery,
+        city: city != null && city != 'Todo' && !city.toLowerCase().contains('todo') ? city : null,
+        filter: widget.category != null
+            ? (isBarterCategory ? {'category': 'trueques'} : {'category': widget.category})
+            : null,
         limit: 60,
       );
 
       List<Map<String, dynamic>> hits = result.hits.map((h) => h.toJson()).toList();
 
       if (hits.isEmpty) {
-        hits = await _firestoreFallback(widget.query, widget.category);
+        hits = await _firestoreFallback(_currentQuery, widget.category);
+      }
+
+      // Strict location filter fallback if present
+      if (city != null && city != 'Todo' && !city.toLowerCase().contains('todo')) {
+        final targetCity = city.toLowerCase().trim();
+        hits = hits.where((h) {
+          final loc = (h['location'] ?? h['city'] ?? h['ubicacion'] ?? h['ubicación'] ?? '').toString().toLowerCase();
+          return loc.contains(targetCity);
+        }).toList();
       }
 
       // Ordenamiento local si se necesita
@@ -80,7 +106,7 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
       }
     } catch (e) {
       try {
-        final fallbackHits = await _firestoreFallback(widget.query, widget.category);
+        final fallbackHits = await _firestoreFallback(_currentQuery, widget.category);
         if (mounted) {
           setState(() {
             _results = fallbackHits;
@@ -102,11 +128,17 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
   Future<List<Map<String, dynamic>>> _firestoreFallback(String query, String? category) async {
     try {
       Query<Map<String, dynamic>> dbQuery = FirebaseFirestore.instance.collection('posts');
-      if (category != null && category.isNotEmpty) {
+      final isBarter = category != null &&
+          (category.toLowerCase() == 'trueques' ||
+              category.toLowerCase() == 'barter' ||
+              category.toLowerCase() == 'trueque');
+
+      if (category != null && category.isNotEmpty && !isBarter) {
         dbQuery = dbQuery.where('category', isEqualTo: category.toLowerCase());
       }
-      final snap = await dbQuery.limit(60).get();
+      final snap = await dbQuery.limit(80).get();
       final qLower = query.toLowerCase().trim();
+      final city = _locationService.currentCity;
 
       return snap.docs
           .map((doc) {
@@ -116,6 +148,21 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
             return data;
           })
           .where((data) {
+            if (isBarter) {
+              final isBarterPost = data['isBarter'] == true ||
+                  data['barterMode'] == true ||
+                  data['acceptsTrade'] == true ||
+                  data['type'] == 'barter' ||
+                  data['category'] == 'trueques' ||
+                  (data['trueque']?.toString().toLowerCase().startsWith('s') ?? false);
+              if (!isBarterPost) return false;
+            }
+
+            if (city != null && city != 'Todo' && !city.toLowerCase().contains('todo')) {
+              final loc = (data['location'] ?? data['city'] ?? data['ubicacion'] ?? '').toString().toLowerCase();
+              if (!loc.contains(city.toLowerCase().trim())) return false;
+            }
+
             if (qLower.isEmpty) return true;
             final title = (data['title'] ?? '').toString().toLowerCase();
             final desc = (data['description'] ?? '').toString().toLowerCase();
@@ -156,6 +203,32 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
     return '';
   }
 
+  void _openLocationPicker() async {
+    final result = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+        ),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.5,
+          ),
+          child: LocationBottomSheet(currentLocation: _locationService.currentCity),
+        ),
+      ),
+    );
+
+    if (result != null && result.isNotEmpty) {
+      if (mounted) {
+        _locationService.setCurrentCity(result);
+        _fetchResults();
+      }
+    }
+  }
+
   void _openFilterModal() {
     LiquidGlassFilterModal.show(
       context: context,
@@ -172,49 +245,124 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final currentCity = _locationService.currentCity ?? 'Todo';
+
     return Scaffold(
       backgroundColor: const Color(0xFFF6F6F6),
       appBar: AppBar(
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.white,
-        elevation: 0,
+        elevation: 0.5,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              widget.category != null
-                  ? 'Categoría: "${widget.category}"'
-                  : '"${widget.query}"',
-              style: const TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.bold,
-                fontFamily: 'CanvaSans',
-                color: Colors.black,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+        titleSpacing: 0,
+        title: Container(
+          height: 38,
+          margin: const EdgeInsets.only(right: 8),
+          decoration: BoxDecoration(
+            color: const Color(0xFFEFEFEF),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: TextField(
+            controller: _searchController,
+            textInputAction: TextInputAction.search,
+            onSubmitted: (value) {
+              setState(() {
+                _currentQuery = value.trim();
+              });
+              _fetchResults();
+            },
+            style: const TextStyle(
+              fontFamily: 'Poppins',
+              fontSize: 13,
+              color: Colors.black,
             ),
-            if (!_isLoading)
-              Text(
-                '$_totalHits resultados · ${_locationService.currentCity ?? "Todo"}',
-                style: const TextStyle(
-                  fontSize: 11,
-                  color: Colors.grey,
-                  fontFamily: 'CanvaSans',
-                ),
+            textAlignVertical: TextAlignVertical.center,
+            decoration: InputDecoration(
+              hintText: widget.category != null ? 'Buscar en ${widget.category}...' : '¿Qué estás buscando?',
+              hintStyle: const TextStyle(
+                fontFamily: 'Poppins',
+                fontSize: 13,
+                color: Colors.grey,
               ),
-          ],
+              prefixIcon: const Icon(Icons.search, size: 20, color: Color(0xFF0094FF)),
+              suffixIcon: _searchController.text.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.close, size: 16, color: Colors.grey),
+                      onPressed: () {
+                        _searchController.clear();
+                        setState(() {
+                          _currentQuery = '';
+                        });
+                        _fetchResults();
+                      },
+                    )
+                  : null,
+              isDense: true,
+              border: InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            ),
+          ),
         ),
         actions: [
           IconButton(
             icon: const Icon(Icons.tune, color: Color(0xFF0094FF)),
             onPressed: _openFilterModal,
+            tooltip: 'Filtros',
           ),
         ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(36),
+          child: Container(
+            color: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                GestureDetector(
+                  onTap: _openLocationPicker,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE3F2FD),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: const Color(0xFF90CAF9), width: 0.8),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.location_on, size: 13, color: Color(0xFF0094FF)),
+                        const SizedBox(width: 4),
+                        Text(
+                          currentCity,
+                          style: const TextStyle(
+                            fontFamily: 'Poppins',
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF0094FF),
+                          ),
+                        ),
+                        const SizedBox(width: 2),
+                        const Icon(Icons.arrow_drop_down, size: 14, color: Color(0xFF0094FF)),
+                      ],
+                    ),
+                  ),
+                ),
+                if (!_isLoading)
+                  Text(
+                    '$_totalHits resultados',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: Colors.grey,
+                      fontFamily: 'Poppins',
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
       ),
       body: _buildBody(),
     );

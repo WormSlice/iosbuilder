@@ -19,6 +19,7 @@ class PostCard extends StatelessWidget {
   final String? userId;
   final Map<String, dynamic>? data;
   final bool showCategoryIcons; // NEW
+  final bool isLargeCard;
 
   const PostCard({
     super.key,
@@ -31,6 +32,7 @@ class PostCard extends StatelessWidget {
     this.userId,
     this.data,
     this.showCategoryIcons = false, // Default false
+    this.isLargeCard = false,
   });
 
   String _formatCop(String raw) {
@@ -68,6 +70,11 @@ class PostCard extends StatelessWidget {
       if (type.contains('adop')) return 'Adopción';
       if (type.contains('busca') || type.contains('perd')) return 'Se Busca';
       if (type.contains('encontr')) return 'Encontrado';
+    }
+
+    if (category.contains('empl') || type.contains('empl') || type.contains('job')) {
+      final formatted = _formatCop(price);
+      return 'PAGO \$$formatted';
     }
 
     return '\$${_formatCop(price)}';
@@ -237,9 +244,9 @@ class PostCard extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.center,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontFamily: 'BebasNeue',
-                        fontSize: 16,
+                        fontSize: isLargeCard ? 19 : 16,
                         fontWeight: FontWeight.w400,
                         color: Colors.black,
                         height: 1.0,
@@ -250,10 +257,10 @@ class PostCard extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.center,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontFamily: 'Poppins',
-                        fontSize: 10,
-                        fontWeight: FontWeight.w500,
+                        fontSize: isLargeCard ? 13 : 10,
+                        fontWeight: isLargeCard ? FontWeight.w600 : FontWeight.w500,
                         color: Colors.black87,
                         height: 1.0,
                       ),
@@ -266,7 +273,7 @@ class PostCard extends StatelessWidget {
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontFamily: 'Poppins',
-                        fontSize: 8,
+                        fontSize: isLargeCard ? 11 : 8,
                         fontWeight: FontWeight.w600,
                         color: Colors.grey[600],
                         height: 1.0,

@@ -365,7 +365,7 @@ class _SecurityScreenState extends State<SecurityScreen> {
                 _buildSectionHeader('Información Personal'),
                 _buildInfoTile('Nombre verificado', _displayName ?? 'N/A'),
                 _buildInfoTile('Correo electrónico', _email ?? 'N/A'),
-                _buildInfoTile('Número de teléfono', _phoneNumber ?? 'No vinculado'),
+                _buildPhoneTile(),
                 _buildInfoTile('Fecha de nacimiento', _dob ?? 'No especificada'),
                 
                 const SizedBox(height: 32),
@@ -401,12 +401,6 @@ class _SecurityScreenState extends State<SecurityScreen> {
                   icon: Icons.lock_outline,
                   title: 'Cambiar Contraseña',
                   onTap: _handlePasswordReset,
-                ),
-                _buildActionOption(
-                  icon: _phoneNumber != null ? Icons.phone_disabled_outlined : Icons.phone_android_outlined,
-                  title: _phoneNumber != null ? 'Desvincular número de teléfono' : 'Vincular número certificado',
-                  onTap: _phoneNumber != null ? _handleUnlinkPhone : _handlePhoneVerification,
-                  iconColor: _phoneNumber != null ? Colors.red : const Color(0xFF0094FF),
                 ),
               ],
             ),
@@ -452,6 +446,115 @@ class _SecurityScreenState extends State<SecurityScreen> {
               color: Colors.black87,
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPhoneTile() {
+    final hasPhone = _phoneNumber != null && _phoneNumber!.isNotEmpty && _phoneNumber != 'No vinculado';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(16),
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Número de teléfono',
+            style: TextStyle(fontSize: 12, color: Colors.grey, fontFamily: 'Poppins'),
+          ),
+          const SizedBox(height: 8),
+          if (!hasPhone)
+            Align(
+              alignment: Alignment.centerLeft,
+              child: InkWell(
+                onTap: _handlePhoneVerification,
+                borderRadius: BorderRadius.circular(10),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0094FF).withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: const Color(0xFF0094FF).withOpacity(0.4),
+                      width: 1,
+                    ),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.add_circle_outline_rounded, size: 16, color: Color(0xFF0094FF)),
+                      SizedBox(width: 6),
+                      Text(
+                        'Agregar Número',
+                        style: TextStyle(
+                          fontFamily: 'Poppins',
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF0094FF),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            )
+          else
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    _phoneNumber!,
+                    softWrap: true,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      fontFamily: 'Poppins',
+                      color: Colors.black87,
+                    ),
+                  ),
+                ),
+                // Botón Editar
+                GestureDetector(
+                  onTap: _handlePhoneVerification,
+                  child: Container(
+                    padding: const EdgeInsets.all(7),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0094FF).withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.edit_outlined,
+                      size: 16,
+                      color: Color(0xFF0094FF),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                // Botón Borrar
+                GestureDetector(
+                  onTap: _handleUnlinkPhone,
+                  child: Container(
+                    padding: const EdgeInsets.all(7),
+                    decoration: BoxDecoration(
+                      color: Colors.red.withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.delete_outline_rounded,
+                      size: 16,
+                      color: Colors.red,
+                    ),
+                  ),
+                ),
+              ],
+            ),
         ],
       ),
     );

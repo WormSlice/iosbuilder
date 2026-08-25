@@ -58,4 +58,7 @@ dist/
 admin/.env
 AuthKey_*.p8
 recovery-codes-*.txt
+iconos_extraidos/
+Nuevos Iconos/
+Disenos/
 *.ipa

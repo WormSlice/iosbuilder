@@ -22,6 +22,7 @@ import '../../app.dart';
 import 'call_screen.dart';
 import 'chat_info_screen.dart';
 import '../../services/signaling_service.dart';
+import '../profile/social_icon_box.dart';
 
 class ChatRoomScreen extends StatefulWidget {
   final String chatId;
@@ -1300,7 +1301,9 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
           return const SizedBox.shrink();
         }
 
-        return GestureDetector(
+        return SocialIconBox(
+          asset: iconPath,
+          size: 36,
           onTap: () async {
             try {
               final uri = Uri.parse(url);
@@ -1319,7 +1322,6 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
               }
             }
           },
-          child: Image.asset(iconPath, width: 32, height: 32),
         );
       }).toList(),
     );
@@ -1696,9 +1698,13 @@ class _ToolItem extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          CircleAvatar(
-            radius: 28,
-            backgroundColor: Colors.grey.shade100,
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: Colors.grey.shade100,
+              borderRadius: BorderRadius.circular(14),
+            ),
             child: Icon(icon, color: const Color(0xFF0094FF), size: 28),
           ),
           const SizedBox(height: 8),

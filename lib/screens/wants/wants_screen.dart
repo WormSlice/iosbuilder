@@ -575,7 +575,29 @@ class _WantsScreenState extends State<WantsScreen>
                             );
                           }
 
-                          final docs = snapshot.data!.docs.toList();
+                          final allDocs = snapshot.data!.docs.toList();
+                          final currentCity = _locationService.currentCity;
+                          final matchingDocs = (currentCity != null &&
+                                  currentCity.isNotEmpty &&
+                                  currentCity.toLowerCase() != 'todo' &&
+                                  !currentCity.toLowerCase().contains('todo') &&
+                                  !currentCity.toLowerCase().contains('mostrar'))
+                              ? allDocs.where((doc) {
+                                  final d = doc.data();
+                                  final loc = (d['location'] ??
+                                          d['city'] ??
+                                          d['ubicacion'] ??
+                                          d['ubicación'] ??
+                                          '')
+                                      .toString()
+                                      .toLowerCase();
+                                  final selected = currentCity.toLowerCase().trim();
+                                  return loc.contains(selected) || selected.contains(loc);
+                                }).toList()
+                              : allDocs;
+
+                          final docs = matchingDocs.isNotEmpty ? matchingDocs : allDocs;
+
                           docs.sort((a, b) {
                             final ta = a.data()['createdAt'];
                             final tb = b.data()['createdAt'];
@@ -588,7 +610,7 @@ class _WantsScreenState extends State<WantsScreen>
                           if (docs.isEmpty) {
                             return const Center(
                               child: Text(
-                                'No hay solicitudes aún',
+                                'No hay solicitudes en esta ubicación',
                                 style: TextStyle(
                                   fontFamily: 'Poppins',
                                   color: Colors.grey,

@@ -17,6 +17,7 @@ import '../../widgets/boost_button.dart';
 import '../../services/algolia_service.dart';
 import '../../services/user_activity_service.dart';
 import '../../widgets/fullscreen_image_viewer.dart';
+import '../../widgets/publication_meta_helper.dart';
 
 class ServiceDetailScreen extends StatefulWidget {
   final Map<String, dynamic> data;
@@ -236,15 +237,9 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
                   padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
                   child: Text(_getString(d['title'], fallback: 'Servicio sin título'), style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black, fontFamily: 'CanvaSans')),
                 ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Text(_formatPrice(d['price']), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0094FF), fontFamily: 'Arimo')),
-                    ],
-                  ),
+                buildPriceAndMetaRow(
+                  priceText: _formatPrice(d['price']),
+                  data: d,
                 ),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
@@ -494,7 +489,7 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text('Publicado por', style: TextStyle(fontSize: 10, color: Colors.grey, fontFamily: 'CanvaSans')),
-                  Text(name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, fontFamily: 'CanvaSans')),
+                  buildVerifiedAuthorName(name, userData['isVerified'] == true),
                   Text(joinedText, style: const TextStyle(fontSize: 10, color: Colors.grey, fontFamily: 'CanvaSans')),
                 ],
               ),

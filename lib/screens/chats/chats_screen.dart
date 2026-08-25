@@ -6,6 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../services/firestore_service.dart';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:provider/provider.dart';
 import 'package:connect/models/chat_tag.dart';
 import 'package:connect/services/chat_filter_service.dart';
@@ -22,6 +23,8 @@ class ChatsScreen extends StatefulWidget {
 }
 
 class _ChatsScreenContentState extends State<ChatsScreen> {
+  final Map<String, Map<String, dynamic>> _peerCache = {};
+
   @override
   void initState() {
     super.initState();
@@ -335,7 +338,7 @@ class _ChatsScreenContentState extends State<ChatsScreen> {
                             backgroundColor: Colors.grey[200],
                             backgroundImage:
                                 resolvedAvatar != null && resolvedAvatar.isNotEmpty
-                                ? NetworkImage(resolvedAvatar)
+                                ? CachedNetworkImageProvider(resolvedAvatar)
                                 : null,
                             child:
                                 (resolvedAvatar == null || resolvedAvatar.isEmpty)
@@ -355,7 +358,7 @@ class _ChatsScreenContentState extends State<ChatsScreen> {
                                 child: CircleAvatar(
                                   radius: 9,
                                   backgroundColor: Colors.grey[300],
-                                  backgroundImage: NetworkImage(peerAvatar),
+                                  backgroundImage: CachedNetworkImageProvider(peerAvatar),
                                   child: peerAvatar.isEmpty
                                       ? const Icon(Icons.person, size: 10, color: Colors.grey)
                                       : null,
@@ -492,6 +495,7 @@ class _ChatsScreenContentState extends State<ChatsScreen> {
     DocumentReference chatRef,
   ) async {
     if (peerId == null || peerId.isEmpty) return {'exists': false};
+    if (_peerCache.containsKey(peerId)) return _peerCache[peerId]!;
 
     try {
       final doc = await FirebaseFirestore.instance
@@ -525,7 +529,9 @@ class _ChatsScreenContentState extends State<ChatsScreen> {
 
       final isVerified = d?['isVerified'] == true;
       
-      return {'exists': true, 'name': name, 'avatar': avatar, 'isVerified': isVerified};
+      final result = {'exists': true, 'name': name, 'avatar': avatar, 'isVerified': isVerified};
+      _peerCache[peerId] = result;
+      return result;
     } catch (e) {
       debugPrint('DEBUG: Error resolving peer $peerId: $e');
       return {'exists': false};

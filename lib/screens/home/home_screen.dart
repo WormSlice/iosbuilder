@@ -331,7 +331,27 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                           );
                         }
-                        final docs = snapshot.data!.docs;
+                        final allDocs = snapshot.data!.docs;
+                        final matchingDocs = (_selectedLocation != null &&
+                                _selectedLocation!.isNotEmpty &&
+                                _selectedLocation!.toLowerCase() != 'todo' &&
+                                !_selectedLocation!.toLowerCase().contains('todo') &&
+                                !_selectedLocation!.toLowerCase().contains('mostrar'))
+                            ? allDocs.where((doc) {
+                                final d = doc.data();
+                                final loc = (d['location'] ??
+                                        d['city'] ??
+                                        d['ubicacion'] ??
+                                        d['ubicación'] ??
+                                        '')
+                                    .toString()
+                                    .toLowerCase();
+                                final selected = _selectedLocation!.toLowerCase().trim();
+                                return loc.contains(selected) || selected.contains(loc);
+                              }).toList()
+                            : allDocs;
+
+                        final docs = matchingDocs.isNotEmpty ? matchingDocs : allDocs;
 
                         if (docs.isEmpty) {
                           return const EmptyState(
@@ -396,6 +416,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 userId: (d['userId'] ?? d['uid']).toString(),
                                 data: d,
                                 showCategoryIcons: !isFiltered,
+                                isLargeCard: true,
                               );
                             },
                           ),
@@ -437,9 +458,6 @@ class _CategoryCarousel extends StatefulWidget {
 }
 
 class _CategoryCarouselState extends State<_CategoryCarousel> {
-  int _visibleCount = 6;
-  double _currentPull = 0.0;
-
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
@@ -460,7 +478,29 @@ class _CategoryCarouselState extends State<_CategoryCarousel> {
           return data;
         }).toList();
 
-        return _buildCarouselContent(context, docList);
+        // Location filter with fallback to all docs if no matches exist in this town
+        final List<Map<String, dynamic>> matchingDocs = (widget.currentLocation != null &&
+                widget.currentLocation!.isNotEmpty &&
+                widget.currentLocation!.toLowerCase() != 'todo' &&
+                !widget.currentLocation!.toLowerCase().contains('todo') &&
+                !widget.currentLocation!.toLowerCase().contains('mostrar'))
+            ? docList.where((d) {
+                final loc = (d['location'] ??
+                        d['city'] ??
+                        d['ubicacion'] ??
+                        d['ubicación'] ??
+                        '')
+                    .toString()
+                    .toLowerCase();
+                final selected = widget.currentLocation!.toLowerCase().trim();
+                return loc.contains(selected) || selected.contains(loc);
+              }).toList()
+            : docList;
+
+        final List<Map<String, dynamic>> filteredDocs =
+            matchingDocs.isNotEmpty ? matchingDocs : docList;
+
+        return _buildCarouselContent(context, filteredDocs);
       },
     );
   }
@@ -531,143 +571,64 @@ class _CategoryCarouselState extends State<_CategoryCarousel> {
         else
           SizedBox(
             height: 170,
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                NotificationListener<ScrollNotification>(
-                  onNotification: (notification) {
-                    if (notification is ScrollUpdateNotification) {
-                      final metrics = notification.metrics;
-                      if (metrics.pixels > metrics.maxScrollExtent) {
-                        setState(() {
-                          _currentPull = metrics.pixels - metrics.maxScrollExtent;
-                        });
-                        // Si tira más de 60px, cargamos 6 más
-                        if (_currentPull > 60) {
-                          setState(() {
-                            _visibleCount += 6;
-                            _currentPull = 0.0;
-                          });
-                        }
-                      } else {
-                        if (_currentPull != 0) {
-                          setState(() {
-                            _currentPull = 0.0;
-                          });
-                        }
-                      }
-                    } else if (notification is ScrollEndNotification) {
-                      setState(() {
-                        _currentPull = 0.0;
-                      });
-                    }
-                    return false;
-                  },
-                  child: ListView.separated(
-                    scrollDirection: Axis.horizontal,
-                    physics: const BouncingScrollPhysics(
-                      parent: AlwaysScrollableScrollPhysics(),
-                    ),
-                    padding: const EdgeInsets.symmetric(horizontal: 6),
-                    // Mostramos solo la cantidad visible actual
-                    itemCount: docs.isEmpty
-                        ? 0
-                        : (_visibleCount > docs.length ? docs.length : _visibleCount),
-                    cacheExtent: 3000,
-                    separatorBuilder: (_, __) => const SizedBox(width: 4),
-                    itemBuilder: (context, i) {
-                      final d = docs[i % (docs.length)];
-                      final String title =
-                          (d['title'] ??
-                                  d['name'] ??
-                                  d['nombre'] ??
-                                  d['titulo'] ??
-                                  '')
-                              .toString();
-                      final String price =
-                          (d['price'] ??
-                                  d['salary'] ??
-                                  d['precio'] ??
-                                  d['amount'] ??
-                                  '0')
-                              .toString();
-                      final String location =
-                          (d['location'] ??
-                                  d['ubicacion'] ??
-                                  d['ubicación'] ??
-                                  d['city'] ??
-                                  d['ciudad'] ??
-                                  d['address'] ??
-                                  '')
-                              .toString();
-                      String? image =
-                          (d['imageUrl'] ??
-                                  d['image'] ??
-                                  d['coverUrl'] ??
-                                  d['portada'] ??
-                                  d['foto'] ??
-                                  d['thumbnail'])
-                              ?.toString();
-                      if (image == null) {
-                        final images = d['images'];
-                        if (images is List && images.isNotEmpty) {
-                          final first = images.first;
-                          if (first is String) image = first;
-                        }
-                      }
-                      return SizedBox(
-                        width: 110,
-                        child: PostCard(
-                          imageUrl: image,
-                          title: title,
-                          price: price,
-                          location: location,
-                          postId: d['id'].toString(),
-                          userId: (d['userId'] ?? d['uid']).toString(),
-                          data: d,
-                        ),
-                      );
-                    },
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(
+                parent: AlwaysScrollableScrollPhysics(),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+              itemCount: docs.length,
+              cacheExtent: 5000,
+              separatorBuilder: (_, __) => const SizedBox(width: 4),
+              itemBuilder: (context, i) {
+                final d = docs[i];
+                final String title = (d['title'] ??
+                        d['name'] ??
+                        d['nombre'] ??
+                        d['titulo'] ??
+                        '')
+                    .toString();
+                final String price = (d['price'] ??
+                        d['salary'] ??
+                        d['precio'] ??
+                        d['amount'] ??
+                        '0')
+                    .toString();
+                final String location = (d['location'] ??
+                        d['ubicacion'] ??
+                        d['ubicación'] ??
+                        d['city'] ??
+                        d['ciudad'] ??
+                        d['address'] ??
+                        '')
+                    .toString();
+                String? image = (d['imageUrl'] ??
+                        d['image'] ??
+                        d['coverUrl'] ??
+                        d['portada'] ??
+                        d['foto'] ??
+                        d['thumbnail'])
+                    ?.toString();
+                if (image == null) {
+                  final images = d['images'];
+                  if (images is List && images.isNotEmpty) {
+                    final first = images.first;
+                    if (first is String) image = first;
+                  }
+                }
+                return SizedBox(
+                  width: 110,
+                  child: PostCard(
+                    imageUrl: image,
+                    title: title,
+                    price: price,
+                    location: location,
+                    postId: d['id'].toString(),
+                    userId: (d['userId'] ?? d['uid']).toString(),
+                    data: d,
                   ),
-                ),
-                // Indicador de carga estilo sistema (flotante y dinámico)
-                if (_visibleCount < docs.length && _currentPull > 5)
-                  Positioned(
-                    right: -40 + (_currentPull.clamp(0, 70)),
-                    top: 0,
-                    bottom: 0,
-                    child: Center(
-                      child: Opacity(
-                        opacity: (_currentPull / 60).clamp(0, 1),
-                        child: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: const BoxDecoration(
-                            color: Colors.white,
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black12,
-                                blurRadius: 4,
-                                spreadRadius: 1,
-                              )
-                            ],
-                          ),
-                          child: SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              value: (_currentPull / 60).clamp(0, 0.9),
-                              valueColor: const AlwaysStoppedAnimation<Color>(
-                                Color(0xFF0094FF),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
+                );
+              },
             ),
           ),
       ],

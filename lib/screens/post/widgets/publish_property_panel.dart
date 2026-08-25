@@ -6,6 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../../services/firestore_service.dart';
 import '../../../services/location_service.dart';
 import '../../../widgets/music_selector_field.dart';
+import '../../../widgets/location_selector_field.dart';
 
 class PublishPropertyPanel extends StatefulWidget {
   final String? postId;
@@ -93,9 +94,7 @@ class _PublishPropertyPanelState extends State<PublishPropertyPanel> {
       _selectedAnnouncer = _announcers.contains(data['announcerType'])
           ? data['announcerType']
           : _announcers.first;
-      _selectedLocation = _cities.contains(data['location'])
-          ? data['location']
-          : _cities.first;
+      _selectedLocation = data['location']?.toString() ?? 'Bogotá, D.C.';
 
       if (data['images'] is List) {
         _existingImages.addAll(List<String>.from(data['images']));
@@ -532,13 +531,10 @@ class _PublishPropertyPanelState extends State<PublishPropertyPanel> {
               items: _announcers,
               onChanged: (v) => setState(() => _selectedAnnouncer = v!),
             ),
-            const SizedBox(height: 15),
-
-            _buildLabel('Ubicación de la publicación'),
-            _buildDropdown(
-              value: _selectedLocation,
-              items: _cities,
-              onChanged: (v) => setState(() => _selectedLocation = v!),
+            LocationSelectorField(
+              label: 'Ubicación de la publicación',
+              location: _selectedLocation,
+              onLocationChanged: (newLoc) => setState(() => _selectedLocation = newLoc),
             ),
 
             const SizedBox(height: 25),

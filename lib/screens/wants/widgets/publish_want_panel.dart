@@ -5,6 +5,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../../services/firestore_service.dart';
 import '../../../services/location_service.dart'; // Added for LocationService
+import '../../../widgets/location_selector_field.dart';
 
 class PublishWantPanel extends StatefulWidget {
   final String? initialCategory;
@@ -323,7 +324,11 @@ class _PublishWantPanelState extends State<PublishWantPanel> {
               'Ej: lujo, pluma, regalo (separados por coma)',
             ),
             const SizedBox(height: 10),
-            _buildTextField(_locationController, 'Ubicación', 'Ej: Medellín'),
+            LocationSelectorField(
+              label: 'Ubicación',
+              location: _locationController.text,
+              onLocationChanged: (newLoc) => setState(() => _locationController.text = newLoc),
+            ),
             const SizedBox(height: 15),
             const Text(
               'Categoría',

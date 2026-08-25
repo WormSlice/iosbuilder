@@ -2,7 +2,7 @@ name: connect
 description: "A new Flutter project."
 publish_to: 'none'
 
-version: 1.1.23+49
+version: 1.1.24+50
 
 environment:
   sdk: ^3.10.1
@@ -65,8 +65,8 @@ flutter:
 
   assets:
     - assets/.env
-    - Diseños/
     - assets/
+    - assets/nav_icons/
     - assets/iconos/AssetsCPu/productos.png
     - assets/iconos/AssetsCPu/servicios.png
     - assets/iconos/AssetsCPu/empleos.png

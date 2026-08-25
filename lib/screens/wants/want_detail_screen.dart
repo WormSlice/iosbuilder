@@ -13,6 +13,7 @@ import '../../services/report_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../chats/chat_room_screen.dart';
 import '../../widgets/fullscreen_image_viewer.dart';
+import '../../widgets/publication_meta_helper.dart';
 
 class WantDetailScreen extends StatefulWidget {
   final Want want;
@@ -268,6 +269,25 @@ class _WantDetailScreenState extends State<WantDetailScreen> {
                             ),
                           ],
                         ),
+                      ),
+                      Builder(
+                        builder: (_) {
+                          final dept = getDepartment({'location': locationText});
+                          final timeAgo = formatTimeAgo(w.createdAt);
+                          final parts = <String>[];
+                          if (dept.isNotEmpty) parts.add(dept);
+                          if (timeAgo.isNotEmpty) parts.add(timeAgo);
+                          if (parts.isEmpty) return const SizedBox.shrink();
+                          return Text(
+                            parts.join(' • '),
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.grey[600],
+                              fontFamily: 'Poppins',
+                              fontWeight: FontWeight.w500,
+                            ),
+                          );
+                        },
                       ),
                     ],
                   ),
@@ -734,14 +754,7 @@ class _WantDetailScreenState extends State<WantDetailScreen> {
                       fontFamily: 'CanvaSans',
                     ),
                   ),
-                  Text(
-                    name,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      fontFamily: 'CanvaSans',
-                    ),
-                  ),
+                  buildVerifiedAuthorName(name, userData['isVerified'] == true),
                   Text(
                     joinedText,
                     style: const TextStyle(

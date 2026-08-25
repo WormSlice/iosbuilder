@@ -33,16 +33,115 @@ class _SettingsScreenState extends State<SettingsScreen> {
         showSettings: false,
         showBack: true,
       ),
-      body: ListView(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        children: [
-          // Account & Profile Section
-          _buildSectionHeader('CUENTA Y PERFIL'),
-          _buildSettingsTile(
-            icon: Icons.history_rounded,
-            title: 'Centro de Actividad',
-            onTap: () => Navigator.pushNamed(context, '/activity'),
-          ),
+      body: StreamBuilder<DocumentSnapshot>(
+        stream: user != null
+            ? FirebaseFirestore.instance.collection('users').doc(user.uid).snapshots()
+            : null,
+        builder: (context, snapshot) {
+          final userData = (snapshot.hasData && snapshot.data!.exists)
+              ? (snapshot.data!.data() as Map<String, dynamic>)
+              : <String, dynamic>{};
+          final isVerified = userData['isVerified'] == true;
+
+          return ListView(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            children: [
+              // Subtle verification recommendation banner (only if not verified)
+              if (!isVerified) ...[
+                Container(
+                  margin: const EdgeInsets.only(bottom: 20),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        const Color(0xFF0094FF).withOpacity(0.08),
+                        const Color(0xFF0094FF).withOpacity(0.02),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: const Color(0xFF0094FF).withOpacity(0.25),
+                      width: 1,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF0094FF).withOpacity(0.12),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.verified_user_rounded,
+                          color: Color(0xFF0094FF),
+                          size: 22,
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Verifica tu perfil',
+                              style: TextStyle(
+                                fontFamily: 'CanvaSans',
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                                color: Colors.black87,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Obtén la insignia de verificación y genera mayor confianza en tus publicaciones.',
+                              style: TextStyle(
+                                fontFamily: 'Poppins',
+                                fontSize: 11,
+                                color: Colors.grey[700],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      ElevatedButton(
+                        onPressed: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const VerificationScreen()),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF0094FF),
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        child: const Text(
+                          'Verificar',
+                          style: TextStyle(
+                            fontFamily: 'CanvaSans',
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+
+              // Account & Profile Section
+              _buildSectionHeader('CUENTA Y PERFIL'),
+              _buildSettingsTile(
+                icon: Icons.history_rounded,
+                title: 'Centro de Actividad',
+                onTap: () => Navigator.pushNamed(context, '/activity'),
+              ),
           _buildSettingsTile(
             icon: Icons.person_outline_rounded,
             title: 'Editar Perfil',
@@ -182,8 +281,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const SizedBox(height: 60),
         ],
-      ),
-    );
+      );
+    },
+  ),
+);
   }
 
   Widget _buildSectionHeader(String title) {

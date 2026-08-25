@@ -18,17 +18,18 @@ class FirestoreService {
   Stream<QuerySnapshot<Map<String, dynamic>>> postsByCategoryStream({
     String? type,
     String? category,
-    int limit = 10,
+    int limit = 100,
   }) {
     var query = _db.collection('posts').limit(limit);
     if (type != null && type.isNotEmpty) {
-      if (type == 'barter') {
+      if (type == 'barter' || type == 'trueque' || type == 'trueques') {
         return query
             .where(
               Filter.or(
                 Filter('type', isEqualTo: 'barter'),
                 Filter('isBarter', isEqualTo: true),
                 Filter('barterMode', isEqualTo: true),
+                Filter('acceptsTrade', isEqualTo: true),
                 Filter('category', isEqualTo: 'trueques'),
                 Filter('trueque', isEqualTo: 'Sí'),
                 Filter('trueque', isEqualTo: 'Si'),
@@ -454,6 +455,34 @@ class FirestoreService {
       await _db.collection('users').doc(targetUid).set({
         'followersCount': FieldValue.increment(1),
       }, SetOptions(merge: true));
+
+      // Enviar notificación al usuario seguido
+      try {
+        final currentDoc = await _db.collection('users').doc(currentUid).get();
+        final currentData = currentDoc.data() ?? {};
+        final followerName = currentData['verifiedName'] ??
+            currentData['displayName'] ??
+            currentData['name'] ??
+            currentData['username'] ??
+            'Un usuario';
+        final followerPhoto = currentData['photoURL'] ??
+            currentData['imageUrl'] ??
+            currentData['avatar'] ??
+            '';
+
+        await _db.collection('users').doc(targetUid).collection('notifications').add({
+          'title': 'Nuevo seguidor',
+          'body': '$followerName comenzó a seguirte',
+          'type': 'follow',
+          'senderId': currentUid,
+          'senderName': followerName,
+          'senderPhoto': followerPhoto,
+          'createdAt': FieldValue.serverTimestamp(),
+          'read': false,
+        });
+      } catch (e) {
+        print('Error enviando notificación de seguimiento: $e');
+      }
     }
   }
 

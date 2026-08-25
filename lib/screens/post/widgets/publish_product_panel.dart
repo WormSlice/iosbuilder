@@ -6,6 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../../services/firestore_service.dart';
 import '../../../services/location_service.dart';
 import '../../../widgets/music_selector_field.dart';
+import '../../../widgets/location_selector_field.dart';
 
 class PublishProductPanel extends StatefulWidget {
   final String? postId;
@@ -81,9 +82,7 @@ class _PublishProductPanelState extends State<PublishProductPanel> {
           : _states.first;
       _selectedWarranty = (data['warrantyMonths'] as num?)?.toInt() ?? 0;
       _barterMode = data['barterMode'] ?? false;
-      _selectedLocation = _cities.contains(data['location'])
-          ? data['location']
-          : _cities.first;
+      _selectedLocation = data['location']?.toString() ?? 'Bogotá, D.C.';
 
       if (data['images'] is List) {
         _existingImages.addAll(List<String>.from(data['images']));
@@ -545,12 +544,12 @@ class _PublishProductPanelState extends State<PublishProductPanel> {
             const SizedBox(height: 10),
 
             // 10. LOCATION
-            _buildLabel('Ubicación (Colombia)'),
-            _buildDropdown(
-              value: _selectedLocation,
-              items: _cities,
-              onChanged: (v) => setState(() => _selectedLocation = v!),
+            LocationSelectorField(
+              label: 'Ubicación (Colombia)',
+              location: _selectedLocation,
+              onLocationChanged: (newLoc) => setState(() => _selectedLocation = newLoc),
             ),
+            const SizedBox(height: 15),
 
             // 11. MUSIC SELECTOR
             MusicSelectorField(

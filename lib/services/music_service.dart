@@ -54,26 +54,30 @@ class MusicService {
     return _curatedSongs;
   }
 
-  // Realiza búsquedas usando iTunes Search API (Es gratuito y no requiere API Key)
+  // Realiza búsquedas usando iTunes Search API y fallback de Deezer para cubrir todas las canciones
   static Future<List<Map<String, String>>> searchSongs(String query) async {
     if (query.trim().isEmpty) {
       return _curatedSongs;
     }
 
+    final List<Map<String, String>> parsedResults = [];
+    final Set<String> seenTitles = {};
+
     try {
+      // 1. Búsqueda primaria en iTunes (Colombia y global)
       final url = Uri.parse(
         'https://itunes.apple.com/search'
         '?term=${Uri.encodeComponent(query)}'
         '&entity=song'
-        '&limit=20'
+        '&country=CO'
+        '&limit=50',
       );
 
       final response = await http.get(url);
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final results = data['results'] as List? ?? [];
-        
-        final List<Map<String, String>> parsedResults = [];
+
         for (var item in results) {
           final previewUrl = item['previewUrl'] as String?;
           final title = item['trackName'] as String?;
@@ -81,29 +85,101 @@ class MusicService {
           final thumbnail = item['artworkUrl100'] as String?;
 
           if (previewUrl != null && title != null && artist != null) {
-            parsedResults.add({
-              'id': previewUrl, // Usamos la URL como ID para reproducirlo directamente
-              'title': title,
-              'artist': artist,
-              'thumbnail': thumbnail ?? 'https://via.placeholder.com/100',
-            });
+            final key = '${title.toLowerCase()}_${artist.toLowerCase()}';
+            if (!seenTitles.contains(key)) {
+              seenTitles.add(key);
+              parsedResults.add({
+                'id': previewUrl,
+                'title': title,
+                'artist': artist,
+                'thumbnail': thumbnail ?? 'https://via.placeholder.com/100',
+              });
+            }
           }
         }
+      }
+
+      // Si dio pocos resultados, buscar también sin restricción de país
+      if (parsedResults.length < 15) {
+        try {
+          final globalUrl = Uri.parse(
+            'https://itunes.apple.com/search'
+            '?term=${Uri.encodeComponent(query)}'
+            '&entity=song'
+            '&limit=50',
+          );
+          final gRes = await http.get(globalUrl);
+          if (gRes.statusCode == 200) {
+            final gData = json.decode(gRes.body);
+            final gResults = gData['results'] as List? ?? [];
+            for (var item in gResults) {
+              final previewUrl = item['previewUrl'] as String?;
+              final title = item['trackName'] as String?;
+              final artist = item['artistName'] as String?;
+              final thumbnail = item['artworkUrl100'] as String?;
+              if (previewUrl != null && title != null && artist != null) {
+                final key = '${title.toLowerCase()}_${artist.toLowerCase()}';
+                if (!seenTitles.contains(key)) {
+                  seenTitles.add(key);
+                  parsedResults.add({
+                    'id': previewUrl,
+                    'title': title,
+                    'artist': artist,
+                    'thumbnail': thumbnail ?? 'https://via.placeholder.com/100',
+                  });
+                }
+              }
+            }
+          }
+        } catch (_) {}
+      }
+
+      // Fallback a Deezer API si aún hay pocos resultados
+      if (parsedResults.isEmpty) {
+        try {
+          final deezerUrl = Uri.parse(
+            'https://api.deezer.com/search?q=${Uri.encodeComponent(query)}&limit=30',
+          );
+          final dRes = await http.get(deezerUrl);
+          if (dRes.statusCode == 200) {
+            final dData = json.decode(dRes.body);
+            final dList = dData['data'] as List? ?? [];
+            for (var item in dList) {
+              final preview = item['preview'] as String?;
+              final title = item['title'] as String?;
+              final artist = item['artist']?['name'] as String?;
+              final albumCover = item['album']?['cover_medium'] as String?;
+              if (preview != null && title != null && artist != null) {
+                final key = '${title.toLowerCase()}_${artist.toLowerCase()}';
+                if (!seenTitles.contains(key)) {
+                  seenTitles.add(key);
+                  parsedResults.add({
+                    'id': preview,
+                    'title': title,
+                    'artist': artist,
+                    'thumbnail': albumCover ?? 'https://via.placeholder.com/100',
+                  });
+                }
+              }
+            }
+          }
+        } catch (_) {}
+      }
+
+      if (parsedResults.isNotEmpty) {
         return parsedResults;
-      } else {
-        throw Exception('Error en API de iTunes: ${response.statusCode}');
       }
     } catch (e) {
       if (kDebugMode) print('Error buscando música: $e');
-      
-      // Fallback local sobre nuestra lista curada
-      final q = query.toLowerCase();
-      return _curatedSongs
-          .where((s) =>
-              s['title']!.toLowerCase().contains(q) ||
-              s['artist']!.toLowerCase().contains(q))
-          .toList();
     }
+
+    // Fallback local sobre nuestra lista curada
+    final q = query.toLowerCase();
+    return _curatedSongs
+        .where((s) =>
+            s['title']!.toLowerCase().contains(q) ||
+            s['artist']!.toLowerCase().contains(q))
+        .toList();
   }
 
   // Ahora el ID es directamente la URL de iTunes, así que la retornamos.

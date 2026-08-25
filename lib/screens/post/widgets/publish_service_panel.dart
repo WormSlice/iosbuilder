@@ -6,6 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../../services/firestore_service.dart';
 import '../../../services/location_service.dart';
 import '../../../widgets/music_selector_field.dart';
+import '../../../widgets/location_selector_field.dart';
 
 class PublishServicePanel extends StatefulWidget {
   final String? postId;
@@ -112,9 +113,7 @@ class _PublishServicePanelState extends State<PublishServicePanel> {
           ? data['paymentMethod']
           : _paymentMethods.first;
       _barterMode = data['barterMode'] ?? false;
-      _selectedLocation = _cities.contains(data['location'])
-          ? data['location']
-          : _cities.first;
+      _selectedLocation = data['location']?.toString() ?? 'Bogotá, D.C.';
 
       if (data['images'] is List) {
         _existingImages.addAll(List<String>.from(data['images']));
@@ -531,11 +530,10 @@ class _PublishServicePanelState extends State<PublishServicePanel> {
                 ),
               ],
             ),
-            _buildLabel('Ubicación (Publicación)'),
-            _buildDropdown(
-              value: _selectedLocation,
-              items: _cities,
-              onChanged: (v) => setState(() => _selectedLocation = v!),
+            LocationSelectorField(
+              label: 'Ubicación (Publicación)',
+              location: _selectedLocation,
+              onLocationChanged: (newLoc) => setState(() => _selectedLocation = newLoc),
             ),
 
             const SizedBox(height: 25),
