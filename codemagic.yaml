@@ -39,6 +39,7 @@ workflows:
             NEXT_BUILD=55
           fi
           echo "Building iOS Release version 1.1.24 (Build $NEXT_BUILD)"
+          cd ios && agvtool new-version -all $NEXT_BUILD && agvtool new-marketing-version 1.1.24 && cd ..
           flutter build ipa --release \
             --build-name=1.1.24 \
             --build-number=$NEXT_BUILD \
