@@ -8,6 +8,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:device_info_plus/device_info_plus.dart';
+import 'messaging_service.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -106,12 +107,23 @@ class AuthService {
 
   // --- 2FA SYSTEM ---
 
-  Future<void> send2FACode({required String userId, required String method}) async {
-    final userDoc = await FirebaseFirestore.instance.collection('users').doc(userId).get();
-    if (!userDoc.exists) return;
-    
-    final email = userDoc.get('email');
-    final phone = userDoc.get('phone');
+  Future<void> send2FACode({required String userId, required String method, String? targetEmail}) async {
+    String? email = targetEmail;
+    String? phone;
+
+    try {
+      final userDoc = await FirebaseFirestore.instance.collection('users').doc(userId).get();
+      if (userDoc.exists && userDoc.data() != null) {
+        final data = userDoc.data()!;
+        email ??= data['email'] as String?;
+        phone = data['phone'] as String?;
+      }
+    } catch (e) {
+      print('DEBUG: Error al obtener datos de usuario para 2FA: $e');
+    }
+
+    email ??= _auth.currentUser?.email;
+
     final code = (100000 + (DateTime.now().millisecondsSinceEpoch % 900000)).toString();
 
     // Store code in Firestore temp collection
@@ -122,7 +134,7 @@ class AuthService {
       'expiresAt': DateTime.now().add(const Duration(minutes: 5)),
     });
 
-    if (method == 'email') {
+    if (method == 'email' && email != null && email.isNotEmpty) {
       try {
         final response = await http.post(
           Uri.parse('https://connect-email-receiver.irenzulsierra.workers.dev'),
@@ -147,7 +159,6 @@ class AuthService {
         print('Error enviando correo 2FA: $e');
       }
     } else if (method == 'sms') {
-      // Logic to send SMS (Firebase Auth verification could be used or external provider)
       print('DEBUG: 2FA Code sent to SMS ($phone): $code');
     }
   }
@@ -391,6 +402,7 @@ class AuthService {
   Future<void> signOut() async {
     final user = _auth.currentUser;
     if (user != null) {
+      await MessagingService().deleteToken();
       await removeSession(user);
     }
     await _auth.signOut();

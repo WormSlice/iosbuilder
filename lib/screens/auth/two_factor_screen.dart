@@ -33,7 +33,7 @@ class _TwoFactorScreenState extends State<TwoFactorScreen> {
   Future<void> _sendCode() async {
     final userId = FirebaseAuth.instance.currentUser?.uid;
     if (userId != null) {
-      await _auth.send2FACode(userId: userId, method: widget.method);
+      await _auth.send2FACode(userId: userId, method: widget.method, targetEmail: widget.email);
     }
   }
 

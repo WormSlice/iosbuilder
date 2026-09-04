@@ -36,12 +36,12 @@ workflows:
           if [[ "$LATEST_BUILD" =~ ^[0-9]+$ ]] && [ "$LATEST_BUILD" -ge 50 ]; then
             NEXT_BUILD=$((LATEST_BUILD + 1))
           else
-            NEXT_BUILD=55
+            NEXT_BUILD=56
           fi
-          echo "Building iOS Release version 1.1.24 (Build $NEXT_BUILD)"
-          cd ios && agvtool new-version -all $NEXT_BUILD && agvtool new-marketing-version 1.1.24 && cd ..
+          echo "Building iOS Release version 1.1.25 (Build $NEXT_BUILD)"
+          cd ios && agvtool new-version -all $NEXT_BUILD && agvtool new-marketing-version 1.1.25 && cd ..
           flutter build ipa --release \
-            --build-name=1.1.24 \
+            --build-name=1.1.25 \
             --build-number=$NEXT_BUILD \
             --export-options-plist=$HOME/export_options.plist
     artifacts:

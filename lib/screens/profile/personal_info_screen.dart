@@ -18,6 +18,7 @@ class PersonalInfoScreen extends StatefulWidget {
 class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
   final user = FirebaseAuth.instance.currentUser;
   bool _isLoading = false;
+  final Map<String, bool> _collapsedSections = {};
 
   final List<String> _allPaymentMethods = [
     'Transferencia bancaria',
@@ -222,105 +223,147 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
         .where((s) => s.trim().isNotEmpty)
         .toList();
 
+    final isCollapsed = _collapsedSections[field] ?? false;
+
     return Container(
-      margin: const EdgeInsets.only(bottom: 24),
-      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(bottom: 14),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Icon(icon, color: const Color(0xFF0094FF), size: 24),
-              const SizedBox(width: 8),
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  fontFamily: 'Poppins',
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          if (items.isEmpty)
-            const Padding(
-              padding: EdgeInsets.only(bottom: 12),
-              child: Text(
-                'No hay información agregada.',
-                style: TextStyle(color: Colors.grey, fontFamily: 'Poppins'),
-              ),
-            )
-          else
-            ...items.asMap().entries.map((entry) {
-              int idx = entry.key;
-              String text = entry.value;
-              return Container(
-                margin: const EdgeInsets.only(bottom: 8),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF6F6F6),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.circle, size: 6, color: Colors.grey),
-                    const SizedBox(width: 10),
-                    Expanded(
+          // Cabecero con botón de expandir/contraer y botón agregar
+          InkWell(
+            onTap: () {
+              setState(() {
+                _collapsedSections[field] = !isCollapsed;
+              });
+            },
+            borderRadius: BorderRadius.circular(16),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              child: Row(
+                children: [
+                  Icon(icon, color: const Color(0xFF0094FF), size: 22),
+                  const SizedBox(width: 8),
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      fontFamily: 'Poppins',
+                      color: Colors.black87,
+                    ),
+                  ),
+                  if (items.isNotEmpty) ...[
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0094FF).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                       child: Text(
-                        text,
+                        '${items.length}',
                         style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF0094FF),
                           fontFamily: 'Poppins',
-                          fontSize: 14,
                         ),
                       ),
                     ),
-                    IconButton(
-                      icon: const Icon(
-                        Icons.delete_outline,
-                        size: 20,
-                        color: Colors.red,
-                      ),
-                      onPressed: () => _deleteItem(field, currentValue, idx),
-                      constraints: const BoxConstraints(),
-                      padding: EdgeInsets.zero,
-                    ),
                   ],
-                ),
-              );
-            }),
-          const SizedBox(height: 8),
-          Center(
-            child: TextButton.icon(
-              onPressed: () =>
-                  _showAddItemDialog('Agregar $title', field, currentValue),
-              icon: const Icon(Icons.add, size: 18),
-              label: Text(
-                addLabel,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontFamily: 'Poppins',
-                ),
-              ),
-              style: TextButton.styleFrom(
-                foregroundColor: const Color(0xFF0094FF),
+                  const Spacer(),
+                  // Botón agregar en la cabecera
+                  IconButton(
+                    icon: const Icon(Icons.add_circle_outline_rounded, color: Color(0xFF0094FF), size: 22),
+                    tooltip: 'Agregar $title',
+                    onPressed: () => _showAddItemDialog('Agregar $title', field, currentValue),
+                    constraints: const BoxConstraints(),
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                  ),
+                  // Botón de colapso en la cabecera
+                  Icon(
+                    isCollapsed ? Icons.keyboard_arrow_down_rounded : Icons.keyboard_arrow_up_rounded,
+                    color: Colors.grey[600],
+                    size: 24,
+                  ),
+                ],
               ),
             ),
           ),
+          // Contenido desplegable
+          if (!isCollapsed) ...[
+            const Divider(height: 1, indent: 16, endIndent: 16),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (items.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 6),
+                      child: Text(
+                        'No hay información agregada.',
+                        style: TextStyle(color: Colors.grey, fontSize: 13, fontFamily: 'Poppins'),
+                      ),
+                    )
+                  else
+                    ...items.asMap().entries.map((entry) {
+                      int idx = entry.key;
+                      String text = entry.value;
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 6),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF6F6F6),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.circle, size: 5, color: Colors.grey),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                text,
+                                style: const TextStyle(
+                                  fontFamily: 'Poppins',
+                                  fontSize: 13,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(
+                                Icons.delete_outline,
+                                size: 18,
+                                color: Colors.red,
+                              ),
+                              onPressed: () => _deleteItem(field, currentValue, idx),
+                              constraints: const BoxConstraints(),
+                              padding: EdgeInsets.zero,
+                            ),
+                          ],
+                        ),
+                      );
+                    }),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );

@@ -92,7 +92,7 @@ export const sendEmail = async (data: EmailData) => {
             'Content-Type': 'application/json'
         };
 
-        if (API_KEY) {
+        if (API_KEY && !WORKER_URL) {
             headers['Authorization'] = `Bearer ${API_KEY}`;
         }
 

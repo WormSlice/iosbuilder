@@ -349,17 +349,17 @@ class _SecurityScreenState extends State<SecurityScreen> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : ListView(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               children: [
                 const Text(
                   'Seguridad y Autenticación',
                   style: TextStyle(
-                    fontSize: 24,
+                    fontSize: 20,
                     fontWeight: FontWeight.bold,
                     fontFamily: 'Poppins',
                   ),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 14),
 
                 // SECTION 1: Personal Info
                 _buildSectionHeader('Información Personal'),
@@ -368,18 +368,16 @@ class _SecurityScreenState extends State<SecurityScreen> {
                 _buildPhoneTile(),
                 _buildInfoTile('Fecha de nacimiento', _dob ?? 'No especificada'),
                 
-                const SizedBox(height: 32),
+                const SizedBox(height: 16),
 
                 // SECTION 2: Access Methods
                 _buildSectionHeader('Métodos de acceso vinculados'),
-                const SizedBox(height: 12),
                 _buildAccessIcons(),
                 
-                const SizedBox(height: 32),
+                const SizedBox(height: 16),
 
                 // SECTION 3: MFA
                 _buildSectionHeader('Autenticación de Dos Factores (2FA)'),
-                const SizedBox(height: 12),
                 _buildToggleOption(
                   icon: Icons.security_outlined,
                   title: 'Activar 2FA',
@@ -387,16 +385,15 @@ class _SecurityScreenState extends State<SecurityScreen> {
                   onChanged: _handle2faToggle,
                 ),
                 if (_twoFactorEnabled) ...[
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 12),
                   _buildSectionHeader('Método preferido'),
                   _buildMethodSelector(),
                 ],
 
-                const SizedBox(height: 32),
+                const SizedBox(height: 16),
 
                 // SECTION 4: Account Actions
                 _buildSectionHeader('Ajustes de cuenta'),
-                const SizedBox(height: 12),
                 _buildActionOption(
                   icon: Icons.lock_outline,
                   title: 'Cambiar Contraseña',
@@ -409,12 +406,12 @@ class _SecurityScreenState extends State<SecurityScreen> {
 
   Widget _buildSectionHeader(String title) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12, left: 4),
+      padding: const EdgeInsets.only(bottom: 6, left: 2, top: 2),
       child: Text(
         title,
         style: const TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.bold,
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
           fontFamily: 'Poppins',
           color: Colors.black54,
         ),
@@ -424,8 +421,8 @@ class _SecurityScreenState extends State<SecurityScreen> {
 
   Widget _buildInfoTile(String label, String value) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       width: double.infinity,
       decoration: BoxDecoration(
         color: Colors.white,
@@ -434,8 +431,8 @@ class _SecurityScreenState extends State<SecurityScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey, fontFamily: 'Poppins')),
-          const SizedBox(height: 4),
+          Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey, fontFamily: 'Poppins')),
+          const SizedBox(height: 2),
           Text(
             value,
             softWrap: true,
@@ -455,8 +452,8 @@ class _SecurityScreenState extends State<SecurityScreen> {
     final hasPhone = _phoneNumber != null && _phoneNumber!.isNotEmpty && _phoneNumber != 'No vinculado';
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       width: double.infinity,
       decoration: BoxDecoration(
         color: Colors.white,
@@ -467,9 +464,9 @@ class _SecurityScreenState extends State<SecurityScreen> {
         children: [
           const Text(
             'Número de teléfono',
-            style: TextStyle(fontSize: 12, color: Colors.grey, fontFamily: 'Poppins'),
+            style: TextStyle(fontSize: 11, color: Colors.grey, fontFamily: 'Poppins'),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
           if (!hasPhone)
             Align(
               alignment: Alignment.centerLeft,
@@ -477,7 +474,7 @@ class _SecurityScreenState extends State<SecurityScreen> {
                 onTap: _handlePhoneVerification,
                 borderRadius: BorderRadius.circular(10),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
                     color: const Color(0xFF0094FF).withOpacity(0.08),
                     borderRadius: BorderRadius.circular(10),
@@ -489,13 +486,13 @@ class _SecurityScreenState extends State<SecurityScreen> {
                   child: const Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.add_circle_outline_rounded, size: 16, color: Color(0xFF0094FF)),
-                      SizedBox(width: 6),
+                      Icon(Icons.add_circle_outline_rounded, size: 15, color: Color(0xFF0094FF)),
+                      SizedBox(width: 5),
                       Text(
                         'Agregar Número',
                         style: TextStyle(
                           fontFamily: 'Poppins',
-                          fontSize: 13,
+                          fontSize: 12,
                           fontWeight: FontWeight.w600,
                           color: Color(0xFF0094FF),
                         ),
@@ -513,7 +510,7 @@ class _SecurityScreenState extends State<SecurityScreen> {
                     _phoneNumber!,
                     softWrap: true,
                     style: const TextStyle(
-                      fontSize: 15,
+                      fontSize: 14,
                       fontWeight: FontWeight.bold,
                       fontFamily: 'Poppins',
                       color: Colors.black87,
@@ -524,14 +521,14 @@ class _SecurityScreenState extends State<SecurityScreen> {
                 GestureDetector(
                   onTap: _handlePhoneVerification,
                   child: Container(
-                    padding: const EdgeInsets.all(7),
+                    padding: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
                       color: const Color(0xFF0094FF).withOpacity(0.1),
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(
                       Icons.edit_outlined,
-                      size: 16,
+                      size: 15,
                       color: Color(0xFF0094FF),
                     ),
                   ),
@@ -541,14 +538,14 @@ class _SecurityScreenState extends State<SecurityScreen> {
                 GestureDetector(
                   onTap: _handleUnlinkPhone,
                   child: Container(
-                    padding: const EdgeInsets.all(7),
+                    padding: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
                       color: Colors.red.withOpacity(0.1),
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(
                       Icons.delete_outline_rounded,
-                      size: 16,
+                      size: 15,
                       color: Colors.red,
                     ),
                   ),
@@ -562,7 +559,7 @@ class _SecurityScreenState extends State<SecurityScreen> {
 
   Widget _buildAccessIcons() {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 10),
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -819,15 +816,17 @@ class _SecurityScreenState extends State<SecurityScreen> {
     Color? iconColor,
   }) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
+      margin: const EdgeInsets.only(bottom: 6),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
       ),
       child: ListTile(
-        leading: Icon(icon, color: iconColor ?? const Color(0xFF0094FF)),
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, fontFamily: 'Poppins')),
-        trailing: const Icon(Icons.chevron_right, size: 20),
+        dense: true,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+        leading: Icon(icon, color: iconColor ?? const Color(0xFF0094FF), size: 20),
+        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13, fontFamily: 'Poppins')),
+        trailing: const Icon(Icons.chevron_right, size: 18),
         onTap: onTap,
       ),
     );
@@ -835,7 +834,7 @@ class _SecurityScreenState extends State<SecurityScreen> {
 
   Widget _buildMethodSelector() {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 14),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -843,7 +842,9 @@ class _SecurityScreenState extends State<SecurityScreen> {
       child: Column(
         children: [
           RadioListTile<String>(
-            title: const Text('Mensaje de Texto (SMS)', style: TextStyle(fontSize: 14, fontFamily: 'Poppins')),
+            dense: true,
+            visualDensity: VisualDensity.compact,
+            title: const Text('Mensaje de Texto (SMS)', style: TextStyle(fontSize: 13, fontFamily: 'Poppins')),
             value: 'sms',
             groupValue: _twoFactorMethod,
             onChanged: _handleMethodChange,
@@ -852,7 +853,9 @@ class _SecurityScreenState extends State<SecurityScreen> {
           ),
           const Divider(height: 1),
           RadioListTile<String>(
-            title: const Text('Correo electrónico (Email)', style: TextStyle(fontSize: 14, fontFamily: 'Poppins')),
+            dense: true,
+            visualDensity: VisualDensity.compact,
+            title: const Text('Correo electrónico (Email)', style: TextStyle(fontSize: 13, fontFamily: 'Poppins')),
             value: 'email',
             groupValue: _twoFactorMethod,
             onChanged: _handleMethodChange,
@@ -871,14 +874,16 @@ class _SecurityScreenState extends State<SecurityScreen> {
     required ValueChanged<bool> onChanged,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      margin: const EdgeInsets.only(bottom: 6),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
       ),
       child: SwitchListTile(
-        secondary: Icon(icon, color: const Color(0xFF0094FF)),
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, fontFamily: 'Poppins')),
+        dense: true,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+        secondary: Icon(icon, color: const Color(0xFF0094FF), size: 20),
+        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13, fontFamily: 'Poppins')),
         value: value,
         onChanged: onChanged,
         activeTrackColor: const Color(0xFF0094FF).withOpacity(0.5),

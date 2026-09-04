@@ -34,13 +34,17 @@ Future<void> main() async {
 
     runApp(const App());
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      MessagingService().init().catchError((e) {
-        debugPrint("MessagingService init error: $e");
-      });
-      LocalNotificationService.init().catchError((e) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      try {
+        await LocalNotificationService.init();
+      } catch (e) {
         debugPrint("LocalNotificationService init error: $e");
-      });
+      }
+      try {
+        await MessagingService().init();
+      } catch (e) {
+        debugPrint("MessagingService init error: $e");
+      }
     });
   }, (Object error, StackTrace stack) {
     debugPrint("Uncaught Zoned Error: $error\n$stack");

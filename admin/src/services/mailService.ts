@@ -71,11 +71,24 @@ export const subscribeToMail = (callback: (mail: MailLog[]) => void) => {
     );
 
     return onSnapshot(q, (snapshot) => {
-        const mailList = snapshot.docs.map((doc: any) => ({
-            id: doc.id,
-            ...doc.data(),
-            timestamp: doc.data().timestamp?.toDate().toLocaleString() || 'Recién'
-        })) as MailLog[];
+        const mailList = snapshot.docs.map((doc: any) => {
+            const data = doc.data();
+            let formattedTimestamp = 'Recién';
+            if (data.timestamp) {
+                if (typeof data.timestamp.toDate === 'function') {
+                    formattedTimestamp = data.timestamp.toDate().toLocaleString();
+                } else if (data.timestamp instanceof Date) {
+                    formattedTimestamp = data.timestamp.toLocaleString();
+                } else if (typeof data.timestamp === 'string' || typeof data.timestamp === 'number') {
+                    formattedTimestamp = new Date(data.timestamp).toLocaleString();
+                }
+            }
+            return {
+                id: doc.id,
+                ...data,
+                timestamp: formattedTimestamp
+            };
+        }) as MailLog[];
         callback(mailList);
     });
 };
