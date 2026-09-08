@@ -24,12 +24,7 @@ class MusicService {
   static final YoutubeExplode _yt = YoutubeExplode();
   static final Map<String, CachedAudioStream> _streamCache = {};
 
-  // YouTube API Key from .env with provided default fallback
-  static String get _apiKey {
-    return dotenv.env['YOUTUBE_API_KEY'] ?? 'AIzaSyB_u-JtPpqJLiWiId2JW74ETNwqdgVCbRQ';
-  }
-
-  // Lista curada "Para ti" de éxitos de YouTube Music
+  // Lista curada "Para ti" con los éxitos Top del momento mundiales y latinos
   static final List<Map<String, dynamic>> _curatedSongs = [
     {
       'id': 'QCZZwZQ4qNs',
@@ -39,53 +34,137 @@ class MusicService {
       'duration': 196,
     },
     {
+      'id': 'PfH7jq_uSCM',
+      'title': 'Die With A Smile',
+      'artist': 'Lady Gaga, Bruno Mars',
+      'thumbnail': 'https://i.ytimg.com/vi/PfH7jq_uSCM/hqdefault.jpg',
+      'duration': 252,
+    },
+    {
+      'id': 'd5gf9dXbPi0',
+      'title': 'BIRDS OF A FEATHER',
+      'artist': 'Billie Eilish',
+      'thumbnail': 'https://i.ytimg.com/vi/d5gf9dXbPi0/hqdefault.jpg',
+      'duration': 212,
+    },
+    {
+      'id': '51zjlMhdSTE',
+      'title': 'Espresso',
+      'artist': 'Sabrina Carpenter',
+      'thumbnail': 'https://i.ytimg.com/vi/51zjlMhdSTE/hqdefault.jpg',
+      'duration': 176,
+    },
+    {
+      'id': 'z9Q9OzL_wI8',
+      'title': 'Taste',
+      'artist': 'Sabrina Carpenter',
+      'thumbnail': 'https://i.ytimg.com/vi/z9Q9OzL_wI8/hqdefault.jpg',
+      'duration': 158,
+    },
+    {
+      'id': 'Yl_thbk40A0',
+      'title': 'Please Please Please',
+      'artist': 'Sabrina Carpenter',
+      'thumbnail': 'https://i.ytimg.com/vi/Yl_thbk40A0/hqdefault.jpg',
+      'duration': 187,
+    },
+    {
       'id': 'x2oUajHp8pg',
       'title': 'LUNA',
       'artist': 'Feid, ATL Jacob',
       'thumbnail': 'https://i.ytimg.com/vi/x2oUajHp8pg/hqdefault.jpg',
-      'duration': 200,
+      'duration': 199,
     },
     {
-      'id': 'lZiaYpff9DY',
-      'title': 'Ella Baila Sola',
-      'artist': 'Eslabon Armado & Peso Pluma',
-      'thumbnail': 'https://i.ytimg.com/vi/lZiaYpff9DY/hqdefault.jpg',
-      'duration': 165,
-    },
-    {
-      'id': 'C5_hZ2t9V1A',
-      'title': 'MONACO',
-      'artist': 'Bad Bunny',
-      'thumbnail': 'https://i.ytimg.com/vi/C5_hZ2t9V1A/hqdefault.jpg',
-      'duration': 267,
-    },
-    {
-      'id': 'CocEMWJ7948',
-      'title': 'Shakira: Bzrp Music Sessions, Vol. 53',
-      'artist': 'Bizarrap & Shakira',
-      'thumbnail': 'https://i.ytimg.com/vi/CocEMWJ7948/hqdefault.jpg',
-      'duration': 213,
-    },
-    {
-      'id': 'Q8jH_b26M7M',
+      'id': '-r687V8yqKY',
       'title': 'Gata Only',
       'artist': 'FloyyMenor, Cris Mj',
-      'thumbnail': 'https://i.ytimg.com/vi/Q8jH_b26M7M/hqdefault.jpg',
+      'thumbnail': 'https://i.ytimg.com/vi/-r687V8yqKY/hqdefault.jpg',
       'duration': 222,
     },
     {
-      'id': 'mKz8i5uQx58',
+      'id': 'Oa_RSwwpPaA',
+      'title': 'Beautiful Things',
+      'artist': 'Benson Boone',
+      'thumbnail': 'https://i.ytimg.com/vi/Oa_RSwwpPaA/hqdefault.jpg',
+      'duration': 193,
+    },
+    {
+      'id': 'Zf1d8SGuxfs',
+      'title': 'MILLION DOLLAR BABY',
+      'artist': 'Tommy Richman',
+      'thumbnail': 'https://i.ytimg.com/vi/Zf1d8SGuxfs/hqdefault.jpg',
+      'duration': 155,
+    },
+    {
+      'id': 'xCh1T6fcRo8',
+      'title': 'Good Luck, Babe!',
+      'artist': 'Chappell Roan',
+      'thumbnail': 'https://i.ytimg.com/vi/xCh1T6fcRo8/hqdefault.jpg',
+      'duration': 219,
+    },
+    {
+      'id': 'nZjTtuNR3Og',
+      'title': 'A Bar Song (Tipsy)',
+      'artist': 'Shaboozey',
+      'thumbnail': 'https://i.ytimg.com/vi/nZjTtuNR3Og/hqdefault.jpg',
+      'duration': 172,
+    },
+    {
+      'id': 'aezstCBHOPQ',
+      'title': 'Too Sweet',
+      'artist': 'Hozier',
+      'thumbnail': 'https://i.ytimg.com/vi/aezstCBHOPQ/hqdefault.jpg',
+      'duration': 252,
+    },
+    {
+      'id': '9V_HpS9p4QY',
+      'title': 'Santa',
+      'artist': 'Rvssian, Rauw Alejandro, Ayra Starr',
+      'thumbnail': 'https://i.ytimg.com/vi/9V_HpS9p4QY/hqdefault.jpg',
+      'duration': 199,
+    },
+    {
+      'id': 'pyZtr3_dN3E',
+      'title': 'La Falda',
+      'artist': 'Myke Towers',
+      'thumbnail': 'https://i.ytimg.com/vi/pyZtr3_dN3E/hqdefault.jpg',
+      'duration': 228,
+    },
+    {
+      'id': 'a6tgD_CsYTQ',
+      'title': 'PERRO NEGRO',
+      'artist': 'Bad Bunny, Feid',
+      'thumbnail': 'https://i.ytimg.com/vi/a6tgD_CsYTQ/hqdefault.jpg',
+      'duration': 163,
+    },
+    {
+      'id': 'BeUOBoSPWvA',
+      'title': 'QLONA',
+      'artist': 'KAROL G, Peso Pluma',
+      'thumbnail': 'https://i.ytimg.com/vi/BeUOBoSPWvA/hqdefault.jpg',
+      'duration': 173,
+    },
+    {
+      'id': '_PJvpq8uOZM',
+      'title': 'MONACO',
+      'artist': 'Bad Bunny',
+      'thumbnail': 'https://i.ytimg.com/vi/_PJvpq8uOZM/hqdefault.jpg',
+      'duration': 267,
+    },
+    {
+      'id': 'BVdngsy95mY',
       'title': 'LALA',
       'artist': 'Myke Towers',
-      'thumbnail': 'https://i.ytimg.com/vi/mKz8i5uQx58/hqdefault.jpg',
+      'thumbnail': 'https://i.ytimg.com/vi/BVdngsy95mY/hqdefault.jpg',
       'duration': 198,
     },
     {
-      'id': '_r4nBfqJ08M',
-      'title': 'Columbia',
-      'artist': 'Quevedo',
-      'thumbnail': 'https://i.ytimg.com/vi/_r4nBfqJ08M/hqdefault.jpg',
-      'duration': 190,
+      'id': '8AtiHCDGZ8c',
+      'title': 'Greedy',
+      'artist': 'Tate McRae',
+      'thumbnail': 'https://i.ytimg.com/vi/8AtiHCDGZ8c/hqdefault.jpg',
+      'duration': 134,
     },
   ];
 
@@ -107,23 +186,6 @@ class MusicService {
     'R&B',
   ];
 
-  /// Limpia títulos de videos de YouTube para que parezcan pistas limpias de Instagram
-  static String cleanTrackTitle(String title) {
-    return title
-        .replaceAll(RegExp(r'\[.*?\]'), '')
-        .replaceAll(RegExp(r'\(.*?Official.*?\)', caseSensitive: false), '')
-        .replaceAll(RegExp(r'\(.*?Oficial.*?\)', caseSensitive: false), '')
-        .replaceAll(RegExp(r'\(.*?Video.*?\)', caseSensitive: false), '')
-        .replaceAll(RegExp(r'\(.*?Audio.*?\)', caseSensitive: false), '')
-        .replaceAll(RegExp(r'\(.*?Visualizer.*?\)', caseSensitive: false), '')
-        .replaceAll(RegExp(r'\(.*?Lyric.*?\)', caseSensitive: false), '')
-        .replaceAll(RegExp(r'\(.*?Letra.*?\)', caseSensitive: false), '')
-        .replaceAll(RegExp(r'\(.*?HD.*?\)', caseSensitive: false), '')
-        .replaceAll(RegExp(r'\(.*?4K.*?\)', caseSensitive: false), '')
-        .replaceAll(RegExp(r'\|.*'), '')
-        .trim();
-  }
-
   /// Parsea duración ISO 8601 de YouTube (ej. PT3M25S -> 205 segundos)
   static int parseIsoDuration(String isoDuration) {
     try {
@@ -139,7 +201,8 @@ class MusicService {
     return 180;
   }
 
-  /// Búsqueda inteligente: Intenta primero YouTube Data API v3 y fallback instantáneo a YoutubeExplode
+  /// Búsqueda rápida y completa: usa iTunes Search API de alta velocidad con portadas HD
+  /// y respaldo con YouTube Data API / YoutubeExplode
   static Future<List<Map<String, dynamic>>> searchSongs(String query) async {
     if (query.trim().isEmpty) {
       return _curatedSongs;
@@ -147,104 +210,58 @@ class MusicService {
 
     final trimmedQuery = query.trim();
 
-    // 1. Intentar con YouTube Data API v3 si está disponible
-    if (_apiKey.isNotEmpty) {
-      try {
-        final searchUrl = Uri.parse(
-          'https://www.googleapis.com/youtube/v3/search'
-          '?part=snippet'
-          '&type=video'
-          '&videoCategoryId=10'
-          '&maxResults=20'
-          '&q=${Uri.encodeComponent('$trimmedQuery audio song')}'
-          '&key=$_apiKey',
-        );
+    // 1. Intentar con iTunes Search API (rápido, sin límites de cuota, portadas en alta definición y nombres oficiales)
+    try {
+      final itunesUrl = Uri.parse(
+        'https://itunes.apple.com/search?term=${Uri.encodeComponent(trimmedQuery)}&entity=song&limit=25',
+      );
+      final response = await http.get(itunesUrl).timeout(const Duration(seconds: 4));
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final items = data['results'] as List? ?? [];
+        final List<Map<String, dynamic>> results = [];
 
-        final response = await http.get(searchUrl).timeout(const Duration(seconds: 4));
-        if (response.statusCode == 200) {
-          final data = json.decode(response.body);
-          final items = data['items'] as List? ?? [];
-          final videoIds = <String>[];
-          final List<Map<String, dynamic>> results = [];
+        for (var item in items) {
+          final trackName = item['trackName']?.toString() ?? '';
+          final artistName = item['artistName']?.toString() ?? '';
+          final artworkUrl100 = item['artworkUrl100']?.toString() ?? '';
+          final artworkHd = artworkUrl100.replaceAll('100x100bb', '600x600bb');
+          final durationMs = item['trackTimeMillis'] as int? ?? 180000;
+          final durationSec = durationMs ~/ 1000;
 
-          for (var item in items) {
-            final videoId = item['id']?['videoId']?.toString();
-            final snippet = item['snippet'];
-            if (videoId != null && snippet != null) {
-              videoIds.add(videoId);
-              final rawTitle = snippet['title']?.toString() ?? 'Canción';
-              final channelTitle = snippet['channelTitle']?.toString() ?? 'Artista';
-              final thumbnails = snippet['thumbnails'];
-              final thumbUrl = thumbnails?['medium']?['url']?.toString() ??
-                  thumbnails?['high']?['url']?.toString() ??
-                  thumbnails?['default']?['url']?.toString() ??
-                  'https://i.ytimg.com/vi/$videoId/hqdefault.jpg';
-
-              results.add({
-                'id': videoId,
-                'title': cleanTrackTitle(rawTitle),
-                'artist': channelTitle.replaceAll(' - Topic', '').replaceAll('VEVO', '').trim(),
-                'thumbnail': thumbUrl,
-                'duration': 180, // Valor temporal hasta consultar contentDetails
-              });
-            }
-          }
-
-          // Consultar duraciones exactas con /videos?part=contentDetails
-          if (videoIds.isNotEmpty) {
-            try {
-              final detailsUrl = Uri.parse(
-                'https://www.googleapis.com/youtube/v3/videos'
-                '?part=contentDetails'
-                '&id=${videoIds.join(',')}'
-                '&key=$_apiKey',
-              );
-              final detailsRes = await http.get(detailsUrl).timeout(const Duration(seconds: 3));
-              if (detailsRes.statusCode == 200) {
-                final dData = json.decode(detailsRes.body);
-                final dItems = dData['items'] as List? ?? [];
-                final Map<String, int> durationMap = {};
-                for (var d in dItems) {
-                  final vId = d['id']?.toString();
-                  final isoDur = d['contentDetails']?['duration']?.toString();
-                  if (vId != null && isoDur != null) {
-                    durationMap[vId] = parseIsoDuration(isoDur);
-                  }
-                }
-                for (var r in results) {
-                  final vid = r['id'];
-                  if (durationMap.containsKey(vid)) {
-                    r['duration'] = durationMap[vid];
-                  }
-                }
-              }
-            } catch (_) {}
-          }
-
-          if (results.isNotEmpty) {
-            return results;
+          if (trackName.isNotEmpty) {
+            results.add({
+              'id': '${trackName}_$artistName',
+              'title': trackName,
+              'artist': artistName,
+              'thumbnail': artworkHd,
+              'duration': durationSec > 0 ? durationSec : 180,
+            });
           }
         }
-      } catch (e) {
-        if (kDebugMode) print('YouTube Data API v3 falló o fue bloqueada, usando YoutubeExplode fallback: $e');
+
+        if (results.isNotEmpty) {
+          return results;
+        }
       }
+    } catch (e) {
+      if (kDebugMode) print('iTunes Search fallback: $e');
     }
 
-    // 2. Fallback de alta resiliencia usando YoutubeExplode
+    // 2. Fallback usando YoutubeExplode
     try {
-      final searchResults = await _yt.search.search(trimmedQuery).timeout(const Duration(seconds: 6));
+      final searchResults = await _yt.search.search(trimmedQuery).timeout(const Duration(seconds: 5));
       final List<Map<String, dynamic>> parsedResults = [];
 
       for (var video in searchResults.take(20)) {
         final durationSec = video.duration?.inSeconds ?? 180;
-        // Filtrar transmisiones en vivo o videos excesivamente largos (> 15 mins) para priorizar canciones
         if (durationSec > 0 && durationSec <= 900) {
           parsedResults.add({
             'id': video.id.value,
-            'title': cleanTrackTitle(video.title),
+            'title': video.title,
             'artist': video.author.replaceAll(' - Topic', '').replaceAll('VEVO', '').trim(),
-            'thumbnail': video.thumbnails.mediumResUrl.isNotEmpty
-                ? video.thumbnails.mediumResUrl
+            'thumbnail': video.thumbnails.highResUrl.isNotEmpty
+                ? video.thumbnails.highResUrl
                 : 'https://i.ytimg.com/vi/${video.id.value}/hqdefault.jpg',
             'duration': durationSec,
           });
@@ -267,36 +284,91 @@ class MusicService {
     }).toList();
   }
 
-  /// Obtiene el flujo directo de audio (AAC/Opus con el mayor bitrate disponible)
-  static Future<String?> getAudioStreamUrl(String videoId) async {
-    // Si es una URL http legacy de versiones anteriores, retornarla directamente
+  /// Obtiene el flujo directo de audio (AAC/MP4 con soporte nativo en Android ExoPlayer e iOS AVPlayer)
+  static Future<String?> getAudioStreamUrl(
+    String videoId, {
+    String? title,
+    String? artist,
+  }) async {
     if (videoId.startsWith('http')) {
       return videoId;
     }
 
-    // Verificar si está en caché y aún no expira
-    final cached = _streamCache[videoId];
+    // Clave de caché única
+    final cacheKey = (title != null && artist != null) ? '${title}_$artist' : videoId;
+
+    // 1. Verificar si está en caché y aún no expira
+    final cached = _streamCache[cacheKey] ?? _streamCache[videoId];
     if (cached != null && !cached.isExpired) {
       return cached.url;
     }
 
-    try {
-      final manifest = await _yt.videos.streamsClient.getManifest(videoId).timeout(const Duration(seconds: 6));
-      final audioStreams = manifest.audioOnly;
-      if (audioStreams.isNotEmpty) {
-        final bestAudio = audioStreams.withHighestBitrate();
-        final url = bestAudio.url.toString();
+    // 2. Si videoId no es un ID compuesto de búsqueda (longitud típica de YouTube es 11 caracteres)
+    if (videoId.length == 11 && !videoId.contains('_')) {
+      try {
+        final manifest = await _yt.videos.streamsClient.getManifest(videoId).timeout(const Duration(seconds: 6));
+        final audioStreams = manifest.audioOnly;
+        if (audioStreams.isNotEmpty) {
+          final mp4Streams = audioStreams.where(
+            (s) => s.container.name.toLowerCase().contains('mp4') || s.container.name.toLowerCase().contains('m4a'),
+          );
 
-        _streamCache[videoId] = CachedAudioStream(
-          url: url,
-          durationSeconds: 180,
-          expiresAt: DateTime.now().add(const Duration(hours: 4)),
-        );
+          final bestAudio = mp4Streams.isNotEmpty
+              ? mp4Streams.withHighestBitrate()
+              : audioStreams.withHighestBitrate();
 
-        return url;
+          final url = bestAudio.url.toString();
+
+          final cachedStream = CachedAudioStream(
+            url: url,
+            durationSeconds: 180,
+            expiresAt: DateTime.now().add(const Duration(hours: 4)),
+          );
+          _streamCache[videoId] = cachedStream;
+          _streamCache[cacheKey] = cachedStream;
+
+          return url;
+        }
+      } catch (e) {
+        if (kDebugMode) print('Video directo $videoId no disponible ($e). Intentando búsqueda de pista abierta...');
       }
-    } catch (e) {
-      if (kDebugMode) print('Error obteniendo flujo de audio de YouTube para $videoId: $e');
+    }
+
+    // 3. Auto-recuperación y resolución de pista por título y artista
+    final searchTitle = (title != null && title.isNotEmpty) ? title : videoId.replaceAll('_', ' ');
+    final searchArtist = (artist != null && artist.isNotEmpty) ? artist : '';
+    final queryTerms = searchArtist.isNotEmpty ? '$searchTitle $searchArtist audio' : '$searchTitle audio';
+
+    try {
+      final searchResults = await _yt.search.search(queryTerms).timeout(const Duration(seconds: 5));
+      for (var candidate in searchResults.take(4)) {
+        try {
+          final candidateManifest = await _yt.videos.streamsClient.getManifest(candidate.id).timeout(const Duration(seconds: 5));
+          final candidateAudios = candidateManifest.audioOnly;
+          if (candidateAudios.isNotEmpty) {
+            final mp4Streams = candidateAudios.where(
+              (s) => s.container.name.toLowerCase().contains('mp4') || s.container.name.toLowerCase().contains('m4a'),
+            );
+            final bestAudio = mp4Streams.isNotEmpty
+                ? mp4Streams.withHighestBitrate()
+                : candidateAudios.withHighestBitrate();
+
+            final url = bestAudio.url.toString();
+
+            final cachedStream = CachedAudioStream(
+              url: url,
+              durationSeconds: candidate.duration?.inSeconds ?? 180,
+              expiresAt: DateTime.now().add(const Duration(hours: 4)),
+            );
+            _streamCache[videoId] = cachedStream;
+            _streamCache[cacheKey] = cachedStream;
+
+            return url;
+          }
+        } catch (_) {}
+      }
+    } catch (err) {
+      if (kDebugMode) print('Error en resolución de audio para $searchTitle: $err');
     }
 
     return null;

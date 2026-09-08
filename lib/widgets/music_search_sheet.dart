@@ -41,7 +41,10 @@ class _MusicSearchSheetState extends State<MusicSearchSheet> {
     _previewPlayer.playerStateStream.listen((state) {
       if (mounted) {
         setState(() {
-          _isPlaying = state.playing;
+          _isPlaying = state.playing && state.processingState != ProcessingState.completed;
+          if (state.processingState == ProcessingState.completed) {
+            _playingId = null;
+          }
         });
       }
     });
@@ -58,7 +61,7 @@ class _MusicSearchSheetState extends State<MusicSearchSheet> {
 
   Future<void> _loadInitialSongs() async {
     setState(() => _isLoading = true);
-    final results = await MusicService.searchSongs('');
+    final results = await MusicService.getCuratedSongs();
     if (mounted) {
       setState(() {
         _songs = results;
@@ -85,9 +88,9 @@ class _MusicSearchSheetState extends State<MusicSearchSheet> {
         setState(() {
           _filteredSavedSongs = _savedSongs.where((s) {
             final title = s['title']?.toString().toLowerCase() ?? '';
-            final artist = s['artist']?.toString().toLowerCase() ?? '';
+            final artist = s['artist']?.toString() ?? '';
             final q = query.toLowerCase();
-            return title.contains(q) || artist.contains(q);
+            return title.contains(q) || artist.toLowerCase().contains(q);
           }).toList();
         });
       }
@@ -150,48 +153,66 @@ class _MusicSearchSheetState extends State<MusicSearchSheet> {
 
   Future<void> _togglePreview(Map<String, dynamic> song) async {
     final id = song['id'].toString();
+    final title = song['title']?.toString() ?? '';
+    final artist = song['artist']?.toString() ?? '';
 
     if (_playingId == id) {
       if (_isPlaying) {
         await _previewPlayer.pause();
-        setState(() => _isPlaying = false);
+        if (mounted) setState(() => _isPlaying = false);
       } else {
         await _previewPlayer.play();
-        setState(() => _isPlaying = true);
+        if (mounted) setState(() => _isPlaying = true);
       }
-    } else {
-      setState(() {
-        _isLoadingPreview = true;
-        _playingId = id;
-        _isPlaying = false;
-      });
+      return;
+    }
 
+    setState(() {
+      _isLoadingPreview = true;
+      _playingId = id;
+      _isPlaying = false;
+    });
+
+    try {
       await _previewPlayer.stop();
 
-      final url = await MusicService.getAudioStreamUrl(id);
+      final url = await MusicService.getAudioStreamUrl(
+        id,
+        title: title,
+        artist: artist,
+      );
 
-      if (mounted) {
-        setState(() => _isLoadingPreview = false);
+      if (url != null && mounted) {
+        await _previewPlayer.setUrl(url);
+        await _previewPlayer.seek(Duration.zero);
+        await _previewPlayer.play();
 
-        if (url != null) {
-          try {
-            await _previewPlayer.setUrl(url);
-            await _previewPlayer.play();
-            setState(() => _isPlaying = true);
-          } catch (e) {
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('No se pudo reproducir la previsualización')),
-              );
-            }
-          }
-        } else {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('No se pudo obtener el audio de la canción')),
-            );
-          }
+        if (mounted) {
+          setState(() {
+            _isLoadingPreview = false;
+            _isPlaying = true;
+          });
         }
+      } else {
+        if (mounted) {
+          setState(() {
+            _isLoadingPreview = false;
+            _playingId = null;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('No se pudo obtener el audio de esta canción')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoadingPreview = false;
+          _playingId = null;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error al reproducir audio de la canción')),
+        );
       }
     }
   }
@@ -299,7 +320,7 @@ class _MusicSearchSheetState extends State<MusicSearchSheet> {
                           width: 48,
                           height: 48,
                           decoration: BoxDecoration(
-                            color: Colors.black45,
+                            color: Colors.black54,
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: const Icon(
@@ -374,8 +395,8 @@ class _MusicSearchSheetState extends State<MusicSearchSheet> {
                   GestureDetector(
                     onTap: () => _togglePreview(song),
                     child: Container(
-                      width: 34,
-                      height: 34,
+                      width: 36,
+                      height: 36,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         color: isCurrent && _isPlaying
@@ -395,7 +416,7 @@ class _MusicSearchSheetState extends State<MusicSearchSheet> {
                             : Icon(
                                 isCurrent && _isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
                                 color: isCurrent && _isPlaying ? Colors.white : Colors.black87,
-                                size: 20,
+                                size: 22,
                               ),
                       ),
                     ),
@@ -474,7 +495,7 @@ class _MusicSearchSheetState extends State<MusicSearchSheet> {
                   onChanged: _onSearchChanged,
                   style: const TextStyle(fontSize: 14),
                   decoration: InputDecoration(
-                    hintText: 'Buscar canciones o artistas en YouTube...',
+                    hintText: 'Buscar canciones o artistas...',
                     hintStyle: TextStyle(
                       color: Colors.grey[500],
                       fontSize: 13,

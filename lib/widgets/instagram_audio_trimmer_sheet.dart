@@ -98,7 +98,11 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
       }
     });
 
-    final url = await MusicService.getAudioStreamUrl(widget.musicId);
+    final url = await MusicService.getAudioStreamUrl(
+      widget.musicId,
+      title: widget.title,
+      artist: widget.artist,
+    );
     if (url != null && mounted) {
       try {
         final loadedDuration = await _player.setUrl(url);

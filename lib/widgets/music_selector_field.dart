@@ -85,7 +85,11 @@ class _MusicSelectorFieldState extends State<MusicSelectorField> {
       _isPlaying = false;
     });
 
-    final url = await MusicService.getAudioStreamUrl(widget.musicId!);
+    final url = await MusicService.getAudioStreamUrl(
+      widget.musicId!,
+      title: widget.musicTitle,
+      artist: widget.musicArtist,
+    );
     
     if (mounted) {
       setState(() => _isLoadingPreview = false);

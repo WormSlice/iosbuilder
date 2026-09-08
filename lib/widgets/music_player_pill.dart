@@ -82,7 +82,11 @@ class _MusicPlayerPillState extends State<MusicPlayerPill> {
         }
       });
 
-      final url = await MusicService.getAudioStreamUrl(widget.musicId);
+      final url = await MusicService.getAudioStreamUrl(
+        widget.musicId,
+        title: widget.musicTitle,
+        artist: widget.musicArtist,
+      );
       
       if (url != null && mounted) {
         await _player.setVolume(_calculateVolume());
