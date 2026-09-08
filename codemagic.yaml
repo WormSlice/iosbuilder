@@ -32,17 +32,19 @@ workflows:
           xcode-project use-profiles
       - name: Flutter build ipa and release
         script: |
+          VERSION_NAME=$(grep '^version:' pubspec.yaml | sed 's/version: //' | cut -d '+' -f 1 | tr -d '[:space:]')
+          VERSION_NAME=${VERSION_NAME:-1.1.26}
           LATEST_BUILD=$(app-store-connect get-latest-testflight-build-number "$BUNDLE_ID" 2>/dev/null || true)
           echo "Latest TestFlight build number found: $LATEST_BUILD"
-          if [[ "$LATEST_BUILD" =~ ^[0-9]+$ ]] && [ "$LATEST_BUILD" -ge 55 ]; then
+          if [[ "$LATEST_BUILD" =~ ^[0-9]+$ ]] && [ "$LATEST_BUILD" -ge 56 ]; then
             NEXT_BUILD=$((LATEST_BUILD + 1))
           else
-            NEXT_BUILD=56
+            NEXT_BUILD=57
           fi
-          echo "Building iOS Release version 1.1.25 (Build $NEXT_BUILD)"
-          cd ios && agvtool new-version -all $NEXT_BUILD && agvtool new-marketing-version 1.1.25 && cd ..
+          echo "Building iOS Release version $VERSION_NAME (Build $NEXT_BUILD)"
+          cd ios && agvtool new-version -all $NEXT_BUILD && agvtool new-marketing-version "$VERSION_NAME" && cd ..
           flutter build ipa --release \
-            --build-name=1.1.25 \
+            --build-name="$VERSION_NAME" \
             --build-number=$NEXT_BUILD \
             --export-options-plist=$HOME/export_options.plist
     artifacts:
