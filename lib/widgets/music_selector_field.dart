@@ -126,7 +126,7 @@ class _MusicSelectorFieldState extends State<MusicSelectorField> {
     await _stopPlayer();
     if (!mounted) return;
     
-    final selectedSong = await showModalBottomSheet<Map<String, String>>(
+    final selectedSong = await showModalBottomSheet<Map<String, dynamic>>(
       context: ctx,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -134,25 +134,14 @@ class _MusicSelectorFieldState extends State<MusicSelectorField> {
     );
 
     if (selectedSong != null && mounted) {
-      // Abre inmediatamente el recortador estilo Instagram
-      final trimResult = await InstagramAudioTrimmerSheet.show(
-        context: context,
-        musicId: selectedSong['id']!,
-        title: selectedSong['title']!,
-        artist: selectedSong['artist']!,
-        thumbnail: selectedSong['thumbnail']!,
-        initialStartSeconds: 0,
-        initialDuration: 30,
-      );
-
-      final startSec = trimResult?['startSeconds'] ?? 0;
-      final duration = trimResult?['duration'] ?? 30;
+      final startSec = int.tryParse(selectedSong['startSeconds']?.toString() ?? '0') ?? 0;
+      final duration = int.tryParse(selectedSong['duration']?.toString() ?? '30') ?? 30;
 
       widget.onMusicSelected(
-        selectedSong['id'],
-        selectedSong['title'],
-        selectedSong['artist'],
-        selectedSong['thumbnail'],
+        selectedSong['id']?.toString(),
+        selectedSong['title']?.toString(),
+        selectedSong['artist']?.toString(),
+        selectedSong['thumbnail']?.toString(),
         startSec,
         duration,
       );

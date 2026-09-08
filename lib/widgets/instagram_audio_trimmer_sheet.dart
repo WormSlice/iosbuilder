@@ -4,13 +4,14 @@ import 'package:just_audio/just_audio.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../services/music_service.dart';
 
-/// Hoja modal estilo Instagram para seleccionar el fragmento de audio
+/// Hoja modal estilo Instagram para seleccionar y recortar el fragmento de audio
 /// con ondas de sonido interactivas, duración y bucle en tiempo real.
 class InstagramAudioTrimmerSheet extends StatefulWidget {
   final String musicId;
   final String title;
   final String artist;
   final String thumbnail;
+  final int totalTrackSeconds;
   final int initialStartSeconds;
   final int initialDuration;
 
@@ -20,6 +21,7 @@ class InstagramAudioTrimmerSheet extends StatefulWidget {
     required this.title,
     required this.artist,
     required this.thumbnail,
+    this.totalTrackSeconds = 180,
     this.initialStartSeconds = 0,
     this.initialDuration = 30,
   });
@@ -30,6 +32,7 @@ class InstagramAudioTrimmerSheet extends StatefulWidget {
     required String title,
     required String artist,
     required String thumbnail,
+    int totalTrackSeconds = 180,
     int initialStartSeconds = 0,
     int initialDuration = 30,
   }) {
@@ -42,6 +45,7 @@ class InstagramAudioTrimmerSheet extends StatefulWidget {
         title: title,
         artist: artist,
         thumbnail: thumbnail,
+        totalTrackSeconds: totalTrackSeconds,
         initialStartSeconds: initialStartSeconds,
         initialDuration: initialDuration,
       ),
@@ -59,7 +63,7 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
   late int _duration;
   bool _isPlaying = false;
   bool _isLoading = true;
-  double _totalTrackDurationSec = 30.0; // Preview duration standard is 30s
+  double _totalTrackDurationSec = 180.0;
 
   StreamSubscription? _posSub;
   StreamSubscription? _stateSub;
@@ -69,6 +73,9 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
     super.initState();
     _startSeconds = widget.initialStartSeconds;
     _duration = widget.initialDuration;
+    _totalTrackDurationSec = widget.totalTrackSeconds > 0
+        ? widget.totalTrackSeconds.toDouble()
+        : 180.0;
     _initAudio();
   }
 
@@ -94,9 +101,9 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
     final url = await MusicService.getAudioStreamUrl(widget.musicId);
     if (url != null && mounted) {
       try {
-        final duration = await _player.setUrl(url);
-        if (duration != null) {
-          _totalTrackDurationSec = duration.inSeconds.toDouble().clamp(15.0, 300.0);
+        final loadedDuration = await _player.setUrl(url);
+        if (loadedDuration != null && loadedDuration.inSeconds > 0) {
+          _totalTrackDurationSec = loadedDuration.inSeconds.toDouble();
         }
         await _player.seek(Duration(seconds: _startSeconds));
         await _player.play();
@@ -144,7 +151,7 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
   String _formatTime(int sec) {
     final m = sec ~/ 60;
     final s = sec % 60;
-    return '${m.toString().padLeft(1, '0')}:${s.toString().padLeft(2, '0')}';
+    return '${m.toString()}:${s.toString().padLeft(2, '0')}';
   }
 
   @override
@@ -153,20 +160,20 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
 
     return Container(
       decoration: const BoxDecoration(
-        color: Color(0xFF181A20),
+        color: Color(0xFF16181F),
         borderRadius: BorderRadius.only(
           topLeft: Radius.circular(28),
           topRight: Radius.circular(28),
         ),
       ),
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 30),
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 32),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           // Drag handle
           Center(
             child: Container(
-              width: 40,
+              width: 38,
               height: 4,
               decoration: BoxDecoration(
                 color: Colors.white24,
@@ -180,13 +187,18 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
           Row(
             children: [
               ClipRRect(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(10),
                 child: CachedNetworkImage(
                   imageUrl: widget.thumbnail,
                   width: 52,
                   height: 52,
                   fit: BoxFit.cover,
-                  errorWidget: (_, __, ___) => const Icon(Icons.music_note, color: Colors.white),
+                  errorWidget: (_, __, ___) => Container(
+                    width: 52,
+                    height: 52,
+                    color: Colors.white12,
+                    child: const Icon(Icons.music_note, color: Colors.white),
+                  ),
                 ),
               ),
               const SizedBox(width: 14),
@@ -198,7 +210,7 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
                       widget.title,
                       style: const TextStyle(
                         fontFamily: 'CanvaSans',
-                        fontSize: 16,
+                        fontSize: 15,
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
                       ),
@@ -210,7 +222,7 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
                       widget.artist,
                       style: TextStyle(
                         fontFamily: 'CanvaSans',
-                        fontSize: 13,
+                        fontSize: 12,
                         color: Colors.white.withOpacity(0.7),
                       ),
                       maxLines: 1,
@@ -230,10 +242,11 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF0094FF),
                   foregroundColor: Colors.white,
+                  elevation: 0,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(20),
                   ),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
                 ),
                 child: const Text(
                   'Listo',
@@ -246,15 +259,15 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
               ),
             ],
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 22),
 
-          // Duration picker pills (15s, 30s)
+          // Selector de duración del fragmento (15s, 30s, 45s, 60s)
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
-            children: [15, 30].map((dur) {
+            children: [15, 30, 45, 60].map((dur) {
               final isSelected = _duration == dur;
               return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 5),
                 child: GestureDetector(
                   onTap: () {
                     setState(() {
@@ -271,7 +284,7 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
                       color: isSelected ? const Color(0xFF0094FF) : Colors.white10,
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
-                        color: isSelected ? const Color(0xFF0094FF) : Colors.white24,
+                        color: isSelected ? const Color(0xFF0094FF) : Colors.white12,
                         width: 1,
                       ),
                     ),
@@ -291,13 +304,14 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
           ),
           const SizedBox(height: 20),
 
-          // Waveform simulation bar
+          // Visualizador de onda de sonido (Waveform) interactivo
           Container(
-            height: 48,
+            height: 52,
             width: double.infinity,
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.06),
+              color: Colors.white.withOpacity(0.04),
               borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.white.withOpacity(0.08)),
             ),
             child: CustomPaint(
               painter: _WaveformPainter(
@@ -308,15 +322,15 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
           ),
           const SizedBox(height: 12),
 
-          // Draggable Scrubber Slider
+          // Slider / Deslizador de posición
           SliderTheme(
             data: SliderTheme.of(context).copyWith(
               activeTrackColor: const Color(0xFF0094FF),
-              inactiveTrackColor: Colors.white24,
+              inactiveTrackColor: Colors.white12,
               thumbColor: Colors.white,
               overlayColor: const Color(0xFF0094FF).withOpacity(0.2),
-              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 9),
-              trackHeight: 4,
+              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8),
+              trackHeight: 3,
             ),
             child: Slider(
               value: _startSeconds.toDouble().clamp(0.0, maxStart > 0 ? maxStart : 0.0),
@@ -327,25 +341,39 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
             ),
           ),
 
-          // Time indicator and Play/Pause control
+          // Marcadores de tiempo y botón de Play/Pause
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 8),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  '${_formatTime(_startSeconds)} - ${_formatTime((_startSeconds + _duration).clamp(0, _totalTrackDurationSec.toInt()))}',
-                  style: const TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF0094FF),
-                  ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Fragmento: ${_formatTime(_startSeconds)} - ${_formatTime((_startSeconds + _duration).clamp(0, _totalTrackDurationSec.toInt()))} ($_duration seg)',
+                      style: const TextStyle(
+                        fontFamily: 'Poppins',
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF0094FF),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Duración total: ${_formatTime(_totalTrackDurationSec.toInt())}',
+                      style: TextStyle(
+                        fontFamily: 'Poppins',
+                        fontSize: 11,
+                        color: Colors.white.withOpacity(0.5),
+                      ),
+                    ),
+                  ],
                 ),
                 GestureDetector(
                   onTap: _togglePlayPause,
                   child: Container(
-                    padding: const EdgeInsets.all(8),
+                    padding: const EdgeInsets.all(9),
                     decoration: const BoxDecoration(
                       color: Color(0xFF0094FF),
                       shape: BoxShape.circle,
@@ -383,24 +411,42 @@ class _WaveformPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final barCount = 40;
+    final barCount = 42;
     final barWidth = size.width / (barCount * 1.5);
     final gap = barWidth * 0.5;
 
     final windowStart = progress * size.width;
     final windowEnd = (progress + windowRatio).clamp(0.0, 1.0) * size.width;
 
-    // Simulated waveform heights
+    // Alturas de ondas estéticas
     final heights = [
-      0.3, 0.5, 0.7, 0.4, 0.9, 0.6, 0.8, 0.4, 0.6, 0.9,
-      0.7, 0.4, 0.8, 0.5, 0.9, 0.6, 0.7, 0.4, 0.6, 0.8,
-      0.4, 0.7, 0.9, 0.5, 0.8, 0.6, 0.4, 0.9, 0.7, 0.5,
-      0.8, 0.6, 0.9, 0.4, 0.7, 0.5, 0.8, 0.6, 0.4, 0.7,
+      0.3, 0.5, 0.8, 0.4, 0.9, 0.6, 0.85, 0.45, 0.65, 0.95,
+      0.75, 0.4, 0.8, 0.55, 0.9, 0.6, 0.7, 0.45, 0.6, 0.85,
+      0.4, 0.75, 0.95, 0.5, 0.8, 0.65, 0.4, 0.9, 0.7, 0.55,
+      0.85, 0.6, 0.9, 0.45, 0.7, 0.5, 0.8, 0.6, 0.4, 0.75,
+      0.5, 0.8,
     ];
 
+    // 1. Dibujar fondo de ventana activa
+    final windowRect = RRect.fromRectAndRadius(
+      Rect.fromLTRB(windowStart, 4, windowEnd, size.height - 4),
+      const Radius.circular(6),
+    );
+    final windowPaint = Paint()
+      ..color = const Color(0xFF0094FF).withOpacity(0.15)
+      ..style = PaintingStyle.fill;
+    canvas.drawRRect(windowRect, windowPaint);
+
+    final windowBorderPaint = Paint()
+      ..color = const Color(0xFF0094FF)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5;
+    canvas.drawRRect(windowRect, windowBorderPaint);
+
+    // 2. Dibujar barras
     for (int i = 0; i < barCount; i++) {
       final x = i * (barWidth + gap) + gap;
-      final h = heights[i % heights.length] * size.height * 0.8;
+      final h = heights[i % heights.length] * (size.height - 12);
       final y = (size.height - h) / 2;
 
       final inWindow = x >= windowStart && x <= windowEnd;

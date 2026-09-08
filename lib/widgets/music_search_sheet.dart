@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../services/music_service.dart';
+import 'instagram_audio_trimmer_sheet.dart';
 
 class MusicSearchSheet extends StatefulWidget {
   const MusicSearchSheet({super.key});
@@ -14,20 +15,21 @@ class MusicSearchSheet extends StatefulWidget {
 class _MusicSearchSheetState extends State<MusicSearchSheet> {
   final _searchController = TextEditingController();
   final _previewPlayer = AudioPlayer();
-  
-  List<Map<String, String>> _songs = [];
+
+  List<Map<String, dynamic>> _songs = [];
   bool _isLoading = false;
-  
+
   // Canciones guardadas
-  List<Map<String, String>> _savedSongs = [];
-  List<Map<String, String>> _filteredSavedSongs = [];
+  List<Map<String, dynamic>> _savedSongs = [];
+  List<Map<String, dynamic>> _filteredSavedSongs = [];
   Set<String> _savedSongIds = {};
 
   // Estado de la previsualización
   String? _playingId;
   bool _isPlaying = false;
   bool _isLoadingPreview = false;
-  
+
+  String _selectedCategory = '';
   Timer? _debounce;
 
   @override
@@ -35,8 +37,7 @@ class _MusicSearchSheetState extends State<MusicSearchSheet> {
     super.initState();
     _loadInitialSongs();
     _loadSavedSongs();
-    
-    // Escuchamos cambios en la reproducción para actualizar la UI si termina la pista
+
     _previewPlayer.playerStateStream.listen((state) {
       if (mounted) {
         setState(() {
@@ -72,20 +73,19 @@ class _MusicSearchSheetState extends State<MusicSearchSheet> {
       setState(() {
         _savedSongs = saved;
         _filteredSavedSongs = saved;
-        _savedSongIds = saved.map((s) => s['id']!).toSet();
+        _savedSongIds = saved.map((s) => s['id']!.toString()).toSet();
       });
     }
   }
 
   void _onSearchChanged(String query) {
     if (_debounce?.isActive ?? false) _debounce!.cancel();
-    _debounce = Timer(const Duration(milliseconds: 500), () async {
-      // Filtrar locamente las guardadas
+    _debounce = Timer(const Duration(milliseconds: 400), () async {
       if (mounted) {
         setState(() {
           _filteredSavedSongs = _savedSongs.where((s) {
-            final title = s['title']?.toLowerCase() ?? '';
-            final artist = s['artist']?.toLowerCase() ?? '';
+            final title = s['title']?.toString().toLowerCase() ?? '';
+            final artist = s['artist']?.toString().toLowerCase() ?? '';
             final q = query.toLowerCase();
             return title.contains(q) || artist.contains(q);
           }).toList();
@@ -96,7 +96,7 @@ class _MusicSearchSheetState extends State<MusicSearchSheet> {
         _loadInitialSongs();
         return;
       }
-      
+
       setState(() => _isLoading = true);
       final results = await MusicService.searchSongs(query);
       if (mounted) {
@@ -108,14 +108,28 @@ class _MusicSearchSheetState extends State<MusicSearchSheet> {
     });
   }
 
-  Future<void> _toggleSaveSong(Map<String, String> song) async {
-    final id = song['id']!;
+  void _selectCategory(String category) {
+    setState(() {
+      if (_selectedCategory == category) {
+        _selectedCategory = '';
+        _searchController.clear();
+        _loadInitialSongs();
+      } else {
+        _selectedCategory = category;
+        _searchController.text = category;
+        _onSearchChanged(category);
+      }
+    });
+  }
+
+  Future<void> _toggleSaveSong(Map<String, dynamic> song) async {
+    final id = song['id'].toString();
     if (_savedSongIds.contains(id)) {
       await MusicService.unsaveSong(id);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Eliminada de tus guardadas'),
+            content: Text('Eliminada de guardados'),
             duration: Duration(milliseconds: 800),
           ),
         );
@@ -125,7 +139,7 @@ class _MusicSearchSheetState extends State<MusicSearchSheet> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Guardada exitosamente'),
+            content: Text('Guardada en tu colección'),
             duration: Duration(milliseconds: 800),
           ),
         );
@@ -134,9 +148,9 @@ class _MusicSearchSheetState extends State<MusicSearchSheet> {
     _loadSavedSongs();
   }
 
-  Future<void> _togglePreview(Map<String, String> song) async {
-    final id = song['id']!;
-    
+  Future<void> _togglePreview(Map<String, dynamic> song) async {
+    final id = song['id'].toString();
+
     if (_playingId == id) {
       if (_isPlaying) {
         await _previewPlayer.pause();
@@ -151,34 +165,75 @@ class _MusicSearchSheetState extends State<MusicSearchSheet> {
         _playingId = id;
         _isPlaying = false;
       });
-      
+
       await _previewPlayer.stop();
-      
+
       final url = await MusicService.getAudioStreamUrl(id);
-      
+
       if (mounted) {
         setState(() => _isLoadingPreview = false);
-        
+
         if (url != null) {
           try {
             await _previewPlayer.setUrl(url);
             await _previewPlayer.play();
             setState(() => _isPlaying = true);
           } catch (e) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('No se pudo reproducir la previsualización')),
-            );
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('No se pudo reproducir la previsualización')),
+              );
+            }
           }
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('No se pudo obtener el flujo de audio')),
-          );
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('No se pudo obtener el audio de la canción')),
+            );
+          }
         }
       }
     }
   }
 
-  Widget _buildSongList(List<Map<String, String>> songsList, {required bool isSavedTab}) {
+  String _formatDuration(dynamic durationSec) {
+    if (durationSec == null) return '';
+    final sec = int.tryParse(durationSec.toString()) ?? 0;
+    if (sec <= 0) return '';
+    final m = sec ~/ 60;
+    final s = sec % 60;
+    return '${m.toString()}:${s.toString().padLeft(2, '0')}';
+  }
+
+  Future<void> _onSongSelected(Map<String, dynamic> song) async {
+    await _previewPlayer.stop();
+
+    if (!mounted) return;
+
+    final trimmed = await InstagramAudioTrimmerSheet.show(
+      context: context,
+      musicId: song['id'].toString(),
+      title: song['title'].toString(),
+      artist: song['artist'].toString(),
+      thumbnail: song['thumbnail'].toString(),
+      totalTrackSeconds: int.tryParse(song['duration']?.toString() ?? '180') ?? 180,
+      initialStartSeconds: 0,
+      initialDuration: 30,
+    );
+
+    if (trimmed != null && mounted) {
+      Navigator.pop(context, {
+        'id': song['id'].toString(),
+        'title': song['title'].toString(),
+        'artist': song['artist'].toString(),
+        'thumbnail': song['thumbnail'].toString(),
+        'startSeconds': trimmed['startSeconds'] ?? 0,
+        'duration': trimmed['duration'] ?? 30,
+      });
+    }
+  }
+
+  Widget _buildSongList(List<Map<String, dynamic>> songsList, {required bool isSavedTab}) {
     if (_isLoading && !isSavedTab) {
       return const Center(
         child: CircularProgressIndicator(
@@ -189,126 +244,158 @@ class _MusicSearchSheetState extends State<MusicSearchSheet> {
     if (songsList.isEmpty) {
       return Center(
         child: Text(
-          isSavedTab 
-              ? 'No tienes canciones guardadas' 
-              : 'No se encontraron canciones',
-          style: const TextStyle(color: Colors.grey, fontFamily: 'CanvaSans', fontSize: 13),
+          isSavedTab ? 'No tienes canciones guardadas' : 'No se encontraron canciones',
+          style: const TextStyle(
+            color: Colors.grey,
+            fontFamily: 'CanvaSans',
+            fontSize: 13,
+          ),
         ),
       );
     }
-    
+
     return ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       itemCount: songsList.length,
       itemBuilder: (context, index) {
         final song = songsList[index];
-        final id = song['id']!;
+        final id = song['id'].toString();
         final isCurrent = _playingId == id;
         final isSaved = _savedSongIds.contains(id);
-        
+        final durStr = _formatDuration(song['duration']);
+
         return Material(
           color: Colors.transparent,
           child: InkWell(
-            onTap: () {
-              _previewPlayer.stop();
-              Navigator.pop(context, song);
-            },
-            borderRadius: BorderRadius.circular(10),
+            onTap: () => _onSongSelected(song),
+            borderRadius: BorderRadius.circular(12),
             child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+              padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
               child: Row(
                 children: [
-                  // Carátula de la canción redondeada y más compacta
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(6),
-                    child: CachedNetworkImage(
-                      imageUrl: song['thumbnail']!,
-                      width: 44,
-                      height: 44,
-                      fit: BoxFit.cover,
-                      placeholder: (context, url) => Container(
-                        color: Colors.grey[200],
-                        child: const Icon(Icons.music_note, color: Colors.grey, size: 20),
+                  // Portada cuadrada estilo Instagram
+                  Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: CachedNetworkImage(
+                          imageUrl: song['thumbnail']?.toString() ?? '',
+                          width: 48,
+                          height: 48,
+                          fit: BoxFit.cover,
+                          placeholder: (context, url) => Container(
+                            color: Colors.grey[200],
+                            child: const Icon(Icons.music_note, color: Colors.grey, size: 22),
+                          ),
+                          errorWidget: (context, url, error) => Container(
+                            color: Colors.grey[200],
+                            child: const Icon(Icons.music_note, color: Colors.grey, size: 22),
+                          ),
+                        ),
                       ),
-                      errorWidget: (context, url, error) => Container(
-                        color: Colors.grey[200],
-                        child: const Icon(Icons.music_note, color: Colors.grey, size: 20),
-                      ),
-                    ),
+                      if (isCurrent && _isPlaying)
+                        Container(
+                          width: 48,
+                          height: 48,
+                          decoration: BoxDecoration(
+                            color: Colors.black45,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(
+                            Icons.equalizer_rounded,
+                            color: Colors.white,
+                            size: 24,
+                          ),
+                        ),
+                    ],
                   ),
                   const SizedBox(width: 12),
-                  
-                  // Título y Artista
+
+                  // Título, Artista y Duración
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          song['title']!,
+                          song['title']?.toString() ?? '',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             fontFamily: 'CanvaSans',
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
                             color: isCurrent && _isPlaying ? const Color(0xFF0094FF) : Colors.black87,
                           ),
                         ),
-                        const SizedBox(height: 2),
-                        Text(
-                          song['artist']!,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontFamily: 'CanvaSans',
-                            fontSize: 11,
-                            color: Colors.grey[600],
-                          ),
+                        const SizedBox(height: 3),
+                        Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                song['artist']?.toString() ?? '',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontFamily: 'CanvaSans',
+                                  fontSize: 12,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                            ),
+                            if (durStr.isNotEmpty) ...[
+                              const SizedBox(width: 6),
+                              Text(
+                                '•  $durStr',
+                                style: TextStyle(
+                                  fontFamily: 'CanvaSans',
+                                  fontSize: 11,
+                                  color: Colors.grey[500],
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
                       ],
                     ),
                   ),
-                  
-                  // Botón de guardar estilo marcador de Instagram
+
+                  // Botón de guardar estilo Instagram
                   IconButton(
                     icon: Icon(
                       isSaved ? Icons.bookmark_rounded : Icons.bookmark_outline_rounded,
                       color: isSaved ? const Color(0xFF0094FF) : Colors.grey[400],
-                      size: 20,
+                      size: 22,
                     ),
                     onPressed: () => _toggleSaveSong(song),
                   ),
-                  
-                  // Botón de previsualización (Play/Pause)
+
+                  // Botón de Play/Pause circular
                   GestureDetector(
                     onTap: () => _togglePreview(song),
                     child: Container(
-                      width: 32,
-                      height: 32,
+                      width: 34,
+                      height: 34,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         color: isCurrent && _isPlaying
-                            ? const Color(0xFF0094FF).withOpacity(0.1)
-                            : Colors.grey[100],
+                            ? const Color(0xFF0094FF)
+                            : const Color(0xFFF0F2F5),
                       ),
                       child: Center(
                         child: isCurrent && _isLoadingPreview
                             ? const SizedBox(
-                                width: 14,
-                                height: 14,
+                                width: 16,
+                                height: 16,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
                                   valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF0094FF)),
                                 ),
                               )
                             : Icon(
-                                isCurrent && _isPlaying
-                                    ? Icons.pause_rounded
-                                    : Icons.play_arrow_rounded,
-                                color: isCurrent && _isPlaying
-                                    ? const Color(0xFF0094FF)
-                                    : Colors.black87,
-                                size: 18,
+                                isCurrent && _isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                                color: isCurrent && _isPlaying ? Colors.white : Colors.black87,
+                                size: 20,
                               ),
                       ),
                     ),
@@ -325,7 +412,7 @@ class _MusicSearchSheetState extends State<MusicSearchSheet> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: MediaQuery.of(context).size.height * 0.75,
+      height: MediaQuery.of(context).size.height * 0.82,
       decoration: const BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.only(
@@ -337,58 +424,116 @@ class _MusicSearchSheetState extends State<MusicSearchSheet> {
         length: 2,
         child: Column(
           children: [
-            // Barra de arrastre superior (Drag Handle)
+            // Barra de arrastre superior
             const SizedBox(height: 10),
             Container(
-              width: 45,
+              width: 42,
               height: 4.5,
               decoration: BoxDecoration(
                 color: Colors.grey[300],
                 borderRadius: BorderRadius.circular(10),
               ),
             ),
-            const SizedBox(height: 15),
-            
-            // Título de sección
-            const Text(
-              'Buscar música',
-              style: TextStyle(
-                fontFamily: 'CanvaSans',
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
+            const SizedBox(height: 14),
+
+            // Encabezado
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Elegir música',
+                    style: TextStyle(
+                      fontFamily: 'CanvaSans',
+                      fontSize: 17,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: const Icon(Icons.close_rounded, color: Colors.black87, size: 22),
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 12),
-            
-            // Caja de búsqueda con colores de CONNECT
+
+            // Barra de búsqueda estilo Instagram
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Container(
-                height: 48,
+                height: 44,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF5F5F5),
+                  color: const Color(0xFFF2F4F7),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.grey[200]!),
                 ),
                 child: TextField(
                   controller: _searchController,
                   onChanged: _onSearchChanged,
-                  autofocus: true,
                   style: const TextStyle(fontSize: 14),
-                  decoration: const InputDecoration(
-                    hintText: 'Buscar canciones o artistas...',
-                    hintStyle: TextStyle(color: Colors.grey, fontSize: 13, fontFamily: 'CanvaSans'),
-                    prefixIcon: Icon(Icons.search, color: Color(0xFF0094FF)),
+                  decoration: InputDecoration(
+                    hintText: 'Buscar canciones o artistas en YouTube...',
+                    hintStyle: TextStyle(
+                      color: Colors.grey[500],
+                      fontSize: 13,
+                      fontFamily: 'CanvaSans',
+                    ),
+                    prefixIcon: const Icon(Icons.search_rounded, color: Colors.grey, size: 20),
+                    suffixIcon: _searchController.text.isNotEmpty
+                        ? GestureDetector(
+                            onTap: () {
+                              _searchController.clear();
+                              _onSearchChanged('');
+                            },
+                            child: const Icon(Icons.cancel_rounded, color: Colors.grey, size: 18),
+                          )
+                        : null,
                     border: InputBorder.none,
-                    contentPadding: EdgeInsets.symmetric(vertical: 13),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 12),
                   ),
                 ),
               ),
             ),
             const SizedBox(height: 10),
-            
-            // Pestañas deslizantes estilo Instagram
+
+            // Chips de categorías / géneros
+            SizedBox(
+              height: 32,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: MusicService.categories.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                itemBuilder: (context, index) {
+                  final cat = MusicService.categories[index];
+                  final isSelected = _selectedCategory == cat;
+                  return GestureDetector(
+                    onTap: () => _selectCategory(cat),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: isSelected ? const Color(0xFF0094FF) : const Color(0xFFF2F4F7),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        cat,
+                        style: TextStyle(
+                          fontFamily: 'CanvaSans',
+                          fontSize: 12,
+                          fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                          color: isSelected ? Colors.white : Colors.black87,
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 8),
+
+            // Pestañas "Para ti" / "Guardado"
             TabBar(
               labelColor: const Color(0xFF0094FF),
               unselectedLabelColor: Colors.grey[600],
@@ -409,8 +554,8 @@ class _MusicSearchSheetState extends State<MusicSearchSheet> {
                 Tab(text: 'Guardado'),
               ],
             ),
-            
-            // Contenido de cada pestaña
+
+            // Listas
             Expanded(
               child: TabBarView(
                 children: [
