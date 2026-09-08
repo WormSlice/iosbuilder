@@ -1,7 +1,6 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import '../../widgets/circular_reveal_animation.dart';
 import '../../widgets/dynamic_island_notification.dart';
 import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -16,13 +15,13 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:overlay_support/overlay_support.dart';
 import 'package:translator/translator.dart';
 import '../../app.dart';
 import 'call_screen.dart';
 import 'chat_info_screen.dart';
 import '../../services/signaling_service.dart';
 import '../profile/social_icon_box.dart';
+import '../../services/messaging_service.dart';
 
 class ChatRoomScreen extends StatefulWidget {
   final String chatId;
@@ -65,10 +64,14 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   void initState() {
     super.initState();
     currentUid = FirebaseAuth.instance.currentUser?.uid ?? '';
+    MessagingService.activeChatId = widget.chatId;
   }
 
   @override
   void dispose() {
+    if (MessagingService.activeChatId == widget.chatId) {
+      MessagingService.activeChatId = null;
+    }
     _focusNode.dispose();
     _controller.dispose();
     _scrollController.dispose();
@@ -361,6 +364,8 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     String lastMsg = msgText;
     if (type == 'image') lastMsg = '📷 Foto';
     if (type == 'voice') lastMsg = '🎤 Mensaje de voz';
+    if (type == 'file') lastMsg = '📎 Archivo';
+    if (type == 'socials') lastMsg = '🔗 Redes sociales';
 
     await chatRef.update({
       'lastMessage': lastMsg,
@@ -370,6 +375,43 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     });
 
     _scrollToBottom();
+
+    // Dispatch push notification to peer
+    try {
+      String? peerId = widget.peerId;
+      if (peerId == null || peerId.isEmpty) {
+        final chatDoc = await chatRef.get();
+        if (chatDoc.exists) {
+          final participants = chatDoc.data()?['participants'] as List?;
+          if (participants != null) {
+            peerId = participants.firstWhere((p) => p != currentUid, orElse: () => null);
+          }
+        }
+      }
+
+      if (peerId != null && peerId.isNotEmpty && peerId != currentUid) {
+        final currentUser = FirebaseAuth.instance.currentUser;
+        String senderName = currentUser?.displayName ?? '';
+        if (senderName.isEmpty) {
+          final userDoc = await FirebaseFirestore.instance.collection('users').doc(currentUid).get();
+          senderName = userDoc.data()?['displayName'] ?? userDoc.data()?['name'] ?? userDoc.data()?['username'] ?? 'CONNECT';
+        }
+
+        MessagingService.sendNotificationToUser(
+          recipientUid: peerId,
+          title: senderName.isNotEmpty ? senderName : 'Nuevo mensaje',
+          body: lastMsg,
+          data: {
+            'chatId': widget.chatId,
+            'senderId': currentUid,
+            'collectionPath': widget.collectionPath,
+            'type': 'chat_message',
+          },
+        );
+      }
+    } catch (e) {
+      debugPrint('Error sending message push notification: $e');
+    }
   }
 
   void _scrollToBottom() {

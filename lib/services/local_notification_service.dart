@@ -1,4 +1,8 @@
+import 'dart:convert';
+import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import '../app.dart';
+import '../screens/chats/chat_room_screen.dart';
 
 class LocalNotificationService {
   static final FlutterLocalNotificationsPlugin _notificationsPlugin =
@@ -33,7 +37,27 @@ class LocalNotificationService {
     await _notificationsPlugin.initialize(
       settings: initializationSettings,
       onDidReceiveNotificationResponse: (NotificationResponse response) {
-        // Handle notification click if needed
+        try {
+          if (response.payload != null && response.payload!.isNotEmpty) {
+            final data = jsonDecode(response.payload!) as Map<String, dynamic>;
+            final chatId = data['chatId']?.toString();
+            final peerId = data['senderId']?.toString() ?? data['peerId']?.toString();
+            final collectionPath = data['collectionPath']?.toString() ?? 'chats';
+            if (chatId != null && chatId.isNotEmpty) {
+              App.navigatorKey.currentState?.push(
+                MaterialPageRoute(
+                  builder: (_) => ChatRoomScreen(
+                    chatId: chatId,
+                    peerId: peerId,
+                    collectionPath: collectionPath,
+                  ),
+                ),
+              );
+            }
+          }
+        } catch (e) {
+          debugPrint('Error handling local notification click: $e');
+        }
       },
     );
 
