@@ -405,59 +405,27 @@ class ConnectProfileHeader extends StatelessWidget {
               ] else
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 10),
-                  child: Row(
+                  child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Left Column: Join Date & Follow Button
-                      Expanded(
-                        flex: 100,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            SizedBox(
-                              height: 22,
-                              child: Center(
+                      // Top Row: Join Date & Social Icons
+                      Row(
+                        children: [
+                          Expanded(
+                            child: SizedBox(
+                              height: 28,
+                              child: Align(
+                                alignment: Alignment.centerLeft,
                                 child: JoinDate(
                                   date: createdAt,
                                   isOwnProfile: false,
                                 ),
                               ),
                             ),
-                            const SizedBox(height: 6),
-                            StreamBuilder<bool>(
-                              stream: FirestoreService().isFollowingStream(
-                                currentUid ?? '',
-                                targetId!,
-                              ),
-                              builder: (context, followSnap) {
-                                final isFollowing =
-                                    followSnap.hasData &&
-                                    followSnap.data == true;
-                                return FollowButton(
-                                  isFollowing: isFollowing,
-                                  onTap: () async {
-                                    if (currentUid == null) {
-                                      return;
-                                    }
-                                    await FirestoreService().toggleFollow(
-                                      currentUid,
-                                      targetId,
-                                    );
-                                  },
-                                );
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      // Right Column: Social Icons & Message Button
-                      Expanded(
-                        flex: 100,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            SizedBox(
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: SizedBox(
                               height: 28,
                               child: Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
@@ -509,8 +477,41 @@ class ConnectProfileHeader extends StatelessWidget {
                                 ],
                               ),
                             ),
-                            const SizedBox(height: 6),
-                            MessageButton(
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      // Bottom Row: Follow Button & Message Button (perfectly aligned horizontally)
+                      Row(
+                        children: [
+                          Expanded(
+                            child: StreamBuilder<bool>(
+                              stream: FirestoreService().isFollowingStream(
+                                currentUid ?? '',
+                                targetId!,
+                              ),
+                              builder: (context, followSnap) {
+                                final isFollowing =
+                                    followSnap.hasData &&
+                                    followSnap.data == true;
+                                return FollowButton(
+                                  isFollowing: isFollowing,
+                                  onTap: () async {
+                                    if (currentUid == null) {
+                                      return;
+                                    }
+                                    await FirestoreService().toggleFollow(
+                                      currentUid,
+                                      targetId,
+                                    );
+                                  },
+                                );
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: MessageButton(
                               onTap: () async {
                                 if (currentUid == null) {
                                   return;
@@ -552,8 +553,8 @@ class ConnectProfileHeader extends StatelessWidget {
                                 }
                               },
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
