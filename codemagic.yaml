@@ -35,7 +35,7 @@ workflows:
           VERSION_NAME=$(grep '^version:' pubspec.yaml | sed 's/version: //' | cut -d '+' -f 1 | tr -d '[:space:]')
           VERSION_NAME=${VERSION_NAME:-1.1.26}
           PUBSPEC_BUILD=$(grep '^version:' pubspec.yaml | sed 's/.*+//' | tr -d '[:space:]')
-          PUBSPEC_BUILD=${PUBSPEC_BUILD:-60}
+          PUBSPEC_BUILD=${PUBSPEC_BUILD:-61}
           LATEST_BUILD=$(app-store-connect get-latest-testflight-build-number "$BUNDLE_ID" 2>/dev/null || true)
           echo "Latest TestFlight build number found: $LATEST_BUILD"
           echo "Pubspec build number: $PUBSPEC_BUILD"
@@ -43,8 +43,8 @@ workflows:
           if [[ "$LATEST_BUILD" =~ ^[0-9]+$ ]] && [ "$LATEST_BUILD" -ge "$NEXT_BUILD" ]; then
             NEXT_BUILD=$((LATEST_BUILD + 1))
           fi
-          if [ "$NEXT_BUILD" -lt 60 ]; then
-            NEXT_BUILD=60
+          if [ "$NEXT_BUILD" -lt "$PUBSPEC_BUILD" ]; then
+            NEXT_BUILD=$PUBSPEC_BUILD
           fi
           echo "Building iOS Release version $VERSION_NAME (Build $NEXT_BUILD)"
           
