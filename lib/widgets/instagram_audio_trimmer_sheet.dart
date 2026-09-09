@@ -6,7 +6,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../services/music_service.dart';
 
 /// Hoja modal estilo Instagram para seleccionar y recortar el fragmento de audio
-/// sobre la canción completa con ondas de sonido interactivas y animadas en tiempo real.
+/// sobre la canción completa con ondas de sonido interactivas y ultra-fluidas a 60fps.
 class InstagramAudioTrimmerSheet extends StatefulWidget {
   final String musicId;
   final String title;
@@ -69,8 +69,10 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
   bool _isAutoHighlight = true;
   double _currentPlaybackSec = 0.0;
 
-  // Controladores de animación
+  // Controladores de animación fluida
   late AnimationController _waveAnimController;
+  late AnimationController _ambientAnimController;
+  late AnimationController _discAnimController;
   late AnimationController _pulseAnimController;
   late Animation<double> _pulseAnim;
 
@@ -86,7 +88,8 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
         : 180.0;
     _duration = widget.initialDuration;
 
-    final autoHighlight = MusicService.calculateHighlightStart(_totalTrackDurationSec.toInt());
+    final autoHighlight =
+        MusicService.calculateHighlightStart(_totalTrackDurationSec.toInt());
     if (widget.initialStartSeconds > 0) {
       _startSeconds = widget.initialStartSeconds;
       _isAutoHighlight = (_startSeconds == autoHighlight);
@@ -96,19 +99,31 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
     }
     _currentPlaybackSec = _startSeconds.toDouble();
 
-    // Animación continua de ondas fluidas (60fps)
+    // 1. Animación continua de ondas dinámicas al reproducir (60fps)
     _waveAnimController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1200),
+      duration: const Duration(milliseconds: 1400),
     )..repeat();
 
-    // Animación suave de respiración / pulso para la portada y botones
+    // 2. Animación de brillo ambiental continuo (incluso en pausa)
+    _ambientAnimController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2800),
+    )..repeat();
+
+    // 3. Animación de disco de vinilo continuo al reproducir
+    _discAnimController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 8),
+    );
+
+    // 4. Pulso suave para portada y badges
     _pulseAnimController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1800),
+      duration: const Duration(milliseconds: 1600),
     )..repeat(reverse: true);
 
-    _pulseAnim = Tween<double>(begin: 1.0, end: 1.05).animate(
+    _pulseAnim = Tween<double>(begin: 1.0, end: 1.06).animate(
       CurvedAnimation(parent: _pulseAnimController, curve: Curves.easeInOut),
     );
 
@@ -120,6 +135,13 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
       if (mounted) {
         setState(() {
           _isPlaying = state.playing;
+          if (_isPlaying) {
+            if (!_discAnimController.isAnimating) {
+              _discAnimController.repeat();
+            }
+          } else {
+            _discAnimController.stop();
+          }
         });
       }
     });
@@ -153,7 +175,8 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
         if (loadedDuration != null && loadedDuration.inSeconds > 30) {
           _totalTrackDurationSec = loadedDuration.inSeconds.toDouble();
           if (_isAutoHighlight) {
-            _startSeconds = MusicService.calculateHighlightStart(_totalTrackDurationSec.toInt());
+            _startSeconds = MusicService.calculateHighlightStart(
+                _totalTrackDurationSec.toInt());
           }
         }
         await _player.seek(Duration(seconds: _startSeconds));
@@ -175,6 +198,8 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
   @override
   void dispose() {
     _waveAnimController.dispose();
+    _ambientAnimController.dispose();
+    _discAnimController.dispose();
     _pulseAnimController.dispose();
     _seekDebounce?.cancel();
     _posSub?.cancel();
@@ -185,7 +210,9 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
   }
 
   double get _maxStart {
-    final effectiveTotal = _totalTrackDurationSec > _duration ? _totalTrackDurationSec : (_duration + 120.0);
+    final effectiveTotal = _totalTrackDurationSec > _duration
+        ? _totalTrackDurationSec
+        : (_duration + 120.0);
     return math.max(1.0, effectiveTotal - _duration);
   }
 
@@ -214,7 +241,8 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
   }
 
   void _resetToAutoHighlight() {
-    final auto = MusicService.calculateHighlightStart(_totalTrackDurationSec.toInt());
+    final auto =
+        MusicService.calculateHighlightStart(_totalTrackDurationSec.toInt());
     setState(() {
       _startSeconds = auto.clamp(0, _maxStart.toInt());
       _currentPlaybackSec = _startSeconds.toDouble();
@@ -244,15 +272,24 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
   @override
   Widget build(BuildContext context) {
     final maxStart = _maxStart;
-    final effectiveTotal = _totalTrackDurationSec > _duration ? _totalTrackDurationSec : (_duration + 120.0);
+    final effectiveTotal = _totalTrackDurationSec > _duration
+        ? _totalTrackDurationSec
+        : (_duration + 120.0);
 
     return Container(
       decoration: const BoxDecoration(
-        color: Color(0xFF14161D),
+        color: Color(0xFF12141A),
         borderRadius: BorderRadius.only(
           topLeft: Radius.circular(28),
           topRight: Radius.circular(28),
         ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black87,
+            blurRadius: 30,
+            spreadRadius: 5,
+          ),
+        ],
       ),
       padding: const EdgeInsets.fromLTRB(20, 14, 20, 32),
       child: Column(
@@ -261,8 +298,8 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
           // Barra de arrastre superior
           Center(
             child: Container(
-              width: 38,
-              height: 4,
+              width: 40,
+              height: 4.5,
               decoration: BoxDecoration(
                 color: Colors.white24,
                 borderRadius: BorderRadius.circular(10),
@@ -271,47 +308,83 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
           ),
           const SizedBox(height: 16),
 
-          // Header: Información de la canción animada y botón Listo
+          // Header: Información de la canción animada, vinilo giratorio y botón Listo
           Row(
             children: [
+              // Portada con animación suave de disco vinilo + pulso de brillo
               AnimatedBuilder(
-                animation: _pulseAnim,
+                animation: Listenable.merge([_pulseAnim, _discAnimController]),
                 builder: (context, child) {
                   return Transform.scale(
                     scale: _isPlaying ? _pulseAnim.value : 1.0,
                     child: Container(
+                      width: 54,
+                      height: 54,
                       decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(12),
+                        shape: BoxShape.circle,
                         boxShadow: _isPlaying
                             ? [
                                 BoxShadow(
-                                  color: const Color(0xFF0094FF).withValues(alpha: 0.35),
-                                  blurRadius: 14,
-                                  spreadRadius: 2,
+                                  color: const Color(0xFF0094FF)
+                                      .withValues(alpha: 0.4),
+                                  blurRadius: 16,
+                                  spreadRadius: 3,
                                 ),
                               ]
                             : null,
                       ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: CachedNetworkImage(
-                          imageUrl: widget.thumbnail,
-                          width: 52,
-                          height: 52,
-                          fit: BoxFit.cover,
-                          errorWidget: (_, _, _) => Container(
-                            width: 52,
-                            height: 52,
-                            color: Colors.white12,
-                            child: const Icon(Icons.music_note, color: Colors.white),
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          // Disco de vinilo giratorio
+                          Transform.rotate(
+                            angle: _discAnimController.value * 2 * math.pi,
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(27),
+                              child: CachedNetworkImage(
+                                imageUrl: widget.thumbnail,
+                                width: 54,
+                                height: 54,
+                                fit: BoxFit.cover,
+                                placeholder: (_, _) => Container(
+                                  width: 54,
+                                  height: 54,
+                                  color: Colors.white12,
+                                  child: const Icon(Icons.music_note,
+                                      color: Colors.white),
+                                ),
+                                errorWidget: (_, _, _) => Container(
+                                  width: 54,
+                                  height: 54,
+                                  color: Colors.white12,
+                                  child: const Icon(Icons.music_note,
+                                      color: Colors.white),
+                                ),
+                              ),
+                            ),
                           ),
-                        ),
+                          // Centro del vinilo
+                          Container(
+                            width: 14,
+                            height: 14,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: const Color(0xFF12141A),
+                              border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.6),
+                                width: 1.5,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   );
                 },
               ),
               const SizedBox(width: 14),
+
+              // Título y Artista con ecualizador animado
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -351,29 +424,42 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
                   ],
                 ),
               ),
-              ElevatedButton(
-                onPressed: () {
+
+              // Botón Listo con micro-animación al presionar
+              _BouncingWidget(
+                onTap: () {
                   _player.stop();
                   Navigator.pop(context, {
                     'startSeconds': _startSeconds,
                     'duration': _duration,
                   });
                 },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF0094FF),
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 22, vertical: 10),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF0094FF), Color(0xFF00C3FF)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(22),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF0094FF).withValues(alpha: 0.4),
+                        blurRadius: 10,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
                   ),
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 9),
-                ),
-                child: const Text(
-                  'Listo',
-                  style: TextStyle(
-                    fontFamily: 'CanvaSans',
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13,
+                  child: const Text(
+                    'Listo',
+                    style: TextStyle(
+                      fontFamily: 'CanvaSans',
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
               ),
@@ -385,13 +471,13 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              // Chips de duración (15s, 30s, 60s) con animación suave
+              // Chips de duración (15s, 30s, 60s) con animación fluida
               Row(
                 children: [15, 30, 60].map((dur) {
                   final isSelected = _duration == dur;
                   return Padding(
                     padding: const EdgeInsets.only(right: 8),
-                    child: GestureDetector(
+                    child: _BouncingWidget(
                       onTap: () {
                         setState(() {
                           _duration = dur;
@@ -404,19 +490,32 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 250),
                         curve: Curves.easeOutCubic,
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 7),
                         decoration: BoxDecoration(
-                          color: isSelected ? const Color(0xFF0094FF) : Colors.white10,
+                          gradient: isSelected
+                              ? const LinearGradient(
+                                  colors: [
+                                    Color(0xFF0094FF),
+                                    Color(0xFF00B4FF)
+                                  ],
+                                )
+                              : null,
+                          color: isSelected ? null : Colors.white10,
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(
-                            color: isSelected ? const Color(0xFF0094FF) : Colors.white12,
+                            color: isSelected
+                                ? const Color(0xFF0094FF)
+                                : Colors.white12,
                             width: 1,
                           ),
                           boxShadow: isSelected
                               ? [
                                   BoxShadow(
-                                    color: const Color(0xFF0094FF).withValues(alpha: 0.3),
+                                    color: const Color(0xFF0094FF)
+                                        .withValues(alpha: 0.35),
                                     blurRadius: 8,
+                                    offset: const Offset(0, 2),
                                   ),
                                 ]
                               : null,
@@ -426,7 +525,8 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
                           style: TextStyle(
                             fontFamily: 'CanvaSans',
                             fontSize: 12,
-                            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                            fontWeight:
+                                isSelected ? FontWeight.bold : FontWeight.w500,
                             color: isSelected ? Colors.white : Colors.white70,
                           ),
                         ),
@@ -437,50 +537,66 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
               ),
 
               // Indicador animado de "Parte más escuchada" / Botón Auto
-              GestureDetector(
+              _BouncingWidget(
                 onTap: _resetToAutoHighlight,
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 250),
-                  curve: Curves.easeOutCubic,
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                  decoration: BoxDecoration(
-                    color: _isAutoHighlight
-                        ? const Color(0xFFFF6B00).withValues(alpha: 0.18)
-                        : Colors.white10,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: _isAutoHighlight ? const Color(0xFFFF6B00) : Colors.white12,
-                      width: 1,
-                    ),
-                    boxShadow: _isAutoHighlight
-                        ? [
-                            BoxShadow(
-                              color: const Color(0xFFFF6B00).withValues(alpha: 0.25),
-                              blurRadius: 8,
-                            ),
-                          ]
-                        : null,
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.local_fire_department_rounded,
-                        size: 15,
-                        color: _isAutoHighlight ? const Color(0xFFFF6B00) : Colors.white70,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        _isAutoHighlight ? 'Parte más escuchada' : 'Auto',
-                        style: TextStyle(
-                          fontFamily: 'CanvaSans',
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          color: _isAutoHighlight ? const Color(0xFFFF6B00) : Colors.white70,
+                child: AnimatedBuilder(
+                  animation: _pulseAnim,
+                  builder: (context, child) {
+                    return AnimatedContainer(
+                      duration: const Duration(milliseconds: 250),
+                      curve: Curves.easeOutCubic,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 7),
+                      decoration: BoxDecoration(
+                        color: _isAutoHighlight
+                            ? const Color(0xFFFF6B00).withValues(alpha: 0.18)
+                            : Colors.white10,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: _isAutoHighlight
+                              ? const Color(0xFFFF6B00)
+                              : Colors.white12,
+                          width: 1,
                         ),
+                        boxShadow: _isAutoHighlight
+                            ? [
+                                BoxShadow(
+                                  color: const Color(0xFFFF6B00)
+                                      .withValues(alpha: 0.3),
+                                  blurRadius: 10,
+                                ),
+                              ]
+                            : null,
                       ),
-                    ],
-                  ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Transform.scale(
+                            scale: _isAutoHighlight ? _pulseAnim.value : 1.0,
+                            child: Icon(
+                              Icons.local_fire_department_rounded,
+                              size: 16,
+                              color: _isAutoHighlight
+                                  ? const Color(0xFFFF6B00)
+                                  : Colors.white70,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            _isAutoHighlight ? 'Parte más escuchada' : 'Auto',
+                            style: TextStyle(
+                              fontFamily: 'CanvaSans',
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: _isAutoHighlight
+                                  ? const Color(0xFFFF6B00)
+                                  : Colors.white70,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
                 ),
               ),
             ],
@@ -493,28 +609,39 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
               final w = constraints.maxWidth;
               return GestureDetector(
                 behavior: HitTestBehavior.opaque,
-                onHorizontalDragStart: (details) => _handleWaveformDrag(details.localPosition.dx, w),
-                onHorizontalDragUpdate: (details) => _handleWaveformDrag(details.localPosition.dx, w),
-                onTapDown: (details) => _handleWaveformDrag(details.localPosition.dx, w),
+                onHorizontalDragStart: (details) =>
+                    _handleWaveformDrag(details.localPosition.dx, w),
+                onHorizontalDragUpdate: (details) =>
+                    _handleWaveformDrag(details.localPosition.dx, w),
+                onTapDown: (details) =>
+                    _handleWaveformDrag(details.localPosition.dx, w),
                 child: Container(
-                  height: 62,
+                  height: 66,
                   width: double.infinity,
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.03),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                    color: Colors.white.withValues(alpha: 0.04),
+                    borderRadius: BorderRadius.circular(16),
+                    border:
+                        Border.all(color: Colors.white.withValues(alpha: 0.09)),
                   ),
                   child: ClipRRect(
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(16),
                     child: AnimatedBuilder(
-                      animation: _waveAnimController,
+                      animation: Listenable.merge(
+                          [_waveAnimController, _ambientAnimController]),
                       builder: (context, child) {
                         return CustomPaint(
                           painter: _DynamicWaveformPainter(
-                            progress: (_startSeconds / effectiveTotal).clamp(0.0, 1.0),
-                            windowRatio: (_duration / effectiveTotal).clamp(0.0, 1.0),
-                            playbackProgress: ((_currentPlaybackSec - _startSeconds) / (_duration > 0 ? _duration : 1)).clamp(0.0, 1.0),
+                            progress:
+                                (_startSeconds / effectiveTotal).clamp(0.0, 1.0),
+                            windowRatio:
+                                (_duration / effectiveTotal).clamp(0.0, 1.0),
+                            playbackProgress: ((_currentPlaybackSec -
+                                        _startSeconds) /
+                                    (_duration > 0 ? _duration : 1))
+                                .clamp(0.0, 1.0),
                             wavePhase: _waveAnimController.value,
+                            ambientPhase: _ambientAnimController.value,
                             isPlaying: _isPlaying,
                           ),
                         );
@@ -545,7 +672,7 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
             ),
           ),
 
-          // Marcadores de tiempo y botón de Play/Pause con animación de pulso
+          // Marcadores de tiempo y botón de Play/Pause con animación fluida
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8),
             child: Row(
@@ -574,29 +701,30 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
                     ),
                   ],
                 ),
-                GestureDetector(
+                _BouncingWidget(
                   onTap: _togglePlayPause,
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    curve: Curves.easeOut,
-                    padding: const EdgeInsets.all(10),
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF0094FF),
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF0094FF), Color(0xFF00C3FF)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
                       shape: BoxShape.circle,
-                      boxShadow: _isPlaying
-                          ? [
-                              BoxShadow(
-                                color: const Color(0xFF0094FF).withValues(alpha: 0.4),
-                                blurRadius: 10,
-                                spreadRadius: 1,
-                              ),
-                            ]
-                          : null,
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF0094FF)
+                              .withValues(alpha: _isPlaying ? 0.5 : 0.25),
+                          blurRadius: _isPlaying ? 14 : 6,
+                          spreadRadius: _isPlaying ? 2 : 0,
+                        ),
+                      ],
                     ),
                     child: _isLoading
                         ? const SizedBox(
-                            width: 20,
-                            height: 20,
+                            width: 22,
+                            height: 22,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
                               color: Colors.white,
@@ -604,11 +732,17 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
                           )
                         : AnimatedSwitcher(
                             duration: const Duration(milliseconds: 200),
+                            transitionBuilder: (child, anim) => ScaleTransition(
+                              scale: anim,
+                              child: child,
+                            ),
                             child: Icon(
-                              _isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                              _isPlaying
+                                  ? Icons.pause_rounded
+                                  : Icons.play_arrow_rounded,
                               key: ValueKey<bool>(_isPlaying),
                               color: Colors.white,
-                              size: 22,
+                              size: 24,
                             ),
                           ),
                   ),
@@ -622,7 +756,58 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
   }
 }
 
-/// Mini indicador animado de ecualizador de 3 barras
+/// Micro-widget interactivo con efecto de rebote elástico suave al presionar
+class _BouncingWidget extends StatefulWidget {
+  final Widget child;
+  final VoidCallback onTap;
+
+  const _BouncingWidget({required this.child, required this.onTap});
+
+  @override
+  State<_BouncingWidget> createState() => _BouncingWidgetState();
+}
+
+class _BouncingWidgetState extends State<_BouncingWidget>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 100),
+    );
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.94).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) => _controller.forward(),
+      onTapUp: (_) {
+        _controller.reverse();
+        widget.onTap();
+      },
+      onTapCancel: () => _controller.reverse(),
+      child: ScaleTransition(
+        scale: _scaleAnimation,
+        child: widget.child,
+      ),
+    );
+  }
+}
+
+/// Mini indicador animado de ecualizador de 3 barras ultra-suave
 class _AnimatedEqualizerDots extends StatefulWidget {
   @override
   State<_AnimatedEqualizerDots> createState() => _AnimatedEqualizerDotsState();
@@ -637,7 +822,7 @@ class _AnimatedEqualizerDotsState extends State<_AnimatedEqualizerDots>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 600),
+      duration: const Duration(milliseconds: 650),
     )..repeat(reverse: true);
   }
 
@@ -655,12 +840,13 @@ class _AnimatedEqualizerDotsState extends State<_AnimatedEqualizerDots>
         final t = _controller.value;
         return Row(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            _bar(4 + t * 6),
-            const SizedBox(width: 2),
-            _bar(10 - t * 6),
-            const SizedBox(width: 2),
-            _bar(6 + t * 4),
+            _bar(4 + t * 7),
+            const SizedBox(width: 2.2),
+            _bar(11 - t * 7),
+            const SizedBox(width: 2.2),
+            _bar(5 + t * 5),
           ],
         );
       },
@@ -669,8 +855,8 @@ class _AnimatedEqualizerDotsState extends State<_AnimatedEqualizerDots>
 
   Widget _bar(double h) {
     return Container(
-      width: 2.2,
-      height: h,
+      width: 2.4,
+      height: h.clamp(3.0, 14.0),
       decoration: BoxDecoration(
         color: const Color(0xFF0094FF),
         borderRadius: BorderRadius.circular(2),
@@ -679,12 +865,13 @@ class _AnimatedEqualizerDotsState extends State<_AnimatedEqualizerDots>
   }
 }
 
-/// Painter de onda de sonido con modulación sinusoidal dinámica en tiempo real
+/// Painter de onda de sonido dinámico con modulación continua, gradientes y animaciones 60fps
 class _DynamicWaveformPainter extends CustomPainter {
   final double progress;
   final double windowRatio;
   final double playbackProgress;
   final double wavePhase;
+  final double ambientPhase;
   final bool isPlaying;
 
   _DynamicWaveformPainter({
@@ -692,80 +879,157 @@ class _DynamicWaveformPainter extends CustomPainter {
     required this.windowRatio,
     required this.playbackProgress,
     required this.wavePhase,
+    required this.ambientPhase,
     required this.isPlaying,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
-    const barCount = 48;
-    final barWidth = size.width / (barCount * 1.5);
-    final gap = barWidth * 0.5;
+    const barCount = 52;
+    final totalSpacing = size.width / barCount;
+    final barWidth = totalSpacing * 0.58;
 
     final windowStart = progress * size.width;
     final windowEnd = (progress + windowRatio).clamp(0.0, 1.0) * size.width;
 
-    // Alturas base de onda
+    // Alturas base de onda de espectro musical armónico
     final baseHeights = [
-      0.3, 0.5, 0.8, 0.4, 0.9, 0.6, 0.85, 0.45, 0.65, 0.95,
-      0.75, 0.4, 0.8, 0.55, 0.9, 0.6, 0.7, 0.45, 0.6, 0.85,
-      0.4, 0.75, 0.95, 0.5, 0.8, 0.65, 0.4, 0.9, 0.7, 0.55,
-      0.85, 0.6, 0.9, 0.45, 0.7, 0.5, 0.8, 0.6, 0.4, 0.75,
-      0.5, 0.8, 0.6, 0.7, 0.4, 0.85, 0.6, 0.5,
+      0.28, 0.45, 0.75, 0.38, 0.88, 0.58, 0.82, 0.42, 0.65, 0.94,
+      0.72, 0.38, 0.78, 0.52, 0.90, 0.58, 0.68, 0.42, 0.60, 0.82,
+      0.38, 0.74, 0.95, 0.48, 0.78, 0.62, 0.38, 0.88, 0.68, 0.52,
+      0.82, 0.58, 0.88, 0.42, 0.68, 0.48, 0.78, 0.58, 0.38, 0.74,
+      0.48, 0.78, 0.58, 0.68, 0.38, 0.82, 0.58, 0.48, 0.68, 0.85,
+      0.55, 0.35,
     ];
 
-    // 1. Dibujar ventana activa seleccionada con fondo luminoso
+    // 1. Dibujar ventana activa seleccionada con fondo luminoso y bordes suaves
     final windowRect = RRect.fromRectAndRadius(
-      Rect.fromLTRB(windowStart, 3, windowEnd, size.height - 3),
-      const Radius.circular(8),
+      Rect.fromLTRB(windowStart, 4, windowEnd, size.height - 4),
+      const Radius.circular(10),
+    );
+
+    // Fondo degradado de la ventana activa
+    final windowGradient = LinearGradient(
+      colors: [
+        const Color(0xFF0094FF).withValues(alpha: 0.22),
+        const Color(0xFF00C3FF).withValues(alpha: 0.12),
+      ],
+      begin: Alignment.topCenter,
+      end: Alignment.bottomCenter,
     );
     final windowPaint = Paint()
-      ..color = const Color(0xFF0094FF).withValues(alpha: 0.18)
+      ..shader = windowGradient.createShader(
+        Rect.fromLTRB(windowStart, 4, windowEnd, size.height - 4),
+      )
       ..style = PaintingStyle.fill;
     canvas.drawRRect(windowRect, windowPaint);
 
+    // Borde de la ventana activa
     final windowBorderPaint = Paint()
       ..color = const Color(0xFF0094FF)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.0;
+      ..strokeWidth = 1.8;
     canvas.drawRRect(windowRect, windowBorderPaint);
 
-    // 2. Dibujar cabezal de reproducción animado
-    final playHeadX = windowStart + (windowEnd - windowStart) * playbackProgress;
+    // Asas laterales para el recorte táctil
+    final leftHandlePaint = Paint()
+      ..color = const Color(0xFF00C3FF)
+      ..style = PaintingStyle.fill;
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromCenter(
+          center: Offset(windowStart, size.height / 2),
+          width: 3.5,
+          height: 18,
+        ),
+        const Radius.circular(2),
+      ),
+      leftHandlePaint,
+    );
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromCenter(
+          center: Offset(windowEnd, size.height / 2),
+          width: 3.5,
+          height: 18,
+        ),
+        const Radius.circular(2),
+      ),
+      leftHandlePaint,
+    );
+
+    // 2. Dibujar cabezal de reproducción animado (Láser de reproducción)
+    final playHeadX =
+        windowStart + (windowEnd - windowStart) * playbackProgress;
     if (playHeadX >= windowStart && playHeadX <= windowEnd) {
+      // Halo brillante del playhead
+      final laserGlow = Paint()
+        ..color = const Color(0xFF00E5FF).withValues(alpha: 0.35)
+        ..strokeWidth = 6.0
+        ..strokeCap = StrokeCap.round;
+      canvas.drawLine(
+        Offset(playHeadX, 6),
+        Offset(playHeadX, size.height - 6),
+        laserGlow,
+      );
+
       final playHeadPaint = Paint()
         ..color = Colors.white
-        ..strokeWidth = 2.2
+        ..strokeWidth = 2.4
         ..strokeCap = StrokeCap.round;
-      canvas.drawLine(Offset(playHeadX, 4), Offset(playHeadX, size.height - 4), playHeadPaint);
+      canvas.drawLine(
+        Offset(playHeadX, 4),
+        Offset(playHeadX, size.height - 4),
+        playHeadPaint,
+      );
 
       // Pequeño punto brillante superior
       final dotPaint = Paint()
-        ..color = const Color(0xFF0094FF)
+        ..color = const Color(0xFF00E5FF)
         ..style = PaintingStyle.fill;
-      canvas.drawCircle(Offset(playHeadX, 4), 3.0, dotPaint);
+      canvas.drawCircle(Offset(playHeadX, 5), 3.2, dotPaint);
     }
 
-    // 3. Dibujar barras de onda animadas
+    // 3. Dibujar barras de onda animadas y fluidas
     for (int i = 0; i < barCount; i++) {
-      final x = i * (barWidth + gap) + gap;
+      final x = i * totalSpacing + (totalSpacing - barWidth) / 2;
       final inWindow = x >= windowStart && x <= windowEnd;
 
       double hFactor = baseHeights[i % baseHeights.length];
+
+      // Animación continua viva: brillo ambiental suave siempre activo
+      final ambientShimmer =
+          math.sin(ambientPhase * 2 * math.pi + i * 0.25) * 0.08;
+      hFactor = (hFactor + ambientShimmer).clamp(0.15, 1.0);
+
+      // Si está reproduciendo, sumar dinámica armónica de onda sonora en tiempo real
       if (isPlaying && inWindow) {
-        // Modulación dinámica fluida a 60fps
-        final wave = math.sin(wavePhase * 2 * math.pi + i * 0.45);
-        hFactor = (hFactor + wave * 0.22).clamp(0.2, 1.0);
+        final dynamicWave = math.sin(wavePhase * 2 * math.pi + i * 0.45) * 0.22 +
+            math.cos(wavePhase * 4 * math.pi + i * 0.8) * 0.10;
+        hFactor = (hFactor + dynamicWave).clamp(0.2, 1.0);
       }
 
-      final h = hFactor * (size.height - 14);
+      final h = hFactor * (size.height - 16);
       final y = (size.height - h) / 2;
 
-      final paint = Paint()
-        ..color = inWindow ? const Color(0xFF0094FF) : Colors.white24
-        ..strokeCap = StrokeCap.round
-        ..strokeWidth = barWidth;
+      final barRect = RRect.fromRectAndRadius(
+        Rect.fromLTWH(x, y, barWidth, h),
+        Radius.circular(barWidth / 2),
+      );
 
-      canvas.drawLine(Offset(x, y), Offset(x, y + h), paint);
+      final barPaint = Paint()..style = PaintingStyle.fill;
+
+      if (inWindow) {
+        barPaint.shader = const LinearGradient(
+          colors: [Color(0xFF00E5FF), Color(0xFF0094FF)],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ).createShader(Rect.fromLTWH(x, y, barWidth, h));
+      } else {
+        barPaint.color = Colors.white.withValues(alpha: 0.18);
+      }
+
+      canvas.drawRRect(barRect, barPaint);
     }
   }
 
@@ -775,6 +1039,7 @@ class _DynamicWaveformPainter extends CustomPainter {
         oldDelegate.windowRatio != windowRatio ||
         oldDelegate.playbackProgress != playbackProgress ||
         oldDelegate.wavePhase != wavePhase ||
+        oldDelegate.ambientPhase != ambientPhase ||
         oldDelegate.isPlaying != isPlaying;
   }
 }

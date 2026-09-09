@@ -12,7 +12,8 @@ class MusicSearchSheet extends StatefulWidget {
   State<MusicSearchSheet> createState() => _MusicSearchSheetState();
 }
 
-class _MusicSearchSheetState extends State<MusicSearchSheet> with TickerProviderStateMixin {
+class _MusicSearchSheetState extends State<MusicSearchSheet>
+    with TickerProviderStateMixin {
   final _searchController = TextEditingController();
   final _previewPlayer = AudioPlayer();
 
@@ -41,7 +42,8 @@ class _MusicSearchSheetState extends State<MusicSearchSheet> with TickerProvider
     _previewPlayer.playerStateStream.listen((state) {
       if (mounted) {
         setState(() {
-          _isPlaying = state.playing && state.processingState != ProcessingState.completed;
+          _isPlaying = state.playing &&
+              state.processingState != ProcessingState.completed;
           if (state.processingState == ProcessingState.completed) {
             _playingId = null;
           }
@@ -205,7 +207,8 @@ class _MusicSearchSheetState extends State<MusicSearchSheet> with TickerProvider
             _playingId = null;
           });
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('No se pudo obtener el audio de esta canción')),
+            const SnackBar(
+                content: Text('No se pudo obtener el audio de esta canción')),
           );
         }
       }
@@ -236,11 +239,13 @@ class _MusicSearchSheetState extends State<MusicSearchSheet> with TickerProvider
 
     if (!mounted) return;
 
-    final audioKey = (song['audioUrl'] != null && song['audioUrl'].toString().isNotEmpty)
-        ? song['audioUrl'].toString()
-        : song['id'].toString();
+    final audioKey =
+        (song['audioUrl'] != null && song['audioUrl'].toString().isNotEmpty)
+            ? song['audioUrl'].toString()
+            : song['id'].toString();
 
-    final totalSec = int.tryParse(song['duration']?.toString() ?? '180') ?? 180;
+    final totalSec =
+        int.tryParse(song['duration']?.toString() ?? '180') ?? 180;
     final autoHighlight = MusicService.calculateHighlightStart(totalSec);
 
     final trimmed = await InstagramAudioTrimmerSheet.show(
@@ -266,7 +271,8 @@ class _MusicSearchSheetState extends State<MusicSearchSheet> with TickerProvider
     }
   }
 
-  Widget _buildSongList(List<Map<String, dynamic>> songsList, {required bool isSavedTab}) {
+  Widget _buildSongList(List<Map<String, dynamic>> songsList,
+      {required bool isSavedTab}) {
     if (_isLoading && !isSavedTab) {
       return const Center(
         child: CircularProgressIndicator(
@@ -277,7 +283,9 @@ class _MusicSearchSheetState extends State<MusicSearchSheet> with TickerProvider
     if (songsList.isEmpty) {
       return Center(
         child: Text(
-          isSavedTab ? 'No tienes canciones guardadas' : 'No se encontraron canciones',
+          isSavedTab
+              ? 'No tienes canciones guardadas'
+              : 'No se encontraron canciones',
           style: const TextStyle(
             color: Colors.grey,
             fontFamily: 'CanvaSans',
@@ -298,175 +306,241 @@ class _MusicSearchSheetState extends State<MusicSearchSheet> with TickerProvider
         final isSaved = _savedSongIds.contains(id);
         final durStr = _formatDuration(song['duration']);
 
-        return AnimatedContainer(
-          duration: const Duration(milliseconds: 250),
+        // Entrada animada escalonada y suave para cada canción
+        return TweenAnimationBuilder<double>(
+          duration: Duration(milliseconds: 220 + (index.clamp(0, 10) * 35)),
           curve: Curves.easeOutCubic,
-          margin: const EdgeInsets.symmetric(vertical: 3),
-          decoration: BoxDecoration(
-            color: isPlayingSong
-                ? const Color(0xFF0094FF).withValues(alpha: 0.07)
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
+          tween: Tween<double>(begin: 0.0, end: 1.0),
+          builder: (context, val, child) {
+            return Transform.translate(
+              offset: Offset(0, (1.0 - val) * 16),
+              child: Opacity(
+                opacity: val,
+                child: child,
+              ),
+            );
+          },
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeOutCubic,
+            margin: const EdgeInsets.symmetric(vertical: 3),
+            decoration: BoxDecoration(
               color: isPlayingSong
-                  ? const Color(0xFF0094FF).withValues(alpha: 0.25)
+                  ? const Color(0xFF0094FF).withValues(alpha: 0.08)
                   : Colors.transparent,
-              width: 1,
-            ),
-          ),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: () => _onSongSelected(song),
               borderRadius: BorderRadius.circular(14),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 7, horizontal: 8),
-                child: Row(
-                  children: [
-                    // Portada cuadrada con ecualizador animado superpuesto
-                    Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(10),
-                          child: CachedNetworkImage(
-                            imageUrl: song['thumbnail']?.toString() ?? '',
-                            width: 50,
-                            height: 50,
-                            fit: BoxFit.cover,
-                            placeholder: (context, url) => Container(
-                              color: Colors.grey[200],
-                              child: const Icon(Icons.music_note, color: Colors.grey, size: 22),
-                            ),
-                            errorWidget: (context, url, error) => Container(
-                              color: Colors.grey[200],
-                              child: const Icon(Icons.music_note, color: Colors.grey, size: 22),
-                            ),
-                          ),
-                        ),
-                        if (isPlayingSong)
-                          Container(
-                            width: 50,
-                            height: 50,
-                            decoration: BoxDecoration(
-                              color: Colors.black.withValues(alpha: 0.5),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: const Center(
-                              child: _DancingWaveEqualizer(),
-                            ),
-                          ),
-                      ],
-                    ),
-                    const SizedBox(width: 12),
-
-                    // Título, Artista y Duración
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+              border: Border.all(
+                color: isPlayingSong
+                    ? const Color(0xFF0094FF).withValues(alpha: 0.3)
+                    : Colors.transparent,
+                width: 1,
+              ),
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () => _onSongSelected(song),
+                borderRadius: BorderRadius.circular(14),
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 7, horizontal: 8),
+                  child: Row(
+                    children: [
+                      // Portada cuadrada con ecualizador animado superpuesto
+                      Stack(
+                        alignment: Alignment.center,
                         children: [
-                          Text(
-                            song['title']?.toString() ?? '',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontFamily: 'CanvaSans',
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: isPlayingSong ? const Color(0xFF0094FF) : Colors.black87,
+                          AnimatedContainer(
+                            duration: const Duration(milliseconds: 300),
+                            curve: Curves.easeInOut,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(10),
+                              boxShadow: isPlayingSong
+                                  ? [
+                                      BoxShadow(
+                                        color: const Color(0xFF0094FF)
+                                            .withValues(alpha: 0.35),
+                                        blurRadius: 10,
+                                        spreadRadius: 1,
+                                      ),
+                                    ]
+                                  : null,
                             ),
-                          ),
-                          const SizedBox(height: 3),
-                          Row(
-                            children: [
-                              Flexible(
-                                child: Text(
-                                  song['artist']?.toString() ?? '',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontFamily: 'CanvaSans',
-                                    fontSize: 12,
-                                    color: isPlayingSong ? const Color(0xFF0094FF).withValues(alpha: 0.8) : Colors.grey[600],
-                                  ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(10),
+                              child: CachedNetworkImage(
+                                imageUrl: song['thumbnail']?.toString() ?? '',
+                                width: 50,
+                                height: 50,
+                                fit: BoxFit.cover,
+                                placeholder: (context, url) => Container(
+                                  color: Colors.grey[200],
+                                  child: const Icon(Icons.music_note,
+                                      color: Colors.grey, size: 22),
+                                ),
+                                errorWidget: (context, url, error) =>
+                                    Container(
+                                  color: Colors.grey[200],
+                                  child: const Icon(Icons.music_note,
+                                      color: Colors.grey, size: 22),
                                 ),
                               ),
-                              if (durStr.isNotEmpty) ...[
-                                const SizedBox(width: 6),
-                                Text(
-                                  '•  $durStr',
-                                  style: TextStyle(
-                                    fontFamily: 'CanvaSans',
-                                    fontSize: 11,
-                                    color: isPlayingSong ? const Color(0xFF0094FF).withValues(alpha: 0.7) : Colors.grey[500],
-                                  ),
-                                ),
-                              ],
-                            ],
+                            ),
                           ),
+                          if (isPlayingSong)
+                            Container(
+                              width: 50,
+                              height: 50,
+                              decoration: BoxDecoration(
+                                color: Colors.black.withValues(alpha: 0.52),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: const Center(
+                                child: _DancingWaveEqualizer(),
+                              ),
+                            ),
                         ],
                       ),
-                    ),
+                      const SizedBox(width: 12),
 
-                    // Botón de guardar animado
-                    IconButton(
-                      icon: AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 200),
-                        child: Icon(
-                          isSaved ? Icons.bookmark_rounded : Icons.bookmark_outline_rounded,
-                          key: ValueKey<bool>(isSaved),
-                          color: isSaved ? const Color(0xFF0094FF) : Colors.grey[400],
-                          size: 22,
-                        ),
-                      ),
-                      onPressed: () => _toggleSaveSong(song),
-                    ),
-
-                    // Botón de Play/Pause circular con micro-animación
-                    GestureDetector(
-                      onTap: () => _togglePreview(song),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        curve: Curves.easeOutCubic,
-                        width: 38,
-                        height: 38,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: isPlayingSong
-                              ? const Color(0xFF0094FF)
-                              : const Color(0xFFF0F2F5),
-                          boxShadow: isPlayingSong
-                              ? [
-                                  BoxShadow(
-                                    color: const Color(0xFF0094FF).withValues(alpha: 0.35),
-                                    blurRadius: 8,
-                                  ),
-                                ]
-                              : null,
-                        ),
-                        child: Center(
-                          child: isCurrent && _isLoadingPreview
-                              ? const SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF0094FF)),
-                                  ),
-                                )
-                              : AnimatedSwitcher(
-                                  duration: const Duration(milliseconds: 200),
-                                  child: Icon(
-                                    isPlayingSong ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                                    key: ValueKey<bool>(isPlayingSong),
-                                    color: isPlayingSong ? Colors.white : Colors.black87,
-                                    size: 22,
+                      // Título, Artista y Duración
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              song['title']?.toString() ?? '',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontFamily: 'CanvaSans',
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: isPlayingSong
+                                    ? const Color(0xFF0094FF)
+                                    : Colors.black87,
+                              ),
+                            ),
+                            const SizedBox(height: 3),
+                            Row(
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    song['artist']?.toString() ?? '',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontFamily: 'CanvaSans',
+                                      fontSize: 12,
+                                      color: isPlayingSong
+                                          ? const Color(0xFF0094FF)
+                                              .withValues(alpha: 0.8)
+                                          : Colors.grey[600],
+                                    ),
                                   ),
                                 ),
+                                if (durStr.isNotEmpty) ...[
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    '•  $durStr',
+                                    style: TextStyle(
+                                      fontFamily: 'CanvaSans',
+                                      fontSize: 11,
+                                      color: isPlayingSong
+                                          ? const Color(0xFF0094FF)
+                                              .withValues(alpha: 0.7)
+                                          : Colors.grey[500],
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ],
                         ),
                       ),
-                    ),
-                  ],
+
+                      // Botón de guardar animado con rebote elástico
+                      _BouncingMicroWidget(
+                        onTap: () => _toggleSaveSong(song),
+                        child: Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 200),
+                            child: Icon(
+                              isSaved
+                                  ? Icons.bookmark_rounded
+                                  : Icons.bookmark_outline_rounded,
+                              key: ValueKey<bool>(isSaved),
+                              color: isSaved
+                                  ? const Color(0xFF0094FF)
+                                  : Colors.grey[400],
+                              size: 22,
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      // Botón de Play/Pause circular con micro-animación elástica
+                      _BouncingMicroWidget(
+                        onTap: () => _togglePreview(song),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          curve: Curves.easeOutCubic,
+                          width: 38,
+                          height: 38,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: isPlayingSong
+                                ? const LinearGradient(
+                                    colors: [
+                                      Color(0xFF0094FF),
+                                      Color(0xFF00C3FF)
+                                    ],
+                                  )
+                                : null,
+                            color: isPlayingSong
+                                ? null
+                                : const Color(0xFFF0F2F5),
+                            boxShadow: isPlayingSong
+                                ? [
+                                    BoxShadow(
+                                      color: const Color(0xFF0094FF)
+                                          .withValues(alpha: 0.4),
+                                      blurRadius: 8,
+                                    ),
+                                  ]
+                                : null,
+                          ),
+                          child: Center(
+                            child: isCurrent && _isLoadingPreview
+                                ? const SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor:
+                                          AlwaysStoppedAnimation<Color>(
+                                              Color(0xFF0094FF)),
+                                    ),
+                                  )
+                                : AnimatedSwitcher(
+                                    duration: const Duration(milliseconds: 200),
+                                    child: Icon(
+                                      isPlayingSong
+                                          ? Icons.pause_rounded
+                                          : Icons.play_arrow_rounded,
+                                      key: ValueKey<bool>(isPlayingSong),
+                                      color: isPlayingSong
+                                          ? Colors.white
+                                          : Colors.black87,
+                                      size: 22,
+                                    ),
+                                  ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -518,9 +592,10 @@ class _MusicSearchSheetState extends State<MusicSearchSheet> with TickerProvider
                       color: Colors.black87,
                     ),
                   ),
-                  GestureDetector(
+                  _BouncingMicroWidget(
                     onTap: () => Navigator.pop(context),
-                    child: const Icon(Icons.close_rounded, color: Colors.black87, size: 22),
+                    child: const Icon(Icons.close_rounded,
+                        color: Colors.black87, size: 22),
                   ),
                 ],
               ),
@@ -547,14 +622,16 @@ class _MusicSearchSheetState extends State<MusicSearchSheet> with TickerProvider
                       fontSize: 13,
                       fontFamily: 'CanvaSans',
                     ),
-                    prefixIcon: const Icon(Icons.search_rounded, color: Colors.grey, size: 20),
+                    prefixIcon: const Icon(Icons.search_rounded,
+                        color: Colors.grey, size: 20),
                     suffixIcon: _searchController.text.isNotEmpty
                         ? GestureDetector(
                             onTap: () {
                               _searchController.clear();
                               _onSearchChanged('');
                             },
-                            child: const Icon(Icons.cancel_rounded, color: Colors.grey, size: 18),
+                            child: const Icon(Icons.cancel_rounded,
+                                color: Colors.grey, size: 18),
                           )
                         : null,
                     border: InputBorder.none,
@@ -565,7 +642,7 @@ class _MusicSearchSheetState extends State<MusicSearchSheet> with TickerProvider
             ),
             const SizedBox(height: 10),
 
-            // Chips de Categorías y Géneros con transición animada
+            // Chips de Categorías y Géneros con transición animada fluida
             SizedBox(
               height: 36,
               child: ListView.separated(
@@ -577,20 +654,34 @@ class _MusicSearchSheetState extends State<MusicSearchSheet> with TickerProvider
                   final cat = MusicService.categories[index];
                   final isSelected = _selectedFilter == cat;
 
-                  return GestureDetector(
+                  return _BouncingMicroWidget(
                     onTap: () => _selectFilter(cat),
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 250),
                       curve: Curves.easeOutCubic,
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 7),
                       decoration: BoxDecoration(
-                        color: isSelected ? const Color(0xFF0094FF) : const Color(0xFFF2F4F7),
+                        gradient: isSelected
+                            ? const LinearGradient(
+                                colors: [
+                                  Color(0xFF0094FF),
+                                  Color(0xFF00B4FF)
+                                ],
+                              )
+                            : null,
+                        color: isSelected ? null : const Color(0xFFF2F4F7),
                         borderRadius: BorderRadius.circular(20),
-                        border: isSelected ? null : Border.all(color: Colors.grey.withValues(alpha: 0.2), width: 0.8),
+                        border: isSelected
+                            ? null
+                            : Border.all(
+                                color: Colors.grey.withValues(alpha: 0.2),
+                                width: 0.8),
                         boxShadow: isSelected
                             ? [
                                 BoxShadow(
-                                  color: const Color(0xFF0094FF).withValues(alpha: 0.3),
+                                  color: const Color(0xFF0094FF)
+                                      .withValues(alpha: 0.3),
                                   blurRadius: 8,
                                 ),
                               ]
@@ -602,7 +693,8 @@ class _MusicSearchSheetState extends State<MusicSearchSheet> with TickerProvider
                           style: TextStyle(
                             fontFamily: 'CanvaSans',
                             fontSize: 12,
-                            fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                            fontWeight:
+                                isSelected ? FontWeight.bold : FontWeight.w600,
                             color: isSelected ? Colors.white : Colors.black87,
                           ),
                         ),
@@ -652,6 +744,57 @@ class _MusicSearchSheetState extends State<MusicSearchSheet> with TickerProvider
   }
 }
 
+/// Micro-widget interactivo con efecto de rebote elástico suave al presionar
+class _BouncingMicroWidget extends StatefulWidget {
+  final Widget child;
+  final VoidCallback onTap;
+
+  const _BouncingMicroWidget({required this.child, required this.onTap});
+
+  @override
+  State<_BouncingMicroWidget> createState() => _BouncingMicroWidgetState();
+}
+
+class _BouncingMicroWidgetState extends State<_BouncingMicroWidget>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 100),
+    );
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.93).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) => _controller.forward(),
+      onTapUp: (_) {
+        _controller.reverse();
+        widget.onTap();
+      },
+      onTapCancel: () => _controller.reverse(),
+      child: ScaleTransition(
+        scale: _scaleAnimation,
+        child: widget.child,
+      ),
+    );
+  }
+}
+
 /// Mini ecualizador animado fluido de 4 barras sobre la portada de la canción en reproducción
 class _DancingWaveEqualizer extends StatefulWidget {
   const _DancingWaveEqualizer();
@@ -669,7 +812,7 @@ class _DancingWaveEqualizerState extends State<_DancingWaveEqualizer>
     super.initState();
     _anim = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 700),
+      duration: const Duration(milliseconds: 800),
     )..repeat(reverse: true);
   }
 
@@ -711,7 +854,7 @@ class _DancingWaveEqualizerState extends State<_DancingWaveEqualizer>
         borderRadius: BorderRadius.circular(2),
         boxShadow: const [
           BoxShadow(
-            color: Colors.black26,
+            color: Colors.black38,
             blurRadius: 4,
           ),
         ],

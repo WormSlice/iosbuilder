@@ -3,7 +3,6 @@ import 'package:just_audio/just_audio.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../services/music_service.dart';
 import 'music_search_sheet.dart';
-
 import 'instagram_audio_trimmer_sheet.dart';
 
 class MusicSelectorField extends StatefulWidget {
@@ -13,7 +12,8 @@ class MusicSelectorField extends StatefulWidget {
   final String? musicThumbnail;
   final int musicStartSeconds;
   final int musicDuration;
-  final Function(String? id, String? title, String? artist, String? thumbnail, int startSeconds, int duration) onMusicSelected;
+  final Function(String? id, String? title, String? artist, String? thumbnail,
+      int startSeconds, int duration) onMusicSelected;
 
   const MusicSelectorField({
     super.key,
@@ -30,18 +30,31 @@ class MusicSelectorField extends StatefulWidget {
   State<MusicSelectorField> createState() => _MusicSelectorFieldState();
 }
 
-class _MusicSelectorFieldState extends State<MusicSelectorField> {
+class _MusicSelectorFieldState extends State<MusicSelectorField>
+    with SingleTickerProviderStateMixin {
   final _audioPlayer = AudioPlayer();
   bool _isPlaying = false;
   bool _isLoadingPreview = false;
+  late AnimationController _equalizerController;
 
   @override
   void initState() {
     super.initState();
+    _equalizerController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    );
+
     _audioPlayer.playerStateStream.listen((state) {
       if (mounted) {
         setState(() {
-          _isPlaying = state.playing;
+          _isPlaying = state.playing &&
+              state.processingState != ProcessingState.completed;
+          if (_isPlaying) {
+            _equalizerController.repeat();
+          } else {
+            _equalizerController.stop();
+          }
         });
       }
     });
@@ -50,7 +63,8 @@ class _MusicSelectorFieldState extends State<MusicSelectorField> {
     _audioPlayer.positionStream.listen((pos) {
       if (widget.musicId != null && _isPlaying) {
         final start = Duration(seconds: widget.musicStartSeconds);
-        final end = Duration(seconds: widget.musicStartSeconds + widget.musicDuration);
+        final end = Duration(
+            seconds: widget.musicStartSeconds + widget.musicDuration);
         if (pos >= end) {
           _audioPlayer.seek(start);
         }
@@ -60,6 +74,7 @@ class _MusicSelectorFieldState extends State<MusicSelectorField> {
 
   @override
   void dispose() {
+    _equalizerController.dispose();
     _audioPlayer.stop();
     _audioPlayer.dispose();
     super.dispose();
@@ -73,7 +88,7 @@ class _MusicSelectorFieldState extends State<MusicSelectorField> {
 
   Future<void> _playPreview(int startSec) async {
     if (widget.musicId == null) return;
-    
+
     if (_isPlaying) {
       await _audioPlayer.pause();
       setState(() => _isPlaying = false);
@@ -90,10 +105,10 @@ class _MusicSelectorFieldState extends State<MusicSelectorField> {
       title: widget.musicTitle,
       artist: widget.musicArtist,
     );
-    
+
     if (mounted) {
       setState(() => _isLoadingPreview = false);
-      
+
       if (url != null) {
         try {
           await _audioPlayer.setUrl(url);
@@ -103,7 +118,8 @@ class _MusicSelectorFieldState extends State<MusicSelectorField> {
         } catch (e) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Error al reproducir previsualización')),
+              const SnackBar(
+                  content: Text('Error al reproducir previsualización')),
             );
           }
         }
@@ -126,20 +142,22 @@ class _MusicSelectorFieldState extends State<MusicSelectorField> {
     }
   }
 
-  Future<void> _openMusicSearch(BuildContext ctx) async {
+  Future<void> _openMusicSearch() async {
     await _stopPlayer();
     if (!mounted) return;
-    
+
     final selectedSong = await showModalBottomSheet<Map<String, dynamic>>(
-      context: ctx,
+      context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (c) => const MusicSearchSheet(),
     );
 
     if (selectedSong != null && mounted) {
-      final startSec = int.tryParse(selectedSong['startSeconds']?.toString() ?? '0') ?? 0;
-      final duration = int.tryParse(selectedSong['duration']?.toString() ?? '30') ?? 30;
+      final startSec =
+          int.tryParse(selectedSong['startSeconds']?.toString() ?? '0') ?? 0;
+      final duration =
+          int.tryParse(selectedSong['duration']?.toString() ?? '30') ?? 30;
 
       widget.onMusicSelected(
         selectedSong['id']?.toString(),
@@ -152,13 +170,13 @@ class _MusicSelectorFieldState extends State<MusicSelectorField> {
     }
   }
 
-  Future<void> _openTrimmer(BuildContext ctx) async {
+  Future<void> _openTrimmer() async {
     if (widget.musicId == null) return;
     await _stopPlayer();
     if (!mounted) return;
 
     final trimResult = await InstagramAudioTrimmerSheet.show(
-      context: ctx,
+      context: context,
       musicId: widget.musicId!,
       title: widget.musicTitle ?? 'Canción',
       artist: widget.musicArtist ?? '',
@@ -167,7 +185,7 @@ class _MusicSelectorFieldState extends State<MusicSelectorField> {
       initialDuration: widget.musicDuration,
     );
 
-    if (trimResult != null) {
+    if (trimResult != null && mounted) {
       widget.onMusicSelected(
         widget.musicId,
         widget.musicTitle,
@@ -198,177 +216,283 @@ class _MusicSelectorFieldState extends State<MusicSelectorField> {
             ),
           ),
         ),
-        
-        if (!hasMusic)
-          OutlinedButton(
-            onPressed: () => _openMusicSearch(context),
-            style: OutlinedButton.styleFrom(
-              minimumSize: const Size(double.infinity, 48),
-              side: const BorderSide(color: Color(0xFF0094FF), width: 1.2),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              backgroundColor: const Color(0xFF0094FF).withOpacity(0.04),
-            ),
-            child: const Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.music_note_rounded, color: Color(0xFF0094FF), size: 18),
-                SizedBox(width: 8),
-                Text(
-                  'Agregar música a tu publicación',
-                  style: TextStyle(
-                    color: Color(0xFF0094FF),
-                    fontWeight: FontWeight.bold,
-                    fontFamily: 'CanvaSans',
-                    fontSize: 13,
-                  ),
-                ),
-              ],
-            ),
-          )
-        else
-          Container(
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color: Colors.grey[50],
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.grey[200]!),
-            ),
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              children: [
-                Row(
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(6),
-                      child: CachedNetworkImage(
-                        imageUrl: widget.musicThumbnail!,
-                        width: 46,
-                        height: 46,
-                        fit: BoxFit.cover,
-                        placeholder: (context, url) => Container(color: Colors.grey[200]),
-                        errorWidget: (context, url, error) => const Icon(Icons.music_note, color: Colors.grey),
+        AnimatedSize(
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOutCubic,
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 250),
+            child: !hasMusic
+                ? _BouncingSelectorButton(
+                    key: const ValueKey('add_music_btn'),
+                    onTap: _openMusicSearch,
+                    child: Container(
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0094FF).withValues(alpha: 0.05),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color:
+                              const Color(0xFF0094FF).withValues(alpha: 0.5),
+                          width: 1.2,
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
+                          Icon(Icons.music_note_rounded,
+                              color: Color(0xFF0094FF), size: 19),
+                          SizedBox(width: 8),
                           Text(
-                            widget.musicTitle!,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontFamily: 'CanvaSans',
-                              fontWeight: FontWeight.bold,
-                              fontSize: 13,
-                              color: Colors.black87,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            widget.musicArtist!,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                            'Agregar música a tu publicación',
                             style: TextStyle(
+                              color: Color(0xFF0094FF),
+                              fontWeight: FontWeight.bold,
                               fontFamily: 'CanvaSans',
-                              fontSize: 11,
-                              color: Colors.grey[600],
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF0094FF).withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              'Fragmento: ${_formatDuration(widget.musicStartSeconds)} - ${_formatDuration(widget.musicStartSeconds + widget.musicDuration)} (${widget.musicDuration}s)',
-                              style: const TextStyle(
-                                fontFamily: 'Poppins',
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600,
-                                color: Color(0xFF0094FF),
-                              ),
+                              fontSize: 13,
                             ),
                           ),
                         ],
                       ),
                     ),
-                    
-                    GestureDetector(
-                      onTap: () => _playPreview(widget.musicStartSeconds),
-                      child: Container(
-                        width: 32,
-                        height: 32,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: _isPlaying ? const Color(0xFF0094FF).withOpacity(0.1) : Colors.grey[200],
-                        ),
-                        child: Center(
-                          child: _isLoadingPreview
-                              ? const SizedBox(
-                                  width: 14,
-                                  height: 14,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF0094FF)),
-                                  ),
-                                )
-                              : Icon(
-                                  _isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                                  color: _isPlaying ? const Color(0xFF0094FF) : Colors.black87,
-                                  size: 18,
-                                ),
-                        ),
+                  )
+                : Container(
+                    key: const ValueKey('selected_music_card'),
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[50],
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: const Color(0xFF0094FF).withValues(alpha: 0.25),
+                        width: 1.1,
                       ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF0094FF).withValues(alpha: 0.06),
+                          blurRadius: 10,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 8),
+                    padding: const EdgeInsets.all(12),
+                    child: Row(
+                      children: [
+                        // Portada
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(10),
+                          child: CachedNetworkImage(
+                            imageUrl: widget.musicThumbnail ?? '',
+                            width: 48,
+                            height: 48,
+                            fit: BoxFit.cover,
+                            placeholder: (context, url) =>
+                                Container(color: Colors.grey[200]),
+                            errorWidget: (context, url, error) =>
+                                const Icon(Icons.music_note, color: Colors.grey),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
 
-                    GestureDetector(
-                      onTap: () => _openTrimmer(context),
-                      child: Container(
-                        width: 32,
-                        height: 32,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: const Color(0xFFE3F2FD),
+                        // Info de canción
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                widget.musicTitle ?? '',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontFamily: 'CanvaSans',
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13.5,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                widget.musicArtist ?? '',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontFamily: 'CanvaSans',
+                                  fontSize: 11.5,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 7, vertical: 2.5),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF0094FF)
+                                      .withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  'Fragmento: ${_formatDuration(widget.musicStartSeconds)} - ${_formatDuration(widget.musicStartSeconds + widget.musicDuration)} (${widget.musicDuration}s)',
+                                  style: const TextStyle(
+                                    fontFamily: 'Poppins',
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF0094FF),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                        child: const Center(
-                          child: Icon(Icons.tune_rounded, color: Color(0xFF0094FF), size: 16),
+
+                        // Botón de Play/Pause con micro-ecualizador animado
+                        _BouncingSelectorButton(
+                          onTap: () =>
+                              _playPreview(widget.musicStartSeconds),
+                          child: Container(
+                            width: 34,
+                            height: 34,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: _isPlaying
+                                  ? const LinearGradient(
+                                      colors: [
+                                        Color(0xFF0094FF),
+                                        Color(0xFF00C3FF)
+                                      ],
+                                    )
+                                  : null,
+                              color: _isPlaying ? null : Colors.grey[200],
+                              boxShadow: _isPlaying
+                                  ? [
+                                      BoxShadow(
+                                        color: const Color(0xFF0094FF)
+                                            .withValues(alpha: 0.4),
+                                        blurRadius: 8,
+                                      ),
+                                    ]
+                                  : null,
+                            ),
+                            child: Center(
+                              child: _isLoadingPreview
+                                  ? const SizedBox(
+                                      width: 14,
+                                      height: 14,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        valueColor:
+                                            AlwaysStoppedAnimation<Color>(
+                                                Color(0xFF0094FF)),
+                                      ),
+                                    )
+                                  : Icon(
+                                      _isPlaying
+                                          ? Icons.pause_rounded
+                                          : Icons.play_arrow_rounded,
+                                      color: _isPlaying
+                                          ? Colors.white
+                                          : Colors.black87,
+                                      size: 20,
+                                    ),
+                            ),
+                          ),
                         ),
-                      ),
+                        const SizedBox(width: 8),
+
+                        // Botón de Recorte (Trimmer)
+                        _BouncingSelectorButton(
+                          onTap: _openTrimmer,
+                          child: Container(
+                            width: 34,
+                            height: 34,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: const Color(0xFFE3F2FD),
+                            ),
+                            child: const Center(
+                              child: Icon(Icons.tune_rounded,
+                                  color: Color(0xFF0094FF), size: 17),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+
+                        // Botón Eliminar
+                        _BouncingSelectorButton(
+                          onTap: () {
+                            _stopPlayer();
+                            widget.onMusicSelected(
+                                null, null, null, null, 0, 30);
+                          },
+                          child: Container(
+                            width: 34,
+                            height: 34,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Colors.red[50],
+                            ),
+                            child: const Center(
+                              child: Icon(Icons.close_rounded,
+                                  color: Colors.red, size: 18),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 8),
-                    
-                    GestureDetector(
-                      onTap: () {
-                        _stopPlayer();
-                        widget.onMusicSelected(null, null, null, null, 0, 30);
-                      },
-                      child: Container(
-                        width: 32,
-                        height: 32,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.red[50],
-                        ),
-                        child: const Center(
-                          child: Icon(Icons.close_rounded, color: Colors.red, size: 18),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
+                  ),
           ),
+        ),
         const SizedBox(height: 15),
       ],
+    );
+  }
+}
+
+class _BouncingSelectorButton extends StatefulWidget {
+  final Widget child;
+  final VoidCallback onTap;
+
+  const _BouncingSelectorButton(
+      {super.key, required this.child, required this.onTap});
+
+  @override
+  State<_BouncingSelectorButton> createState() =>
+      _BouncingSelectorButtonState();
+}
+
+class _BouncingSelectorButtonState extends State<_BouncingSelectorButton>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 90),
+    );
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.94).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) => _controller.forward(),
+      onTapUp: (_) {
+        _controller.reverse();
+        widget.onTap();
+      },
+      onTapCancel: () => _controller.reverse(),
+      child: ScaleTransition(
+        scale: _scaleAnimation,
+        child: widget.child,
+      ),
     );
   }
 }

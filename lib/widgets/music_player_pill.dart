@@ -4,7 +4,6 @@ import 'package:just_audio/just_audio.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/music_service.dart';
-
 import 'package:liquid_glass_easy/liquid_glass_easy.dart';
 
 class MusicPlayerPill extends StatefulWidget {
@@ -29,24 +28,32 @@ class MusicPlayerPill extends StatefulWidget {
   State<MusicPlayerPill> createState() => _MusicPlayerPillState();
 }
 
-class _MusicPlayerPillState extends State<MusicPlayerPill> {
+class _MusicPlayerPillState extends State<MusicPlayerPill>
+    with SingleTickerProviderStateMixin {
   final _player = AudioPlayer();
   bool _isPlaying = false;
   bool _isLoading = true;
-  
+
   // Ajustes de música
   bool _isMuted = false;
   bool _isVolumeLimitEnabled = false;
   double _maxVolumeLimit = 0.5;
 
+  late AnimationController _rotationController;
+
   @override
   void initState() {
     super.initState();
+    _rotationController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 10),
+    );
     _loadSettingsAndInitAudio();
   }
 
   @override
   void dispose() {
+    _rotationController.dispose();
     _player.stop();
     _player.dispose();
     super.dispose();
@@ -57,7 +64,8 @@ class _MusicPlayerPillState extends State<MusicPlayerPill> {
     if (mounted) {
       setState(() {
         _isMuted = prefs.getBool('music_muted_globally') ?? false;
-        _isVolumeLimitEnabled = prefs.getBool('music_volume_limit_enabled') ?? false;
+        _isVolumeLimitEnabled =
+            prefs.getBool('music_volume_limit_enabled') ?? false;
         _maxVolumeLimit = prefs.getDouble('music_max_volume_limit') ?? 0.5;
       });
     }
@@ -70,6 +78,13 @@ class _MusicPlayerPillState extends State<MusicPlayerPill> {
         if (mounted) {
           setState(() {
             _isPlaying = state.playing;
+            if (_isPlaying && !_isMuted) {
+              if (!_rotationController.isAnimating) {
+                _rotationController.repeat();
+              }
+            } else {
+              _rotationController.stop();
+            }
           });
         }
       });
@@ -87,7 +102,7 @@ class _MusicPlayerPillState extends State<MusicPlayerPill> {
         title: widget.musicTitle,
         artist: widget.musicArtist,
       );
-      
+
       if (url != null && mounted) {
         await _player.setVolume(_calculateVolume());
         await _player.setLoopMode(LoopMode.one);
@@ -126,6 +141,11 @@ class _MusicPlayerPillState extends State<MusicPlayerPill> {
     await prefs.setBool('music_muted_globally', muted);
     setState(() {
       _isMuted = muted;
+      if (_isMuted) {
+        _rotationController.stop();
+      } else if (_isPlaying) {
+        _rotationController.repeat();
+      }
     });
     await _player.setVolume(_calculateVolume());
   }
@@ -189,7 +209,7 @@ class _MusicPlayerPillState extends State<MusicPlayerPill> {
                     ),
                   ),
                   const SizedBox(height: 20),
-                  
+
                   // Silenciar todas
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -214,7 +234,7 @@ class _MusicPlayerPillState extends State<MusicPlayerPill> {
                     ],
                   ),
                   const SizedBox(height: 12),
-                  
+
                   // Protección de volumen alto
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -238,7 +258,7 @@ class _MusicPlayerPillState extends State<MusicPlayerPill> {
                       ),
                     ],
                   ),
-                  
+
                   if (_isVolumeLimitEnabled) ...[
                     const SizedBox(height: 12),
                     Row(
@@ -288,6 +308,8 @@ class _MusicPlayerPillState extends State<MusicPlayerPill> {
 
   @override
   Widget build(BuildContext context) {
+    final activePlaying = _isPlaying && !_isMuted;
+
     return LiquidGlassLens(
       style: const LiquidGlassStyle(
         shape: LiquidGlassShape.squircle(cornerRadius: 20),
@@ -295,128 +317,194 @@ class _MusicPlayerPillState extends State<MusicPlayerPill> {
           color: Color(0x33FFFFFF),
         ),
       ),
-      child: Container(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
         height: 38,
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.65),
+          color: Colors.white.withValues(alpha: 0.72),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: const Color(0xFF0094FF).withValues(alpha: 0.5), width: 1.0),
+          border: Border.all(
+            color: activePlaying
+                ? const Color(0xFF0094FF).withValues(alpha: 0.7)
+                : const Color(0xFF0094FF).withValues(alpha: 0.35),
+            width: activePlaying ? 1.2 : 0.9,
+          ),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFF0094FF).withValues(alpha: 0.12),
-              blurRadius: 10,
+              color: const Color(0xFF0094FF)
+                  .withValues(alpha: activePlaying ? 0.22 : 0.08),
+              blurRadius: activePlaying ? 12 : 6,
               offset: const Offset(0, 3),
             ),
           ],
         ),
         child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // 1. Portada/Carátula de la canción completamente cuadrada
-          ClipRRect(
-            borderRadius: BorderRadius.circular(4),
-            child: CachedNetworkImage(
-              imageUrl: widget.musicThumbnail,
-              width: 28,
-              height: 28,
-              fit: BoxFit.cover,
-              placeholder: (context, url) => Container(
-                color: Colors.grey[200],
-                child: const Icon(Icons.music_note, color: Colors.grey, size: 14),
-              ),
-              errorWidget: (context, url, error) => Container(
-                color: Colors.grey[200],
-                child: const Icon(Icons.music_note, color: Colors.grey, size: 14),
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // 1. Portada con micro-rotación o pulso suave
+            AnimatedBuilder(
+              animation: _rotationController,
+              builder: (context, child) {
+                return Transform.rotate(
+                  angle: activePlaying
+                      ? _rotationController.value * 2 * math.pi
+                      : 0.0,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(activePlaying ? 14 : 5),
+                    child: CachedNetworkImage(
+                      imageUrl: widget.musicThumbnail,
+                      width: 28,
+                      height: 28,
+                      fit: BoxFit.cover,
+                      placeholder: (context, url) => Container(
+                        color: Colors.grey[200],
+                        child: const Icon(Icons.music_note,
+                            color: Colors.grey, size: 14),
+                      ),
+                      errorWidget: (context, url, error) => Container(
+                        color: Colors.grey[200],
+                        child: const Icon(Icons.music_note,
+                            color: Colors.grey, size: 14),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(width: 6),
+
+            // 2. Título y Artista
+            Container(
+              constraints: const BoxConstraints(maxWidth: 85),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    widget.musicTitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontFamily: 'CanvaSans',
+                      fontWeight: FontWeight.bold,
+                      fontSize: 9.0,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 1),
+                  Text(
+                    widget.musicArtist,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontFamily: 'CanvaSans',
+                      fontSize: 7.5,
+                      color: Color(0xFF0094FF),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
               ),
             ),
-          ),
-          const SizedBox(width: 6),
-          
-          // 2. Título y Artista con ancho muy ajustado para hacerlo angosto
-          Container(
-            constraints: const BoxConstraints(maxWidth: 80),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  widget.musicTitle,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontFamily: 'CanvaSans',
-                    fontWeight: FontWeight.bold,
-                    fontSize: 9.0,
-                    color: Colors.black87,
-                  ),
+            const SizedBox(width: 7),
+
+            // 3. Ecualizador animado fluido
+            if (_isLoading)
+              const SizedBox(
+                width: 10,
+                height: 10,
+                child: CircularProgressIndicator(
+                  strokeWidth: 1.5,
+                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF0094FF)),
                 ),
-                const SizedBox(height: 1),
-                Text(
-                  widget.musicArtist,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontFamily: 'CanvaSans',
-                    fontSize: 7.0,
-                    color: Color(0xFF0094FF),
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          
-          // 3. Ecualizador
-          if (_isLoading)
-            const SizedBox(
-              width: 10,
-              height: 10,
-              child: CircularProgressIndicator(
-                strokeWidth: 1.5,
-                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF0094FF)),
-              ),
-            )
-          else
-            AnimatedEqualizer(isPlaying: _isPlaying && !_isMuted),
-          
-          const SizedBox(width: 6),
-          
-          // 4. Botón Silenciar
-          GestureDetector(
-            onTap: _toggleMute,
-            child: Container(
-              padding: const EdgeInsets.all(2),
-              color: Colors.transparent,
+              )
+            else
+              AnimatedEqualizer(isPlaying: activePlaying),
+
+            const SizedBox(width: 6),
+
+            // 4. Botón Silenciar con rebote
+            _PillIconButton(
+              onTap: _toggleMute,
               child: Icon(
                 _isMuted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
                 color: const Color(0xFF0094FF),
-                size: 13,
+                size: 14,
               ),
             ),
-          ),
-          const SizedBox(width: 3),
-          
-          // 5. Botón Ajustes
-          GestureDetector(
-            onTap: () => _showSettingsBottomSheet(context),
-            child: Container(
-              padding: const EdgeInsets.all(2),
-              color: Colors.transparent,
+            const SizedBox(width: 3),
+
+            // 5. Botón Ajustes con rebote
+            _PillIconButton(
+              onTap: () => _showSettingsBottomSheet(context),
               child: const Icon(
                 Icons.tune_rounded,
                 color: Color(0xFF0094FF),
-                size: 13,
+                size: 14,
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 }
+
+class _PillIconButton extends StatefulWidget {
+  final Widget child;
+  final VoidCallback onTap;
+
+  const _PillIconButton({required this.child, required this.onTap});
+
+  @override
+  State<_PillIconButton> createState() => _PillIconButtonState();
+}
+
+class _PillIconButtonState extends State<_PillIconButton>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scale;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 90),
+    );
+    _scale = Tween<double>(begin: 1.0, end: 0.85).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) => _controller.forward(),
+      onTapUp: (_) {
+        _controller.reverse();
+        widget.onTap();
+      },
+      onTapCancel: () => _controller.reverse(),
+      child: ScaleTransition(
+        scale: _scale,
+        child: Container(
+          padding: const EdgeInsets.all(2.5),
+          color: Colors.transparent,
+          child: widget.child,
+        ),
+      ),
+    );
+  }
 }
 
 class AnimatedEqualizer extends StatefulWidget {
@@ -427,7 +515,8 @@ class AnimatedEqualizer extends StatefulWidget {
   State<AnimatedEqualizer> createState() => _AnimatedEqualizerState();
 }
 
-class _AnimatedEqualizerState extends State<AnimatedEqualizer> with SingleTickerProviderStateMixin {
+class _AnimatedEqualizerState extends State<AnimatedEqualizer>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
 
   @override
@@ -435,7 +524,7 @@ class _AnimatedEqualizerState extends State<AnimatedEqualizer> with SingleTicker
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1200),
+      duration: const Duration(milliseconds: 1000),
     );
     if (widget.isPlaying) {
       _controller.repeat();
@@ -471,15 +560,23 @@ class _AnimatedEqualizerState extends State<AnimatedEqualizer> with SingleTicker
           builder: (context, child) {
             double value = 0.25;
             if (widget.isPlaying) {
-              value = 0.25 + 0.75 * (math.sin((_controller.value * 2 * math.pi) + (index * 1.5)).abs());
+              value = 0.25 +
+                  0.75 *
+                      (math.sin((_controller.value * 2 * math.pi) +
+                              (index * 1.5))
+                          .abs());
             }
             return Container(
-              width: 1.6,
-              height: 10 * value,
-              margin: const EdgeInsets.symmetric(horizontal: 0.5),
+              width: 1.8,
+              height: (12 * value).clamp(3.0, 12.0),
+              margin: const EdgeInsets.symmetric(horizontal: 0.6),
               decoration: BoxDecoration(
-                color: const Color(0xFF0094FF),
-                borderRadius: BorderRadius.circular(0.5),
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF0094FF), Color(0xFF00D2FF)],
+                  begin: Alignment.bottomCenter,
+                  end: Alignment.topCenter,
+                ),
+                borderRadius: BorderRadius.circular(1.0),
               ),
             );
           },
