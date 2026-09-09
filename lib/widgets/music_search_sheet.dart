@@ -155,6 +155,7 @@ class _MusicSearchSheetState extends State<MusicSearchSheet> {
     final id = song['id'].toString();
     final title = song['title']?.toString() ?? '';
     final artist = song['artist']?.toString() ?? '';
+    final directAudioUrl = song['audioUrl']?.toString();
 
     if (_playingId == id) {
       if (_isPlaying) {
@@ -176,13 +177,15 @@ class _MusicSearchSheetState extends State<MusicSearchSheet> {
     try {
       await _previewPlayer.stop();
 
-      final url = await MusicService.getAudioStreamUrl(
-        id,
-        title: title,
-        artist: artist,
-      );
+      final url = (directAudioUrl != null && directAudioUrl.isNotEmpty)
+          ? directAudioUrl
+          : await MusicService.getAudioStreamUrl(
+              id,
+              title: title,
+              artist: artist,
+            );
 
-      if (url != null && mounted) {
+      if (url != null && url.isNotEmpty && mounted) {
         await _previewPlayer.setUrl(url);
         await _previewPlayer.seek(Duration.zero);
         await _previewPlayer.play();
@@ -211,7 +214,7 @@ class _MusicSearchSheetState extends State<MusicSearchSheet> {
           _playingId = null;
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Error al reproducir audio de la canción')),
+          SnackBar(content: Text('Error al reproducir: $e')),
         );
       }
     }
@@ -231,9 +234,13 @@ class _MusicSearchSheetState extends State<MusicSearchSheet> {
 
     if (!mounted) return;
 
+    final audioKey = (song['audioUrl'] != null && song['audioUrl'].toString().isNotEmpty)
+        ? song['audioUrl'].toString()
+        : song['id'].toString();
+
     final trimmed = await InstagramAudioTrimmerSheet.show(
       context: context,
-      musicId: song['id'].toString(),
+      musicId: audioKey,
       title: song['title'].toString(),
       artist: song['artist'].toString(),
       thumbnail: song['thumbnail'].toString(),
@@ -244,7 +251,7 @@ class _MusicSearchSheetState extends State<MusicSearchSheet> {
 
     if (trimmed != null && mounted) {
       Navigator.pop(context, {
-        'id': song['id'].toString(),
+        'id': audioKey,
         'title': song['title'].toString(),
         'artist': song['artist'].toString(),
         'thumbnail': song['thumbnail'].toString(),
