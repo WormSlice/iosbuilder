@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -65,14 +66,16 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
   bool _isLoading = true;
   double _totalTrackDurationSec = 180.0;
   bool _isAutoHighlight = true;
+  double _currentPlaybackSec = 0.0;
 
   StreamSubscription? _posSub;
   StreamSubscription? _stateSub;
+  Timer? _seekDebounce;
 
   @override
   void initState() {
     super.initState();
-    _totalTrackDurationSec = widget.totalTrackSeconds > 0
+    _totalTrackDurationSec = widget.totalTrackSeconds > 30
         ? widget.totalTrackSeconds.toDouble()
         : 180.0;
     _duration = widget.initialDuration;
@@ -86,6 +89,7 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
       _startSeconds = autoHighlight;
       _isAutoHighlight = true;
     }
+    _currentPlaybackSec = _startSeconds.toDouble();
 
     _initAudio();
   }
@@ -100,11 +104,17 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
     });
 
     _posSub = _player.positionStream.listen((pos) {
-      if (_isPlaying) {
-        final start = Duration(seconds: _startSeconds);
-        final end = Duration(seconds: _startSeconds + _duration);
-        if (pos >= end) {
-          _player.seek(start);
+      if (mounted) {
+        final sec = pos.inMilliseconds / 1000.0;
+        final start = _startSeconds.toDouble();
+        final end = start + _duration;
+
+        setState(() {
+          _currentPlaybackSec = sec;
+        });
+
+        if (_isPlaying && sec >= end) {
+          _player.seek(Duration(seconds: _startSeconds));
         }
       }
     });
@@ -119,7 +129,7 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
 
       if (url != null && mounted) {
         final loadedDuration = await _player.setUrl(url);
-        if (loadedDuration != null && loadedDuration.inSeconds > 0) {
+        if (loadedDuration != null && loadedDuration.inSeconds > 30) {
           _totalTrackDurationSec = loadedDuration.inSeconds.toDouble();
           if (_isAutoHighlight) {
             _startSeconds = MusicService.calculateHighlightStart(_totalTrackDurationSec.toInt());
@@ -143,6 +153,7 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
 
   @override
   void dispose() {
+    _seekDebounce?.cancel();
     _posSub?.cancel();
     _stateSub?.cancel();
     _player.stop();
@@ -150,21 +161,46 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
     super.dispose();
   }
 
+  double get _maxStart {
+    final effectiveTotal = _totalTrackDurationSec > _duration ? _totalTrackDurationSec : (_duration + 120.0);
+    return math.max(1.0, effectiveTotal - _duration);
+  }
+
   void _onStartChanged(double val) {
+    final newStart = val.clamp(0.0, _maxStart).toInt();
     setState(() {
-      _startSeconds = val.toInt();
+      _startSeconds = newStart;
+      _currentPlaybackSec = newStart.toDouble();
       _isAutoHighlight = false;
     });
-    _player.seek(Duration(seconds: _startSeconds));
+
+    _seekDebounce?.cancel();
+    _seekDebounce = Timer(const Duration(milliseconds: 150), () {
+      _player.seek(Duration(seconds: _startSeconds));
+      if (!_isPlaying) {
+        _player.play();
+      }
+    });
+  }
+
+  void _handleWaveformDrag(double localX, double totalWidth) {
+    if (totalWidth <= 0) return;
+    final ratio = (localX / totalWidth).clamp(0.0, 1.0);
+    final targetStart = ratio * _maxStart;
+    _onStartChanged(targetStart);
   }
 
   void _resetToAutoHighlight() {
     final auto = MusicService.calculateHighlightStart(_totalTrackDurationSec.toInt());
     setState(() {
-      _startSeconds = auto;
+      _startSeconds = auto.clamp(0, _maxStart.toInt());
+      _currentPlaybackSec = _startSeconds.toDouble();
       _isAutoHighlight = true;
     });
     _player.seek(Duration(seconds: _startSeconds));
+    if (!_isPlaying) {
+      _player.play();
+    }
   }
 
   void _togglePlayPause() {
@@ -184,7 +220,8 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
 
   @override
   Widget build(BuildContext context) {
-    final maxStart = (_totalTrackDurationSec - _duration).clamp(0.0, _totalTrackDurationSec);
+    final maxStart = _maxStart;
+    final effectiveTotal = _totalTrackDurationSec > _duration ? _totalTrackDurationSec : (_duration + 120.0);
 
     return Container(
       decoration: const BoxDecoration(
@@ -303,8 +340,8 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
                       onTap: () {
                         setState(() {
                           _duration = dur;
-                          if (_startSeconds > _totalTrackDurationSec - _duration) {
-                            _startSeconds = (_totalTrackDurationSec - _duration).clamp(0, _totalTrackDurationSec).toInt();
+                          if (_startSeconds > _maxStart) {
+                            _startSeconds = _maxStart.toInt();
                           }
                         });
                         _player.seek(Duration(seconds: _startSeconds));
@@ -375,21 +412,36 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
           ),
           const SizedBox(height: 18),
 
-          // Visualizador de onda de sonido (Waveform) interactivo sobre la canción completa
-          Container(
-            height: 54,
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.04),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-            ),
-            child: CustomPaint(
-              painter: _WaveformPainter(
-                progress: _startSeconds / (_totalTrackDurationSec > 0 ? _totalTrackDurationSec : 1),
-                windowRatio: _duration / (_totalTrackDurationSec > 0 ? _totalTrackDurationSec : 1),
-              ),
-            ),
+          // Visualizador de onda de sonido (Waveform) interactivo y deslizable
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final w = constraints.maxWidth;
+              return GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onHorizontalDragStart: (details) => _handleWaveformDrag(details.localPosition.dx, w),
+                onHorizontalDragUpdate: (details) => _handleWaveformDrag(details.localPosition.dx, w),
+                onTapDown: (details) => _handleWaveformDrag(details.localPosition.dx, w),
+                child: Container(
+                  height: 58,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.04),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: CustomPaint(
+                      painter: _WaveformPainter(
+                        progress: (_startSeconds / effectiveTotal).clamp(0.0, 1.0),
+                        windowRatio: (_duration / effectiveTotal).clamp(0.0, 1.0),
+                        playbackProgress: ((_currentPlaybackSec - _startSeconds) / (_duration > 0 ? _duration : 1)).clamp(0.0, 1.0),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
           ),
           const SizedBox(height: 12),
 
@@ -400,15 +452,14 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
               inactiveTrackColor: Colors.white12,
               thumbColor: Colors.white,
               overlayColor: const Color(0xFF0094FF).withValues(alpha: 0.2),
-              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8),
-              trackHeight: 3,
+              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 9),
+              trackHeight: 4,
             ),
             child: Slider(
-              value: _startSeconds.toDouble().clamp(0.0, maxStart > 0 ? maxStart : 0.0),
+              value: _startSeconds.toDouble().clamp(0.0, maxStart),
               min: 0.0,
-              max: maxStart > 0 ? maxStart : 0.0,
-              divisions: maxStart > 0 ? maxStart.toInt() : null,
-              onChanged: maxStart > 0 ? _onStartChanged : null,
+              max: maxStart,
+              onChanged: _onStartChanged,
             ),
           ),
 
@@ -422,7 +473,7 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Fragmento: ${_formatTime(_startSeconds)} - ${_formatTime((_startSeconds + _duration).clamp(0, _totalTrackDurationSec.toInt()))} ($_duration seg)',
+                      'Fragmento: ${_formatTime(_startSeconds)} - ${_formatTime((_startSeconds + _duration).clamp(0, effectiveTotal.toInt()))} ($_duration seg)',
                       style: const TextStyle(
                         fontFamily: 'CanvaSans',
                         fontSize: 12,
@@ -432,7 +483,7 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'Canción completa: ${_formatTime(_totalTrackDurationSec.toInt())}',
+                      'Canción completa: ${_formatTime(effectiveTotal.toInt())}',
                       style: TextStyle(
                         fontFamily: 'CanvaSans',
                         fontSize: 11,
@@ -477,47 +528,61 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
 class _WaveformPainter extends CustomPainter {
   final double progress;
   final double windowRatio;
+  final double playbackProgress;
 
-  _WaveformPainter({required this.progress, required this.windowRatio});
+  _WaveformPainter({
+    required this.progress,
+    required this.windowRatio,
+    required this.playbackProgress,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
-    const barCount = 44;
+    const barCount = 46;
     final barWidth = size.width / (barCount * 1.5);
     final gap = barWidth * 0.5;
 
     final windowStart = progress * size.width;
     final windowEnd = (progress + windowRatio).clamp(0.0, 1.0) * size.width;
 
-    // Alturas de ondas estéticas
+    // Alturas de ondas dinámicas estéticas
     final heights = [
       0.3, 0.5, 0.8, 0.4, 0.9, 0.6, 0.85, 0.45, 0.65, 0.95,
       0.75, 0.4, 0.8, 0.55, 0.9, 0.6, 0.7, 0.45, 0.6, 0.85,
       0.4, 0.75, 0.95, 0.5, 0.8, 0.65, 0.4, 0.9, 0.7, 0.55,
       0.85, 0.6, 0.9, 0.45, 0.7, 0.5, 0.8, 0.6, 0.4, 0.75,
-      0.5, 0.8, 0.6, 0.7,
+      0.5, 0.8, 0.6, 0.7, 0.4, 0.85,
     ];
 
-    // 1. Dibujar fondo de ventana activa
+    // 1. Dibujar ventana activa seleccionada
     final windowRect = RRect.fromRectAndRadius(
       Rect.fromLTRB(windowStart, 4, windowEnd, size.height - 4),
-      const Radius.circular(6),
+      const Radius.circular(8),
     );
     final windowPaint = Paint()
-      ..color = const Color(0xFF0094FF).withValues(alpha: 0.15)
+      ..color = const Color(0xFF0094FF).withValues(alpha: 0.18)
       ..style = PaintingStyle.fill;
     canvas.drawRRect(windowRect, windowPaint);
 
     final windowBorderPaint = Paint()
       ..color = const Color(0xFF0094FF)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.5;
+      ..strokeWidth = 2.0;
     canvas.drawRRect(windowRect, windowBorderPaint);
+
+    // Indicador de cabezal de reproducción
+    final playHeadX = windowStart + (windowEnd - windowStart) * playbackProgress;
+    if (playHeadX >= windowStart && playHeadX <= windowEnd) {
+      final playHeadPaint = Paint()
+        ..color = Colors.white
+        ..strokeWidth = 2.0;
+      canvas.drawLine(Offset(playHeadX, 6), Offset(playHeadX, size.height - 6), playHeadPaint);
+    }
 
     // 2. Dibujar barras de onda
     for (int i = 0; i < barCount; i++) {
       final x = i * (barWidth + gap) + gap;
-      final h = heights[i % heights.length] * (size.height - 12);
+      final h = heights[i % heights.length] * (size.height - 14);
       final y = (size.height - h) / 2;
 
       final inWindow = x >= windowStart && x <= windowEnd;
@@ -532,6 +597,8 @@ class _WaveformPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _WaveformPainter oldDelegate) {
-    return oldDelegate.progress != progress || oldDelegate.windowRatio != windowRatio;
+    return oldDelegate.progress != progress ||
+        oldDelegate.windowRatio != windowRatio ||
+        oldDelegate.playbackProgress != playbackProgress;
   }
 }
