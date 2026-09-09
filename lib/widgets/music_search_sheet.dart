@@ -29,7 +29,7 @@ class _MusicSearchSheetState extends State<MusicSearchSheet> {
   bool _isPlaying = false;
   bool _isLoadingPreview = false;
 
-  String _selectedCategory = '';
+  String _selectedFilter = 'Para ti';
   Timer? _debounce;
 
   @override
@@ -61,7 +61,15 @@ class _MusicSearchSheetState extends State<MusicSearchSheet> {
 
   Future<void> _loadInitialSongs() async {
     setState(() => _isLoading = true);
-    final results = await MusicService.getCuratedSongs();
+    List<Map<String, dynamic>> results = [];
+    if (_selectedFilter == 'Spotify Top 50') {
+      results = await MusicService.getSpotifyTopCharts();
+    } else if (_selectedFilter == 'YouTube Music Hits') {
+      results = await MusicService.getYoutubeMusicTrends();
+    } else {
+      results = await MusicService.getCuratedSongs();
+    }
+
     if (mounted) {
       setState(() {
         _songs = results;
@@ -83,7 +91,7 @@ class _MusicSearchSheetState extends State<MusicSearchSheet> {
 
   void _onSearchChanged(String query) {
     if (_debounce?.isActive ?? false) _debounce!.cancel();
-    _debounce = Timer(const Duration(milliseconds: 400), () async {
+    _debounce = Timer(const Duration(milliseconds: 350), () async {
       if (mounted) {
         setState(() {
           _filteredSavedSongs = _savedSongs.where((s) {
@@ -101,7 +109,11 @@ class _MusicSearchSheetState extends State<MusicSearchSheet> {
       }
 
       setState(() => _isLoading = true);
-      final results = await MusicService.searchSongs(query);
+      String? platform;
+      if (_selectedFilter == 'Spotify Top 50') platform = 'spotify';
+      if (_selectedFilter == 'YouTube Music Hits') platform = 'ytmusic';
+
+      final results = await MusicService.searchSongs(query, filterPlatform: platform);
       if (mounted) {
         setState(() {
           _songs = results;
@@ -111,18 +123,30 @@ class _MusicSearchSheetState extends State<MusicSearchSheet> {
     });
   }
 
-  void _selectCategory(String category) {
+  void _selectFilter(String filter) {
     setState(() {
-      if (_selectedCategory == category) {
-        _selectedCategory = '';
-        _searchController.clear();
-        _loadInitialSongs();
-      } else {
-        _selectedCategory = category;
-        _searchController.text = category;
-        _onSearchChanged(category);
-      }
+      _selectedFilter = filter;
     });
+
+    if (filter == 'Spotify Top 50') {
+      _searchController.clear();
+      setState(() => _isLoading = true);
+      MusicService.getSpotifyTopCharts().then((res) {
+        if (mounted) setState(() { _songs = res; _isLoading = false; });
+      });
+    } else if (filter == 'YouTube Music Hits') {
+      _searchController.clear();
+      setState(() => _isLoading = true);
+      MusicService.getYoutubeMusicTrends().then((res) {
+        if (mounted) setState(() { _songs = res; _isLoading = false; });
+      });
+    } else if (filter == 'Para ti') {
+      _searchController.clear();
+      _loadInitialSongs();
+    } else {
+      _searchController.text = filter;
+      _onSearchChanged(filter);
+    }
   }
 
   Future<void> _toggleSaveSong(Map<String, dynamic> song) async {
@@ -261,6 +285,61 @@ class _MusicSearchSheetState extends State<MusicSearchSheet> {
     }
   }
 
+  Widget _buildPlatformBadge(String? platform) {
+    if (platform == 'spotify') {
+      return Container(
+        margin: const EdgeInsets.only(right: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1DB954).withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.graphic_eq_rounded, size: 9, color: Color(0xFF1DB954)),
+            SizedBox(width: 3),
+            Text(
+              'Spotify',
+              style: TextStyle(
+                fontFamily: 'CanvaSans',
+                fontSize: 9,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF1DB954),
+              ),
+            ),
+          ],
+        ),
+      );
+    } else if (platform == 'ytmusic') {
+      return Container(
+        margin: const EdgeInsets.only(right: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFF0000).withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.play_circle_fill_rounded, size: 9, color: Color(0xFFFF0000)),
+            SizedBox(width: 3),
+            Text(
+              'YT Music',
+              style: TextStyle(
+                fontFamily: 'CanvaSans',
+                fontSize: 9,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFFFF0000),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    return const SizedBox.shrink();
+  }
+
   Widget _buildSongList(List<Map<String, dynamic>> songsList, {required bool isSavedTab}) {
     if (_isLoading && !isSavedTab) {
       return const Center(
@@ -291,6 +370,7 @@ class _MusicSearchSheetState extends State<MusicSearchSheet> {
         final isCurrent = _playingId == id;
         final isSaved = _savedSongIds.contains(id);
         final durStr = _formatDuration(song['duration']);
+        final platform = song['platform']?.toString();
 
         return Material(
           color: Colors.transparent,
@@ -340,7 +420,7 @@ class _MusicSearchSheetState extends State<MusicSearchSheet> {
                   ),
                   const SizedBox(width: 12),
 
-                  // Título, Artista y Duración
+                  // Título, Artista, Badge y Duración
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -359,6 +439,7 @@ class _MusicSearchSheetState extends State<MusicSearchSheet> {
                         const SizedBox(height: 3),
                         Row(
                           children: [
+                            _buildPlatformBadge(platform),
                             Flexible(
                               child: Text(
                                 song['artist']?.toString() ?? '',
@@ -388,7 +469,7 @@ class _MusicSearchSheetState extends State<MusicSearchSheet> {
                     ),
                   ),
 
-                  // Botón de guardar estilo Instagram
+                  // Botón de guardar
                   IconButton(
                     icon: Icon(
                       isSaved ? Icons.bookmark_rounded : Icons.bookmark_outline_rounded,
@@ -502,7 +583,7 @@ class _MusicSearchSheetState extends State<MusicSearchSheet> {
                   onChanged: _onSearchChanged,
                   style: const TextStyle(fontSize: 14),
                   decoration: InputDecoration(
-                    hintText: 'Buscar canciones o artistas...',
+                    hintText: 'Buscar en Spotify y YouTube Music...',
                     hintStyle: TextStyle(
                       color: Colors.grey[500],
                       fontSize: 13,
@@ -526,33 +607,75 @@ class _MusicSearchSheetState extends State<MusicSearchSheet> {
             ),
             const SizedBox(height: 10),
 
-            // Chips de categorías / géneros
+            // Chips de Plataformas y Géneros (Spotify, YouTube Music, Para ti, etc.)
             SizedBox(
-              height: 32,
+              height: 34,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 itemCount: MusicService.categories.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                separatorBuilder: (_, _) => const SizedBox(width: 8),
                 itemBuilder: (context, index) {
                   final cat = MusicService.categories[index];
-                  final isSelected = _selectedCategory == cat;
+                  final isSelected = _selectedFilter == cat;
+                  final isSpotify = cat.contains('Spotify');
+                  final isYT = cat.contains('YouTube');
+
+                  Color bgColor = const Color(0xFFF2F4F7);
+                  Color textColor = Colors.black87;
+                  IconData? icon;
+                  Color iconColor = Colors.grey;
+
+                  if (isSpotify) {
+                    icon = Icons.graphic_eq_rounded;
+                    iconColor = const Color(0xFF1DB954);
+                    if (isSelected) {
+                      bgColor = const Color(0xFF1DB954);
+                      textColor = Colors.white;
+                      iconColor = Colors.white;
+                    }
+                  } else if (isYT) {
+                    icon = Icons.play_circle_fill_rounded;
+                    iconColor = const Color(0xFFFF0000);
+                    if (isSelected) {
+                      bgColor = const Color(0xFFFF0000);
+                      textColor = Colors.white;
+                      iconColor = Colors.white;
+                    }
+                  } else {
+                    if (isSelected) {
+                      bgColor = const Color(0xFF0094FF);
+                      textColor = Colors.white;
+                    }
+                  }
+
                   return GestureDetector(
-                    onTap: () => _selectCategory(cat),
-                    child: Container(
+                    onTap: () => _selectFilter(cat),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
-                        color: isSelected ? const Color(0xFF0094FF) : const Color(0xFFF2F4F7),
+                        color: bgColor,
                         borderRadius: BorderRadius.circular(20),
+                        border: isSelected ? null : Border.all(color: Colors.grey.withValues(alpha: 0.2), width: 0.8),
                       ),
-                      child: Text(
-                        cat,
-                        style: TextStyle(
-                          fontFamily: 'CanvaSans',
-                          fontSize: 12,
-                          fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                          color: isSelected ? Colors.white : Colors.black87,
-                        ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (icon != null) ...[
+                            Icon(icon, size: 14, color: iconColor),
+                            const SizedBox(width: 5),
+                          ],
+                          Text(
+                            cat,
+                            style: TextStyle(
+                              fontFamily: 'CanvaSans',
+                              fontSize: 12,
+                              fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                              color: textColor,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   );
