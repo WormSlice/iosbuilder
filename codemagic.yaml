@@ -34,9 +34,9 @@ workflows:
       - name: Flutter build ipa and release
         script: |
           VERSION_NAME=$(grep '^version:' pubspec.yaml | sed 's/version: //' | cut -d '+' -f 1 | tr -d '[:space:]')
-          VERSION_NAME=${VERSION_NAME:-1.1.29}
+          VERSION_NAME=${VERSION_NAME:-1.1.30}
           PUBSPEC_BUILD=$(grep '^version:' pubspec.yaml | sed 's/.*+//' | tr -d '[:space:]')
-          PUBSPEC_BUILD=${PUBSPEC_BUILD:-65}
+          PUBSPEC_BUILD=${PUBSPEC_BUILD:-66}
           LATEST_BUILD=$(app-store-connect get-latest-testflight-build-number "$BUNDLE_ID" 2>/dev/null || true)
           echo "Latest TestFlight build number found: $LATEST_BUILD"
           echo "Pubspec build number: $PUBSPEC_BUILD"

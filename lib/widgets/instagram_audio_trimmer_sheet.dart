@@ -5,7 +5,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../services/music_service.dart';
 
 /// Hoja modal estilo Instagram para seleccionar y recortar el fragmento de audio
-/// con ondas de sonido interactivas, duración y bucle en tiempo real.
+/// sobre la canción completa con ondas de sonido interactivas y selección automática del fragmento más escuchado.
 class InstagramAudioTrimmerSheet extends StatefulWidget {
   final String musicId;
   final String title;
@@ -64,6 +64,7 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
   bool _isPlaying = false;
   bool _isLoading = true;
   double _totalTrackDurationSec = 180.0;
+  bool _isAutoHighlight = true;
 
   StreamSubscription? _posSub;
   StreamSubscription? _stateSub;
@@ -71,11 +72,21 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
   @override
   void initState() {
     super.initState();
-    _startSeconds = widget.initialStartSeconds;
-    _duration = widget.initialDuration;
     _totalTrackDurationSec = widget.totalTrackSeconds > 0
         ? widget.totalTrackSeconds.toDouble()
         : 180.0;
+    _duration = widget.initialDuration;
+
+    // Si no se proporcionó un inicio manual, calcular automáticamente el punto más escuchado (estribillo/coro)
+    final autoHighlight = MusicService.calculateHighlightStart(_totalTrackDurationSec.toInt());
+    if (widget.initialStartSeconds > 0) {
+      _startSeconds = widget.initialStartSeconds;
+      _isAutoHighlight = (_startSeconds == autoHighlight);
+    } else {
+      _startSeconds = autoHighlight;
+      _isAutoHighlight = true;
+    }
+
     _initAudio();
   }
 
@@ -98,16 +109,21 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
       }
     });
 
-    final url = await MusicService.getAudioStreamUrl(
-      widget.musicId,
-      title: widget.title,
-      artist: widget.artist,
-    );
-    if (url != null && mounted) {
-      try {
+    try {
+      final url = await MusicService.getAudioStreamUrl(
+        widget.musicId,
+        title: widget.title,
+        artist: widget.artist,
+        forceFullTrack: true,
+      );
+
+      if (url != null && mounted) {
         final loadedDuration = await _player.setUrl(url);
         if (loadedDuration != null && loadedDuration.inSeconds > 0) {
           _totalTrackDurationSec = loadedDuration.inSeconds.toDouble();
+          if (_isAutoHighlight) {
+            _startSeconds = MusicService.calculateHighlightStart(_totalTrackDurationSec.toInt());
+          }
         }
         await _player.seek(Duration(seconds: _startSeconds));
         await _player.play();
@@ -117,12 +133,10 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
             _isPlaying = true;
           });
         }
-      } catch (e) {
-        if (mounted) {
-          setState(() => _isLoading = false);
-        }
+      } else {
+        if (mounted) setState(() => _isLoading = false);
       }
-    } else {
+    } catch (e) {
       if (mounted) setState(() => _isLoading = false);
     }
   }
@@ -139,6 +153,16 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
   void _onStartChanged(double val) {
     setState(() {
       _startSeconds = val.toInt();
+      _isAutoHighlight = false;
+    });
+    _player.seek(Duration(seconds: _startSeconds));
+  }
+
+  void _resetToAutoHighlight() {
+    final auto = MusicService.calculateHighlightStart(_totalTrackDurationSec.toInt());
+    setState(() {
+      _startSeconds = auto;
+      _isAutoHighlight = true;
     });
     _player.seek(Duration(seconds: _startSeconds));
   }
@@ -174,7 +198,7 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Drag handle
+          // Barra de arrastre superior
           Center(
             child: Container(
               width: 38,
@@ -187,7 +211,7 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
           ),
           const SizedBox(height: 16),
 
-          // Header: Song info & Done button
+          // Header: Información de la canción y botón Listo
           Row(
             children: [
               ClipRRect(
@@ -197,7 +221,7 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
                   width: 52,
                   height: 52,
                   fit: BoxFit.cover,
-                  errorWidget: (_, __, ___) => Container(
+                  errorWidget: (_, _, _) => Container(
                     width: 52,
                     height: 52,
                     color: Colors.white12,
@@ -227,7 +251,7 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
                       style: TextStyle(
                         fontFamily: 'CanvaSans',
                         fontSize: 12,
-                        color: Colors.white.withOpacity(0.7),
+                        color: Colors.white.withValues(alpha: 0.7),
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -263,59 +287,102 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
               ),
             ],
           ),
-          const SizedBox(height: 22),
+          const SizedBox(height: 18),
 
-          // Selector de duración del fragmento (15s, 30s, 45s, 60s)
+          // Selector de duración del fragmento y botón de fragmento destacado
           Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [15, 30, 45, 60].map((dur) {
-              final isSelected = _duration == dur;
-              return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 5),
-                child: GestureDetector(
-                  onTap: () {
-                    setState(() {
-                      _duration = dur;
-                      if (_startSeconds > _totalTrackDurationSec - _duration) {
-                        _startSeconds = (_totalTrackDurationSec - _duration).clamp(0, _totalTrackDurationSec).toInt();
-                      }
-                    });
-                    _player.seek(Duration(seconds: _startSeconds));
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: isSelected ? const Color(0xFF0094FF) : Colors.white10,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: isSelected ? const Color(0xFF0094FF) : Colors.white12,
-                        width: 1,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              // Chips de duración (15s, 30s, 60s)
+              Row(
+                children: [15, 30, 60].map((dur) {
+                  final isSelected = _duration == dur;
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _duration = dur;
+                          if (_startSeconds > _totalTrackDurationSec - _duration) {
+                            _startSeconds = (_totalTrackDurationSec - _duration).clamp(0, _totalTrackDurationSec).toInt();
+                          }
+                        });
+                        _player.seek(Duration(seconds: _startSeconds));
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: isSelected ? const Color(0xFF0094FF) : Colors.white10,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: isSelected ? const Color(0xFF0094FF) : Colors.white12,
+                            width: 1,
+                          ),
+                        ),
+                        child: Text(
+                          '${dur}s',
+                          style: TextStyle(
+                            fontFamily: 'CanvaSans',
+                            fontSize: 12,
+                            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                            color: isSelected ? Colors.white : Colors.white70,
+                          ),
+                        ),
                       ),
                     ),
-                    child: Text(
-                      '${dur}s',
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 12,
-                        fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                        color: isSelected ? Colors.white : Colors.white70,
-                      ),
+                  );
+                }).toList(),
+              ),
+
+              // Indicador de "Parte más escuchada" / Botón para restaurar auto highlight
+              GestureDetector(
+                onTap: _resetToAutoHighlight,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: _isAutoHighlight
+                        ? const Color(0xFFFF6B00).withValues(alpha: 0.18)
+                        : Colors.white10,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: _isAutoHighlight ? const Color(0xFFFF6B00) : Colors.white12,
+                      width: 1,
                     ),
                   ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.local_fire_department_rounded,
+                        size: 14,
+                        color: _isAutoHighlight ? const Color(0xFFFF6B00) : Colors.white70,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        _isAutoHighlight ? 'Parte más escuchada' : 'Auto',
+                        style: TextStyle(
+                          fontFamily: 'CanvaSans',
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: _isAutoHighlight ? const Color(0xFFFF6B00) : Colors.white70,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              );
-            }).toList(),
+              ),
+            ],
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 18),
 
-          // Visualizador de onda de sonido (Waveform) interactivo
+          // Visualizador de onda de sonido (Waveform) interactivo sobre la canción completa
           Container(
-            height: 52,
+            height: 54,
             width: double.infinity,
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.04),
+              color: Colors.white.withValues(alpha: 0.04),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.white.withOpacity(0.08)),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
             ),
             child: CustomPaint(
               painter: _WaveformPainter(
@@ -326,13 +393,13 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
           ),
           const SizedBox(height: 12),
 
-          // Slider / Deslizador de posición
+          // Slider / Deslizador de posición a lo largo de TODA la canción
           SliderTheme(
             data: SliderTheme.of(context).copyWith(
               activeTrackColor: const Color(0xFF0094FF),
               inactiveTrackColor: Colors.white12,
               thumbColor: Colors.white,
-              overlayColor: const Color(0xFF0094FF).withOpacity(0.2),
+              overlayColor: const Color(0xFF0094FF).withValues(alpha: 0.2),
               thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8),
               trackHeight: 3,
             ),
@@ -357,7 +424,7 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
                     Text(
                       'Fragmento: ${_formatTime(_startSeconds)} - ${_formatTime((_startSeconds + _duration).clamp(0, _totalTrackDurationSec.toInt()))} ($_duration seg)',
                       style: const TextStyle(
-                        fontFamily: 'Poppins',
+                        fontFamily: 'CanvaSans',
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
                         color: Color(0xFF0094FF),
@@ -365,11 +432,11 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'Duración total: ${_formatTime(_totalTrackDurationSec.toInt())}',
+                      'Canción completa: ${_formatTime(_totalTrackDurationSec.toInt())}',
                       style: TextStyle(
-                        fontFamily: 'Poppins',
+                        fontFamily: 'CanvaSans',
                         fontSize: 11,
-                        color: Colors.white.withOpacity(0.5),
+                        color: Colors.white.withValues(alpha: 0.5),
                       ),
                     ),
                   ],
@@ -377,7 +444,7 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
                 GestureDetector(
                   onTap: _togglePlayPause,
                   child: Container(
-                    padding: const EdgeInsets.all(9),
+                    padding: const EdgeInsets.all(10),
                     decoration: const BoxDecoration(
                       color: Color(0xFF0094FF),
                       shape: BoxShape.circle,
@@ -394,7 +461,7 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
                         : Icon(
                             _isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
                             color: Colors.white,
-                            size: 20,
+                            size: 22,
                           ),
                   ),
                 ),
@@ -415,7 +482,7 @@ class _WaveformPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final barCount = 42;
+    const barCount = 44;
     final barWidth = size.width / (barCount * 1.5);
     final gap = barWidth * 0.5;
 
@@ -428,7 +495,7 @@ class _WaveformPainter extends CustomPainter {
       0.75, 0.4, 0.8, 0.55, 0.9, 0.6, 0.7, 0.45, 0.6, 0.85,
       0.4, 0.75, 0.95, 0.5, 0.8, 0.65, 0.4, 0.9, 0.7, 0.55,
       0.85, 0.6, 0.9, 0.45, 0.7, 0.5, 0.8, 0.6, 0.4, 0.75,
-      0.5, 0.8,
+      0.5, 0.8, 0.6, 0.7,
     ];
 
     // 1. Dibujar fondo de ventana activa
@@ -437,7 +504,7 @@ class _WaveformPainter extends CustomPainter {
       const Radius.circular(6),
     );
     final windowPaint = Paint()
-      ..color = const Color(0xFF0094FF).withOpacity(0.15)
+      ..color = const Color(0xFF0094FF).withValues(alpha: 0.15)
       ..style = PaintingStyle.fill;
     canvas.drawRRect(windowRect, windowPaint);
 
@@ -447,7 +514,7 @@ class _WaveformPainter extends CustomPainter {
       ..strokeWidth = 1.5;
     canvas.drawRRect(windowRect, windowBorderPaint);
 
-    // 2. Dibujar barras
+    // 2. Dibujar barras de onda
     for (int i = 0; i < barCount; i++) {
       final x = i * (barWidth + gap) + gap;
       final h = heights[i % heights.length] * (size.height - 12);
