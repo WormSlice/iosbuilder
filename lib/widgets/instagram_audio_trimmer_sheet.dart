@@ -6,7 +6,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../services/music_service.dart';
 
 /// Hoja modal estilo Instagram para seleccionar y recortar el fragmento de audio
-/// sobre la canción completa con ondas de sonido interactivas y selección automática del fragmento más escuchado.
+/// sobre la canción completa con ondas de sonido interactivas y animadas en tiempo real.
 class InstagramAudioTrimmerSheet extends StatefulWidget {
   final String musicId;
   final String title;
@@ -58,7 +58,8 @@ class InstagramAudioTrimmerSheet extends StatefulWidget {
       _InstagramAudioTrimmerSheetState();
 }
 
-class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet> {
+class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
+    with TickerProviderStateMixin {
   final AudioPlayer _player = AudioPlayer();
   late int _startSeconds;
   late int _duration;
@@ -67,6 +68,11 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
   double _totalTrackDurationSec = 180.0;
   bool _isAutoHighlight = true;
   double _currentPlaybackSec = 0.0;
+
+  // Controladores de animación
+  late AnimationController _waveAnimController;
+  late AnimationController _pulseAnimController;
+  late Animation<double> _pulseAnim;
 
   StreamSubscription? _posSub;
   StreamSubscription? _stateSub;
@@ -80,7 +86,6 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
         : 180.0;
     _duration = widget.initialDuration;
 
-    // Si no se proporcionó un inicio manual, calcular automáticamente el punto más escuchado (estribillo/coro)
     final autoHighlight = MusicService.calculateHighlightStart(_totalTrackDurationSec.toInt());
     if (widget.initialStartSeconds > 0) {
       _startSeconds = widget.initialStartSeconds;
@@ -90,6 +95,22 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
       _isAutoHighlight = true;
     }
     _currentPlaybackSec = _startSeconds.toDouble();
+
+    // Animación continua de ondas fluidas (60fps)
+    _waveAnimController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat();
+
+    // Animación suave de respiración / pulso para la portada y botones
+    _pulseAnimController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1800),
+    )..repeat(reverse: true);
+
+    _pulseAnim = Tween<double>(begin: 1.0, end: 1.05).animate(
+      CurvedAnimation(parent: _pulseAnimController, curve: Curves.easeInOut),
+    );
 
     _initAudio();
   }
@@ -153,6 +174,8 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
 
   @override
   void dispose() {
+    _waveAnimController.dispose();
+    _pulseAnimController.dispose();
     _seekDebounce?.cancel();
     _posSub?.cancel();
     _stateSub?.cancel();
@@ -175,7 +198,7 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
     });
 
     _seekDebounce?.cancel();
-    _seekDebounce = Timer(const Duration(milliseconds: 150), () {
+    _seekDebounce = Timer(const Duration(milliseconds: 140), () {
       _player.seek(Duration(seconds: _startSeconds));
       if (!_isPlaying) {
         _player.play();
@@ -225,7 +248,7 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
 
     return Container(
       decoration: const BoxDecoration(
-        color: Color(0xFF16181F),
+        color: Color(0xFF14161D),
         borderRadius: BorderRadius.only(
           topLeft: Radius.circular(28),
           topRight: Radius.circular(28),
@@ -248,23 +271,45 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
           ),
           const SizedBox(height: 16),
 
-          // Header: Información de la canción y botón Listo
+          // Header: Información de la canción animada y botón Listo
           Row(
             children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: CachedNetworkImage(
-                  imageUrl: widget.thumbnail,
-                  width: 52,
-                  height: 52,
-                  fit: BoxFit.cover,
-                  errorWidget: (_, _, _) => Container(
-                    width: 52,
-                    height: 52,
-                    color: Colors.white12,
-                    child: const Icon(Icons.music_note, color: Colors.white),
-                  ),
-                ),
+              AnimatedBuilder(
+                animation: _pulseAnim,
+                builder: (context, child) {
+                  return Transform.scale(
+                    scale: _isPlaying ? _pulseAnim.value : 1.0,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: _isPlaying
+                            ? [
+                                BoxShadow(
+                                  color: const Color(0xFF0094FF).withValues(alpha: 0.35),
+                                  blurRadius: 14,
+                                  spreadRadius: 2,
+                                ),
+                              ]
+                            : null,
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: CachedNetworkImage(
+                          imageUrl: widget.thumbnail,
+                          width: 52,
+                          height: 52,
+                          fit: BoxFit.cover,
+                          errorWidget: (_, _, _) => Container(
+                            width: 52,
+                            height: 52,
+                            color: Colors.white12,
+                            child: const Icon(Icons.music_note, color: Colors.white),
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                },
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -282,16 +327,26 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      widget.artist,
-                      style: TextStyle(
-                        fontFamily: 'CanvaSans',
-                        fontSize: 12,
-                        color: Colors.white.withValues(alpha: 0.7),
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                    const SizedBox(height: 3),
+                    Row(
+                      children: [
+                        if (_isPlaying) ...[
+                          _AnimatedEqualizerDots(),
+                          const SizedBox(width: 6),
+                        ],
+                        Flexible(
+                          child: Text(
+                            widget.artist,
+                            style: TextStyle(
+                              fontFamily: 'CanvaSans',
+                              fontSize: 12,
+                              color: Colors.white.withValues(alpha: 0.7),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -311,7 +366,7 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(20),
                   ),
-                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 9),
                 ),
                 child: const Text(
                   'Listo',
@@ -324,13 +379,13 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
               ),
             ],
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 20),
 
           // Selector de duración del fragmento y botón de fragmento destacado
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              // Chips de duración (15s, 30s, 60s)
+              // Chips de duración (15s, 30s, 60s) con animación suave
               Row(
                 children: [15, 30, 60].map((dur) {
                   final isSelected = _duration == dur;
@@ -346,8 +401,10 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
                         });
                         _player.seek(Duration(seconds: _startSeconds));
                       },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 250),
+                        curve: Curves.easeOutCubic,
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
                         decoration: BoxDecoration(
                           color: isSelected ? const Color(0xFF0094FF) : Colors.white10,
                           borderRadius: BorderRadius.circular(16),
@@ -355,6 +412,14 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
                             color: isSelected ? const Color(0xFF0094FF) : Colors.white12,
                             width: 1,
                           ),
+                          boxShadow: isSelected
+                              ? [
+                                  BoxShadow(
+                                    color: const Color(0xFF0094FF).withValues(alpha: 0.3),
+                                    blurRadius: 8,
+                                  ),
+                                ]
+                              : null,
                         ),
                         child: Text(
                           '${dur}s',
@@ -371,11 +436,13 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
                 }).toList(),
               ),
 
-              // Indicador de "Parte más escuchada" / Botón para restaurar auto highlight
+              // Indicador animado de "Parte más escuchada" / Botón Auto
               GestureDetector(
                 onTap: _resetToAutoHighlight,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 250),
+                  curve: Curves.easeOutCubic,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
                   decoration: BoxDecoration(
                     color: _isAutoHighlight
                         ? const Color(0xFFFF6B00).withValues(alpha: 0.18)
@@ -385,13 +452,21 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
                       color: _isAutoHighlight ? const Color(0xFFFF6B00) : Colors.white12,
                       width: 1,
                     ),
+                    boxShadow: _isAutoHighlight
+                        ? [
+                            BoxShadow(
+                              color: const Color(0xFFFF6B00).withValues(alpha: 0.25),
+                              blurRadius: 8,
+                            ),
+                          ]
+                        : null,
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
                         Icons.local_fire_department_rounded,
-                        size: 14,
+                        size: 15,
                         color: _isAutoHighlight ? const Color(0xFFFF6B00) : Colors.white70,
                       ),
                       const SizedBox(width: 4),
@@ -412,7 +487,7 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
           ),
           const SizedBox(height: 18),
 
-          // Visualizador de onda de sonido (Waveform) interactivo y deslizable
+          // Visualizador de onda de sonido (Waveform) interactivo, deslizable y animado a 60fps
           LayoutBuilder(
             builder: (context, constraints) {
               final w = constraints.maxWidth;
@@ -422,21 +497,28 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
                 onHorizontalDragUpdate: (details) => _handleWaveformDrag(details.localPosition.dx, w),
                 onTapDown: (details) => _handleWaveformDrag(details.localPosition.dx, w),
                 child: Container(
-                  height: 58,
+                  height: 62,
                   width: double.infinity,
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.04),
-                    borderRadius: BorderRadius.circular(12),
+                    color: Colors.white.withValues(alpha: 0.03),
+                    borderRadius: BorderRadius.circular(14),
                     border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
                   ),
                   child: ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: CustomPaint(
-                      painter: _WaveformPainter(
-                        progress: (_startSeconds / effectiveTotal).clamp(0.0, 1.0),
-                        windowRatio: (_duration / effectiveTotal).clamp(0.0, 1.0),
-                        playbackProgress: ((_currentPlaybackSec - _startSeconds) / (_duration > 0 ? _duration : 1)).clamp(0.0, 1.0),
-                      ),
+                    borderRadius: BorderRadius.circular(14),
+                    child: AnimatedBuilder(
+                      animation: _waveAnimController,
+                      builder: (context, child) {
+                        return CustomPaint(
+                          painter: _DynamicWaveformPainter(
+                            progress: (_startSeconds / effectiveTotal).clamp(0.0, 1.0),
+                            windowRatio: (_duration / effectiveTotal).clamp(0.0, 1.0),
+                            playbackProgress: ((_currentPlaybackSec - _startSeconds) / (_duration > 0 ? _duration : 1)).clamp(0.0, 1.0),
+                            wavePhase: _waveAnimController.value,
+                            isPlaying: _isPlaying,
+                          ),
+                        );
+                      },
                     ),
                   ),
                 ),
@@ -451,7 +533,7 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
               activeTrackColor: const Color(0xFF0094FF),
               inactiveTrackColor: Colors.white12,
               thumbColor: Colors.white,
-              overlayColor: const Color(0xFF0094FF).withValues(alpha: 0.2),
+              overlayColor: const Color(0xFF0094FF).withValues(alpha: 0.25),
               thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 9),
               trackHeight: 4,
             ),
@@ -463,7 +545,7 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
             ),
           ),
 
-          // Marcadores de tiempo y botón de Play/Pause
+          // Marcadores de tiempo y botón de Play/Pause con animación de pulso
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8),
             child: Row(
@@ -494,25 +576,40 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
                 ),
                 GestureDetector(
                   onTap: _togglePlayPause,
-                  child: Container(
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    curve: Curves.easeOut,
                     padding: const EdgeInsets.all(10),
-                    decoration: const BoxDecoration(
-                      color: Color(0xFF0094FF),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0094FF),
                       shape: BoxShape.circle,
+                      boxShadow: _isPlaying
+                          ? [
+                              BoxShadow(
+                                color: const Color(0xFF0094FF).withValues(alpha: 0.4),
+                                blurRadius: 10,
+                                spreadRadius: 1,
+                              ),
+                            ]
+                          : null,
                     ),
                     child: _isLoading
                         ? const SizedBox(
-                            width: 18,
-                            height: 18,
+                            width: 20,
+                            height: 20,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
                               color: Colors.white,
                             ),
                           )
-                        : Icon(
-                            _isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                            color: Colors.white,
-                            size: 22,
+                        : AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 200),
+                            child: Icon(
+                              _isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                              key: ValueKey<bool>(_isPlaying),
+                              color: Colors.white,
+                              size: 22,
+                            ),
                           ),
                   ),
                 ),
@@ -525,38 +622,100 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
   }
 }
 
-class _WaveformPainter extends CustomPainter {
+/// Mini indicador animado de ecualizador de 3 barras
+class _AnimatedEqualizerDots extends StatefulWidget {
+  @override
+  State<_AnimatedEqualizerDots> createState() => _AnimatedEqualizerDotsState();
+}
+
+class _AnimatedEqualizerDotsState extends State<_AnimatedEqualizerDots>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, _) {
+        final t = _controller.value;
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _bar(4 + t * 6),
+            const SizedBox(width: 2),
+            _bar(10 - t * 6),
+            const SizedBox(width: 2),
+            _bar(6 + t * 4),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _bar(double h) {
+    return Container(
+      width: 2.2,
+      height: h,
+      decoration: BoxDecoration(
+        color: const Color(0xFF0094FF),
+        borderRadius: BorderRadius.circular(2),
+      ),
+    );
+  }
+}
+
+/// Painter de onda de sonido con modulación sinusoidal dinámica en tiempo real
+class _DynamicWaveformPainter extends CustomPainter {
   final double progress;
   final double windowRatio;
   final double playbackProgress;
+  final double wavePhase;
+  final bool isPlaying;
 
-  _WaveformPainter({
+  _DynamicWaveformPainter({
     required this.progress,
     required this.windowRatio,
     required this.playbackProgress,
+    required this.wavePhase,
+    required this.isPlaying,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
-    const barCount = 46;
+    const barCount = 48;
     final barWidth = size.width / (barCount * 1.5);
     final gap = barWidth * 0.5;
 
     final windowStart = progress * size.width;
     final windowEnd = (progress + windowRatio).clamp(0.0, 1.0) * size.width;
 
-    // Alturas de ondas dinámicas estéticas
-    final heights = [
+    // Alturas base de onda
+    final baseHeights = [
       0.3, 0.5, 0.8, 0.4, 0.9, 0.6, 0.85, 0.45, 0.65, 0.95,
       0.75, 0.4, 0.8, 0.55, 0.9, 0.6, 0.7, 0.45, 0.6, 0.85,
       0.4, 0.75, 0.95, 0.5, 0.8, 0.65, 0.4, 0.9, 0.7, 0.55,
       0.85, 0.6, 0.9, 0.45, 0.7, 0.5, 0.8, 0.6, 0.4, 0.75,
-      0.5, 0.8, 0.6, 0.7, 0.4, 0.85,
+      0.5, 0.8, 0.6, 0.7, 0.4, 0.85, 0.6, 0.5,
     ];
 
-    // 1. Dibujar ventana activa seleccionada
+    // 1. Dibujar ventana activa seleccionada con fondo luminoso
     final windowRect = RRect.fromRectAndRadius(
-      Rect.fromLTRB(windowStart, 4, windowEnd, size.height - 4),
+      Rect.fromLTRB(windowStart, 3, windowEnd, size.height - 3),
       const Radius.circular(8),
     );
     final windowPaint = Paint()
@@ -570,22 +729,37 @@ class _WaveformPainter extends CustomPainter {
       ..strokeWidth = 2.0;
     canvas.drawRRect(windowRect, windowBorderPaint);
 
-    // Indicador de cabezal de reproducción
+    // 2. Dibujar cabezal de reproducción animado
     final playHeadX = windowStart + (windowEnd - windowStart) * playbackProgress;
     if (playHeadX >= windowStart && playHeadX <= windowEnd) {
       final playHeadPaint = Paint()
         ..color = Colors.white
-        ..strokeWidth = 2.0;
-      canvas.drawLine(Offset(playHeadX, 6), Offset(playHeadX, size.height - 6), playHeadPaint);
+        ..strokeWidth = 2.2
+        ..strokeCap = StrokeCap.round;
+      canvas.drawLine(Offset(playHeadX, 4), Offset(playHeadX, size.height - 4), playHeadPaint);
+
+      // Pequeño punto brillante superior
+      final dotPaint = Paint()
+        ..color = const Color(0xFF0094FF)
+        ..style = PaintingStyle.fill;
+      canvas.drawCircle(Offset(playHeadX, 4), 3.0, dotPaint);
     }
 
-    // 2. Dibujar barras de onda
+    // 3. Dibujar barras de onda animadas
     for (int i = 0; i < barCount; i++) {
       final x = i * (barWidth + gap) + gap;
-      final h = heights[i % heights.length] * (size.height - 14);
+      final inWindow = x >= windowStart && x <= windowEnd;
+
+      double hFactor = baseHeights[i % baseHeights.length];
+      if (isPlaying && inWindow) {
+        // Modulación dinámica fluida a 60fps
+        final wave = math.sin(wavePhase * 2 * math.pi + i * 0.45);
+        hFactor = (hFactor + wave * 0.22).clamp(0.2, 1.0);
+      }
+
+      final h = hFactor * (size.height - 14);
       final y = (size.height - h) / 2;
 
-      final inWindow = x >= windowStart && x <= windowEnd;
       final paint = Paint()
         ..color = inWindow ? const Color(0xFF0094FF) : Colors.white24
         ..strokeCap = StrokeCap.round
@@ -596,9 +770,11 @@ class _WaveformPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _WaveformPainter oldDelegate) {
+  bool shouldRepaint(covariant _DynamicWaveformPainter oldDelegate) {
     return oldDelegate.progress != progress ||
         oldDelegate.windowRatio != windowRatio ||
-        oldDelegate.playbackProgress != playbackProgress;
+        oldDelegate.playbackProgress != playbackProgress ||
+        oldDelegate.wavePhase != wavePhase ||
+        oldDelegate.isPlaying != isPlaying;
   }
 }

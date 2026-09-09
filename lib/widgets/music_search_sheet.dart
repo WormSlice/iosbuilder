@@ -12,7 +12,7 @@ class MusicSearchSheet extends StatefulWidget {
   State<MusicSearchSheet> createState() => _MusicSearchSheetState();
 }
 
-class _MusicSearchSheetState extends State<MusicSearchSheet> {
+class _MusicSearchSheetState extends State<MusicSearchSheet> with TickerProviderStateMixin {
   final _searchController = TextEditingController();
   final _previewPlayer = AudioPlayer();
 
@@ -288,152 +288,186 @@ class _MusicSearchSheetState extends State<MusicSearchSheet> {
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
       itemCount: songsList.length,
       itemBuilder: (context, index) {
         final song = songsList[index];
         final id = song['id'].toString();
         final isCurrent = _playingId == id;
+        final isPlayingSong = isCurrent && _isPlaying;
         final isSaved = _savedSongIds.contains(id);
         final durStr = _formatDuration(song['duration']);
 
-        return Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: () => _onSongSelected(song),
-            borderRadius: BorderRadius.circular(12),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
-              child: Row(
-                children: [
-                  // Portada cuadrada estilo Instagram
-                  Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: CachedNetworkImage(
-                          imageUrl: song['thumbnail']?.toString() ?? '',
-                          width: 48,
-                          height: 48,
-                          fit: BoxFit.cover,
-                          placeholder: (context, url) => Container(
-                            color: Colors.grey[200],
-                            child: const Icon(Icons.music_note, color: Colors.grey, size: 22),
-                          ),
-                          errorWidget: (context, url, error) => Container(
-                            color: Colors.grey[200],
-                            child: const Icon(Icons.music_note, color: Colors.grey, size: 22),
-                          ),
-                        ),
-                      ),
-                      if (isCurrent && _isPlaying)
-                        Container(
-                          width: 48,
-                          height: 48,
-                          decoration: BoxDecoration(
-                            color: Colors.black54,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Icon(
-                            Icons.equalizer_rounded,
-                            color: Colors.white,
-                            size: 24,
-                          ),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(width: 12),
-
-                  // Título, Artista y Duración
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOutCubic,
+          margin: const EdgeInsets.symmetric(vertical: 3),
+          decoration: BoxDecoration(
+            color: isPlayingSong
+                ? const Color(0xFF0094FF).withValues(alpha: 0.07)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: isPlayingSong
+                  ? const Color(0xFF0094FF).withValues(alpha: 0.25)
+                  : Colors.transparent,
+              width: 1,
+            ),
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () => _onSongSelected(song),
+              borderRadius: BorderRadius.circular(14),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 7, horizontal: 8),
+                child: Row(
+                  children: [
+                    // Portada cuadrada con ecualizador animado superpuesto
+                    Stack(
+                      alignment: Alignment.center,
                       children: [
-                        Text(
-                          song['title']?.toString() ?? '',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontFamily: 'CanvaSans',
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: isCurrent && _isPlaying ? const Color(0xFF0094FF) : Colors.black87,
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(10),
+                          child: CachedNetworkImage(
+                            imageUrl: song['thumbnail']?.toString() ?? '',
+                            width: 50,
+                            height: 50,
+                            fit: BoxFit.cover,
+                            placeholder: (context, url) => Container(
+                              color: Colors.grey[200],
+                              child: const Icon(Icons.music_note, color: Colors.grey, size: 22),
+                            ),
+                            errorWidget: (context, url, error) => Container(
+                              color: Colors.grey[200],
+                              child: const Icon(Icons.music_note, color: Colors.grey, size: 22),
+                            ),
                           ),
                         ),
-                        const SizedBox(height: 3),
-                        Row(
-                          children: [
-                            Flexible(
-                              child: Text(
-                                song['artist']?.toString() ?? '',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontFamily: 'CanvaSans',
-                                  fontSize: 12,
-                                  color: Colors.grey[600],
-                                ),
-                              ),
+                        if (isPlayingSong)
+                          Container(
+                            width: 50,
+                            height: 50,
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.5),
+                              borderRadius: BorderRadius.circular(10),
                             ),
-                            if (durStr.isNotEmpty) ...[
-                              const SizedBox(width: 6),
-                              Text(
-                                '•  $durStr',
-                                style: TextStyle(
-                                  fontFamily: 'CanvaSans',
-                                  fontSize: 11,
-                                  color: Colors.grey[500],
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
+                            child: const Center(
+                              child: _DancingWaveEqualizer(),
+                            ),
+                          ),
                       ],
                     ),
-                  ),
+                    const SizedBox(width: 12),
 
-                  // Botón de guardar
-                  IconButton(
-                    icon: Icon(
-                      isSaved ? Icons.bookmark_rounded : Icons.bookmark_outline_rounded,
-                      color: isSaved ? const Color(0xFF0094FF) : Colors.grey[400],
-                      size: 22,
-                    ),
-                    onPressed: () => _toggleSaveSong(song),
-                  ),
-
-                  // Botón de Play/Pause circular
-                  GestureDetector(
-                    onTap: () => _togglePreview(song),
-                    child: Container(
-                      width: 36,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: isCurrent && _isPlaying
-                            ? const Color(0xFF0094FF)
-                            : const Color(0xFFF0F2F5),
-                      ),
-                      child: Center(
-                        child: isCurrent && _isLoadingPreview
-                            ? const SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF0094FF)),
+                    // Título, Artista y Duración
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            song['title']?.toString() ?? '',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontFamily: 'CanvaSans',
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: isPlayingSong ? const Color(0xFF0094FF) : Colors.black87,
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          Row(
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  song['artist']?.toString() ?? '',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontFamily: 'CanvaSans',
+                                    fontSize: 12,
+                                    color: isPlayingSong ? const Color(0xFF0094FF).withValues(alpha: 0.8) : Colors.grey[600],
+                                  ),
                                 ),
-                              )
-                            : Icon(
-                                isCurrent && _isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                                color: isCurrent && _isPlaying ? Colors.white : Colors.black87,
-                                size: 22,
                               ),
+                              if (durStr.isNotEmpty) ...[
+                                const SizedBox(width: 6),
+                                Text(
+                                  '•  $durStr',
+                                  style: TextStyle(
+                                    fontFamily: 'CanvaSans',
+                                    fontSize: 11,
+                                    color: isPlayingSong ? const Color(0xFF0094FF).withValues(alpha: 0.7) : Colors.grey[500],
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ],
                       ),
                     ),
-                  ),
-                ],
+
+                    // Botón de guardar animado
+                    IconButton(
+                      icon: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 200),
+                        child: Icon(
+                          isSaved ? Icons.bookmark_rounded : Icons.bookmark_outline_rounded,
+                          key: ValueKey<bool>(isSaved),
+                          color: isSaved ? const Color(0xFF0094FF) : Colors.grey[400],
+                          size: 22,
+                        ),
+                      ),
+                      onPressed: () => _toggleSaveSong(song),
+                    ),
+
+                    // Botón de Play/Pause circular con micro-animación
+                    GestureDetector(
+                      onTap: () => _togglePreview(song),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        curve: Curves.easeOutCubic,
+                        width: 38,
+                        height: 38,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: isPlayingSong
+                              ? const Color(0xFF0094FF)
+                              : const Color(0xFFF0F2F5),
+                          boxShadow: isPlayingSong
+                              ? [
+                                  BoxShadow(
+                                    color: const Color(0xFF0094FF).withValues(alpha: 0.35),
+                                    blurRadius: 8,
+                                  ),
+                                ]
+                              : null,
+                        ),
+                        child: Center(
+                          child: isCurrent && _isLoadingPreview
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF0094FF)),
+                                  ),
+                                )
+                              : AnimatedSwitcher(
+                                  duration: const Duration(milliseconds: 200),
+                                  child: Icon(
+                                    isPlayingSong ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                                    key: ValueKey<bool>(isPlayingSong),
+                                    color: isPlayingSong ? Colors.white : Colors.black87,
+                                    size: 22,
+                                  ),
+                                ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -531,9 +565,9 @@ class _MusicSearchSheetState extends State<MusicSearchSheet> {
             ),
             const SizedBox(height: 10),
 
-            // Chips de Categorías y Géneros
+            // Chips de Categorías y Géneros con transición animada
             SizedBox(
-              height: 34,
+              height: 36,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -546,12 +580,21 @@ class _MusicSearchSheetState extends State<MusicSearchSheet> {
                   return GestureDetector(
                     onTap: () => _selectFilter(cat),
                     child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                      duration: const Duration(milliseconds: 250),
+                      curve: Curves.easeOutCubic,
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
                       decoration: BoxDecoration(
                         color: isSelected ? const Color(0xFF0094FF) : const Color(0xFFF2F4F7),
                         borderRadius: BorderRadius.circular(20),
                         border: isSelected ? null : Border.all(color: Colors.grey.withValues(alpha: 0.2), width: 0.8),
+                        boxShadow: isSelected
+                            ? [
+                                BoxShadow(
+                                  color: const Color(0xFF0094FF).withValues(alpha: 0.3),
+                                  blurRadius: 8,
+                                ),
+                              ]
+                            : null,
                       ),
                       child: Center(
                         child: Text(
@@ -604,6 +647,74 @@ class _MusicSearchSheetState extends State<MusicSearchSheet> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Mini ecualizador animado fluido de 4 barras sobre la portada de la canción en reproducción
+class _DancingWaveEqualizer extends StatefulWidget {
+  const _DancingWaveEqualizer();
+
+  @override
+  State<_DancingWaveEqualizer> createState() => _DancingWaveEqualizerState();
+}
+
+class _DancingWaveEqualizerState extends State<_DancingWaveEqualizer>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _anim;
+
+  @override
+  void initState() {
+    super.initState();
+    _anim = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 700),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _anim.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _anim,
+      builder: (context, _) {
+        final t = _anim.value;
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            _bar(6 + t * 14),
+            const SizedBox(width: 2.5),
+            _bar(18 - t * 12),
+            const SizedBox(width: 2.5),
+            _bar(10 + t * 10),
+            const SizedBox(width: 2.5),
+            _bar(16 - t * 8),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _bar(double height) {
+    return Container(
+      width: 3.2,
+      height: height.clamp(4.0, 22.0),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(2),
+        boxShadow: const [
+          BoxShadow(
+            color: Colors.black26,
+            blurRadius: 4,
+          ),
+        ],
       ),
     );
   }

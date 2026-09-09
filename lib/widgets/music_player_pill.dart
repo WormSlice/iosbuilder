@@ -205,7 +205,7 @@ class _MusicPlayerPillState extends State<MusicPlayerPill> {
                       ),
                       Switch(
                         value: _isMuted,
-                        activeColor: const Color(0xFF0094FF),
+                        activeThumbColor: const Color(0xFF0094FF),
                         onChanged: (val) async {
                           setModalState(() => _isMuted = val);
                           await _updateMute(val);
@@ -230,7 +230,7 @@ class _MusicPlayerPillState extends State<MusicPlayerPill> {
                       ),
                       Switch(
                         value: _isVolumeLimitEnabled,
-                        activeColor: const Color(0xFF0094FF),
+                        activeThumbColor: const Color(0xFF0094FF),
                         onChanged: (val) async {
                           setModalState(() => _isVolumeLimitEnabled = val);
                           await _updateVolumeLimitEnabled(val);
