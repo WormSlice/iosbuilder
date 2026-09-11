@@ -17,6 +17,7 @@ class MusicAuthService extends ChangeNotifier {
   String? _spotifyAvatar;
   String? _spotifyProduct;
   String? _spotifyAccessToken;
+  String? _spotifyRefreshToken;
 
   bool _isAppleMusicConnected = false;
   String? _appleMusicUser;
@@ -33,6 +34,7 @@ class MusicAuthService extends ChangeNotifier {
   String? get spotifyAvatar => _spotifyAvatar;
   String? get spotifyProduct => _spotifyProduct;
   String? get spotifyAccessToken => _spotifyAccessToken;
+  String? get spotifyRefreshToken => _spotifyRefreshToken;
   bool get isAuthenticatingSpotify => _isAuthenticatingSpotify;
 
   bool get isAppleMusicConnected => _isAppleMusicConnected;
@@ -63,6 +65,7 @@ class MusicAuthService extends ChangeNotifier {
       _spotifyAvatar = prefs.getString('music_spotify_avatar');
       _spotifyProduct = prefs.getString('music_spotify_product');
       _spotifyAccessToken = prefs.getString('music_spotify_token');
+      _spotifyRefreshToken = prefs.getString('music_spotify_refresh_token');
 
       _isAppleMusicConnected = prefs.getBool('music_apple_connected') ?? false;
       _appleMusicUser = prefs.getString('music_apple_user');
@@ -92,7 +95,7 @@ class MusicAuthService extends ChangeNotifier {
     });
   }
 
-  /// Inicia el flujo REAL de autenticación de Spotify abriendo el navegador
+  /// Inicia el flujo REAL de autenticación de Spotify con Authorization Code Flow (response_type=code)
   Future<bool> startSpotifyAuth() async {
     _isAuthenticatingSpotify = true;
     notifyListeners();
@@ -101,7 +104,7 @@ class MusicAuthService extends ChangeNotifier {
       final scopeStr = MusicKeys.spotifyScopes.join(' ');
       final authUri = Uri.https('accounts.spotify.com', '/authorize', {
         'client_id': MusicKeys.spotifyClientId,
-        'response_type': 'token',
+        'response_type': 'code', // Spotify requiere obligatoriamente 'code'
         'redirect_uri': MusicKeys.spotifyRedirectUri,
         'scope': scopeStr,
         'show_dialog': 'true',
@@ -126,7 +129,7 @@ class MusicAuthService extends ChangeNotifier {
     }
   }
 
-  /// Procesa la URL de redirección cuando Spotify devuelve el token
+  /// Procesa la URL de redirección cuando Spotify devuelve el código de autorización (code)
   Future<bool> handleIncomingUri(Uri uri) async {
     final uriStr = uri.toString();
     if (!uriStr.contains('spotify-callback')) {
@@ -134,46 +137,58 @@ class MusicAuthService extends ChangeNotifier {
     }
 
     try {
-      String? token;
+      // 1. Extraer el código de autorización (query parameter 'code')
+      String? code = uri.queryParameters['code'];
 
-      // 1. Extraer token del fragment (Implicit Grant)
-      if (uri.fragment.isNotEmpty) {
+      // Fallback a fragment si viene allí
+      if (code == null && uri.fragment.isNotEmpty) {
         final fragmentParams = Uri.splitQueryString(uri.fragment);
-        token = fragmentParams['access_token'];
+        code = fragmentParams['code'];
       }
 
-      // 2. Fallback a query parameters
-      token ??= uri.queryParameters['access_token'];
+      if (code != null && code.isNotEmpty) {
+        // 2. Intercambiar el código por access_token y refresh_token
+        final tokens = await _exchangeCodeForTokens(code);
+        if (tokens != null) {
+          final accessToken = tokens['access_token']?.toString();
+          final refreshToken = tokens['refresh_token']?.toString();
 
-      if (token != null && token.isNotEmpty) {
-        // Consultar el perfil real del usuario en la API de Spotify
-        final userProfile = await _fetchSpotifyProfile(token);
-        if (userProfile != null) {
-          final prefs = await SharedPreferences.getInstance();
+          if (accessToken != null && accessToken.isNotEmpty) {
+            // 3. Consultar perfil del usuario en Spotify
+            final userProfile = await _fetchSpotifyProfile(accessToken);
+            if (userProfile != null) {
+              final prefs = await SharedPreferences.getInstance();
 
-          _isSpotifyConnected = true;
-          _spotifyAccessToken = token;
-          _spotifyUser = userProfile['name'] ?? 'Usuario Spotify';
-          _spotifyEmail = userProfile['email'];
-          _spotifyAvatar = userProfile['avatar'];
-          _spotifyProduct = userProfile['product'] ?? 'Free';
-          _isAuthenticatingSpotify = false;
+              _isSpotifyConnected = true;
+              _spotifyAccessToken = accessToken;
+              _spotifyRefreshToken = refreshToken;
+              _spotifyUser = userProfile['name'] ?? 'Usuario Spotify';
+              _spotifyEmail = userProfile['email'];
+              _spotifyAvatar = userProfile['avatar'];
+              _spotifyProduct = userProfile['product'] ?? 'Free';
+              _isAuthenticatingSpotify = false;
 
-          await prefs.setBool('music_spotify_connected', true);
-          await prefs.setString('music_spotify_token', _spotifyAccessToken!);
-          await prefs.setString('music_spotify_user', _spotifyUser!);
-          if (_spotifyEmail != null) {
-            await prefs.setString('music_spotify_email', _spotifyEmail!);
+              await prefs.setBool('music_spotify_connected', true);
+              await prefs.setString('music_spotify_token', _spotifyAccessToken!);
+              if (_spotifyRefreshToken != null) {
+                await prefs.setString(
+                    'music_spotify_refresh_token', _spotifyRefreshToken!);
+              }
+              await prefs.setString('music_spotify_user', _spotifyUser!);
+              if (_spotifyEmail != null) {
+                await prefs.setString('music_spotify_email', _spotifyEmail!);
+              }
+              if (_spotifyAvatar != null) {
+                await prefs.setString('music_spotify_avatar', _spotifyAvatar!);
+              }
+              if (_spotifyProduct != null) {
+                await prefs.setString('music_spotify_product', _spotifyProduct!);
+              }
+
+              notifyListeners();
+              return true;
+            }
           }
-          if (_spotifyAvatar != null) {
-            await prefs.setString('music_spotify_avatar', _spotifyAvatar!);
-          }
-          if (_spotifyProduct != null) {
-            await prefs.setString('music_spotify_product', _spotifyProduct!);
-          }
-
-          notifyListeners();
-          return true;
         }
       }
     } catch (e) {
@@ -183,6 +198,73 @@ class MusicAuthService extends ChangeNotifier {
     _isAuthenticatingSpotify = false;
     notifyListeners();
     return false;
+  }
+
+  /// Intercambia el código de autorización por tokens de acceso
+  Future<Map<String, dynamic>?> _exchangeCodeForTokens(String code) async {
+    try {
+      final credentials = '${MusicKeys.spotifyClientId}:${MusicKeys.spotifyClientSecret}';
+      final basicAuth = base64Encode(utf8.encode(credentials));
+
+      final res = await http.post(
+        Uri.parse('https://accounts.spotify.com/api/token'),
+        headers: {
+          'Authorization': 'Basic $basicAuth',
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: {
+          'grant_type': 'authorization_code',
+          'code': code,
+          'redirect_uri': MusicKeys.spotifyRedirectUri,
+        },
+      ).timeout(const Duration(seconds: 10));
+
+      if (res.statusCode == 200) {
+        return json.decode(res.body) as Map<String, dynamic>;
+      } else {
+        if (kDebugMode) {
+          print('Error en token exchange: ${res.statusCode} -> ${res.body}');
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) print('Error exchanging Spotify code for tokens: $e');
+    }
+    return null;
+  }
+
+  /// Refresca el access token cuando expira usando el refresh token
+  Future<String?> refreshSpotifyToken() async {
+    if (_spotifyRefreshToken == null || _spotifyRefreshToken!.isEmpty) {
+      return null;
+    }
+
+    try {
+      final credentials = '${MusicKeys.spotifyClientId}:${MusicKeys.spotifyClientSecret}';
+      final basicAuth = base64Encode(utf8.encode(credentials));
+
+      final res = await http.post(
+        Uri.parse('https://accounts.spotify.com/api/token'),
+        headers: {
+          'Authorization': 'Basic $basicAuth',
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: {
+          'grant_type': 'refresh_token',
+          'refresh_token': _spotifyRefreshToken!,
+        },
+      ).timeout(const Duration(seconds: 10));
+
+      if (res.statusCode == 200) {
+        final data = json.decode(res.body);
+        _spotifyAccessToken = data['access_token'];
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('music_spotify_token', _spotifyAccessToken!);
+        return _spotifyAccessToken;
+      }
+    } catch (e) {
+      if (kDebugMode) print('Error refreshing Spotify token: $e');
+    }
+    return null;
   }
 
   /// Consulta los datos del usuario real autenticado en Spotify
@@ -197,7 +279,9 @@ class MusicAuthService extends ChangeNotifier {
 
       if (res.statusCode == 200) {
         final data = json.decode(res.body);
-        final displayName = data['display_name']?.toString() ?? data['id']?.toString() ?? 'Usuario Spotify';
+        final displayName = data['display_name']?.toString() ??
+            data['id']?.toString() ??
+            'Usuario Spotify';
         final email = data['email']?.toString();
         final product = data['product']?.toString(); // 'premium', 'free', 'open'
 
@@ -230,10 +314,12 @@ class MusicAuthService extends ChangeNotifier {
       _spotifyAvatar = null;
       _spotifyProduct = null;
       _spotifyAccessToken = null;
+      _spotifyRefreshToken = null;
       _isAuthenticatingSpotify = false;
 
       await prefs.remove('music_spotify_connected');
       await prefs.remove('music_spotify_token');
+      await prefs.remove('music_spotify_refresh_token');
       await prefs.remove('music_spotify_user');
       await prefs.remove('music_spotify_email');
       await prefs.remove('music_spotify_avatar');
