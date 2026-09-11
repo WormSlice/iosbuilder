@@ -192,7 +192,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _buildSettingsTile(
             icon: Icons.music_note_rounded,
             title: 'Música y Cuentas Vinculadas',
-            subtitle: 'Spotify, Apple Music (Canciones completas)',
+            subtitle: 'Spotify y servicios de streaming',
             onTap: () => Navigator.pushNamed(context, '/linked_music_accounts'),
           ),
 
