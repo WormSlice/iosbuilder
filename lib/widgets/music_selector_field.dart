@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -62,9 +63,10 @@ class _MusicSelectorFieldState extends State<MusicSelectorField>
     // Control de bucle para previsualizar (estilo Instagram)
     _audioPlayer.positionStream.listen((pos) {
       if (widget.musicId != null && _isPlaying) {
-        final start = Duration(seconds: widget.musicStartSeconds);
-        final end = Duration(
-            seconds: widget.musicStartSeconds + widget.musicDuration);
+        final safeStart = math.max(0, widget.musicStartSeconds);
+        final safeDuration = widget.musicDuration.clamp(5, 120);
+        final start = Duration(seconds: safeStart);
+        final end = Duration(seconds: safeStart + safeDuration);
         if (pos >= end) {
           _audioPlayer.seek(start);
         }
@@ -104,6 +106,7 @@ class _MusicSelectorFieldState extends State<MusicSelectorField>
       widget.musicId!,
       title: widget.musicTitle,
       artist: widget.musicArtist,
+      forceFullTrack: true,
     );
 
     if (mounted) {
@@ -111,8 +114,11 @@ class _MusicSelectorFieldState extends State<MusicSelectorField>
 
       if (url != null) {
         try {
-          await _audioPlayer.setUrl(url);
-          await _audioPlayer.seek(Duration(seconds: startSec));
+          final audioSource = await MusicService.createAudioSource(url,
+              cacheKey: widget.musicId);
+          await _audioPlayer.setAudioSource(audioSource);
+          final safeStart = startSec >= 0 ? startSec : 0;
+          await _audioPlayer.seek(Duration(seconds: safeStart));
           await _audioPlayer.play();
           setState(() => _isPlaying = true);
         } catch (e) {
@@ -181,6 +187,7 @@ class _MusicSelectorFieldState extends State<MusicSelectorField>
       title: widget.musicTitle ?? 'Canción',
       artist: widget.musicArtist ?? '',
       thumbnail: widget.musicThumbnail ?? '',
+      totalTrackSeconds: 180,
       initialStartSeconds: widget.musicStartSeconds,
       initialDuration: widget.musicDuration,
     );

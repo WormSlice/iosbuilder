@@ -89,25 +89,36 @@ class _MusicPlayerPillState extends State<MusicPlayerPill>
         }
       });
 
-      _player.positionStream.listen((pos) {
-        final start = Duration(seconds: widget.startSeconds);
-        final end = Duration(seconds: widget.startSeconds + widget.duration);
-        if (pos >= end) {
-          _player.seek(start);
-        }
-      });
-
       final url = await MusicService.getAudioStreamUrl(
         widget.musicId,
         title: widget.musicTitle,
         artist: widget.musicArtist,
+        forceFullTrack: true,
       );
 
       if (url != null && mounted) {
         await _player.setVolume(_calculateVolume());
-        await _player.setLoopMode(LoopMode.one);
-        await _player.setUrl(url);
-        await _player.seek(Duration(seconds: widget.startSeconds));
+        final audioSource = await MusicService.createAudioSource(url,
+            cacheKey: widget.musicId);
+        final loadedDuration = await _player.setAudioSource(audioSource);
+        final totalSec =
+            (loadedDuration != null && loadedDuration.inSeconds > 0)
+                ? loadedDuration.inSeconds
+                : 180;
+
+        final safeDuration = widget.duration.clamp(5, totalSec);
+        final safeStartSec = widget.startSeconds.clamp(0, math.max(0, totalSec - safeDuration).toInt()).toInt();
+
+        _player.positionStream.listen((pos) {
+          final start = Duration(seconds: safeStartSec);
+          final end = Duration(
+              seconds: (safeStartSec + safeDuration).clamp(0, totalSec).toInt());
+          if (pos >= end || (loadedDuration != null && pos >= loadedDuration)) {
+            _player.seek(start);
+          }
+        });
+
+        await _player.seek(Duration(seconds: safeStartSec));
         await _player.play();
 
         if (mounted) {

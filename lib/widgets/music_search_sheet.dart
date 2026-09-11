@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../services/music_service.dart';
+import '../services/music_auth_service.dart';
+import '../screens/settings/linked_music_accounts_screen.dart';
 import 'instagram_audio_trimmer_sheet.dart';
 
 class MusicSearchSheet extends StatefulWidget {
@@ -70,6 +72,7 @@ class _MusicSearchSheetState extends State<MusicSearchSheet>
         _songs = results;
         _isLoading = false;
       });
+      MusicService.prefetchTopStreams(results);
     }
   }
 
@@ -190,7 +193,9 @@ class _MusicSearchSheetState extends State<MusicSearchSheet>
             );
 
       if (url != null && url.isNotEmpty && mounted) {
-        await _previewPlayer.setUrl(url);
+        final audioSource =
+            await MusicService.createAudioSource(url, cacheKey: id);
+        await _previewPlayer.setAudioSource(audioSource);
         await _previewPlayer.seek(Duration.zero);
         await _previewPlayer.play();
 
@@ -244,8 +249,10 @@ class _MusicSearchSheetState extends State<MusicSearchSheet>
             ? song['audioUrl'].toString()
             : song['id'].toString();
 
-    final totalSec =
-        int.tryParse(song['duration']?.toString() ?? '180') ?? 180;
+    final rawDur = song['duration'];
+    final totalSec = (rawDur is int && rawDur > 0)
+        ? rawDur
+        : (int.tryParse(rawDur?.toString() ?? '') ?? 180);
     final autoHighlight = MusicService.calculateHighlightStart(totalSec);
 
     final trimmed = await InstagramAudioTrimmerSheet.show(
@@ -592,15 +599,135 @@ class _MusicSearchSheetState extends State<MusicSearchSheet>
                       color: Colors.black87,
                     ),
                   ),
-                  _BouncingMicroWidget(
-                    onTap: () => Navigator.pop(context),
-                    child: const Icon(Icons.close_rounded,
-                        color: Colors.black87, size: 22),
+                  Row(
+                    children: [
+                      _BouncingMicroWidget(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  const LinkedMusicAccountsScreen(),
+                            ),
+                          );
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF1DB954)
+                                .withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: const Color(0xFF1DB954)
+                                  .withValues(alpha: 0.35),
+                              width: 1,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.link_rounded,
+                                  color: Color(0xFF1DB954), size: 14),
+                              const SizedBox(width: 4),
+                              Text(
+                                MusicAuthService.instance.isAnyConnected
+                                    ? 'Cuentas Vinculadas'
+                                    : 'Vincular Cuentas',
+                                style: const TextStyle(
+                                  fontFamily: 'CanvaSans',
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF1DB954),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      _BouncingMicroWidget(
+                        onTap: () => Navigator.pop(context),
+                        child: const Icon(Icons.close_rounded,
+                            color: Colors.black87, size: 22),
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
+
+            // Banner promocional de vinculación si no está conectado
+            if (!MusicAuthService.instance.isAnyConnected)
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+                child: GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const LinkedMusicAccountsScreen(),
+                      ),
+                    );
+                  },
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          const Color(0xFF1DB954).withValues(alpha: 0.12),
+                          const Color(0xFFFC3C44).withValues(alpha: 0.08),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color:
+                            const Color(0xFF1DB954).withValues(alpha: 0.25),
+                        width: 0.8,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.music_note_rounded,
+                            color: Color(0xFF1DB954), size: 18),
+                        const SizedBox(width: 8),
+                        const Expanded(
+                          child: Text(
+                            '¿Quieres canciones completas? Vincula Spotify o Apple Music',
+                            style: TextStyle(
+                              fontFamily: 'CanvaSans',
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.black87,
+                            ),
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF1DB954),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Text(
+                            'Vincular',
+                            style: TextStyle(
+                              fontFamily: 'CanvaSans',
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            const SizedBox(height: 8),
 
             // Barra de búsqueda estilo Instagram / Spotify
             Padding(

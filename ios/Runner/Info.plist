@@ -14,9 +14,12 @@
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>com.googleusercontent.apps.749754037761-57hheott5qftrrvoob6l5ajhocr274h1</string>
+				<string>connectapp</string>
 			</array>
 		</dict>
 	</array>
+	<key>NSAppleMusicUsageDescription</key>
+	<string>CONNECT necesita acceso a Apple Music para reproducir y sincronizar tus canciones favoritas.</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>

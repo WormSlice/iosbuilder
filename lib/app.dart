@@ -16,6 +16,7 @@ import 'screens/settings/notifications_settings_screen.dart';
 import 'screens/auth/two_factor_method_screen.dart';
 import 'screens/settings/location_settings_screen.dart';
 import 'screens/settings/connected_devices_screen.dart';
+import 'screens/settings/linked_music_accounts_screen.dart';
 import 'screens/activity/activity_center_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -101,6 +102,8 @@ class App extends StatelessWidget {
                     const NotificationsSettingsScreen(),
                 '/location_settings': (context) => const LocationSettingsScreen(),
                 '/connected_devices': (context) => const ConnectedDevicesScreen(),
+                '/linked_music_accounts': (context) =>
+                    const LinkedMusicAccountsScreen(),
                 '/activity': (context) => const ActivityCenterScreen(),
               },
             ),

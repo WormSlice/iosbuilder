@@ -187,6 +187,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
           const SizedBox(height: 24),
 
+          // Music & Connected Accounts Section
+          _buildSectionHeader('SERVICIOS Y MÚSICA'),
+          _buildSettingsTile(
+            icon: Icons.music_note_rounded,
+            title: 'Música y Cuentas Vinculadas',
+            subtitle: 'Spotify, Apple Music (Canciones completas)',
+            onTap: () => Navigator.pushNamed(context, '/linked_music_accounts'),
+          ),
+
+          const SizedBox(height: 24),
+
           // App Settings Section
           _buildSectionHeader(lang.translate('configuracion').toUpperCase()),
           _buildSettingsTile(
@@ -268,7 +279,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 ),
                 Text(
-                  'Versión 1.1.5',
+                  'Versión 1.1.33',
                   style: TextStyle(
                     fontFamily: 'Poppins',
                     fontSize: 10,
