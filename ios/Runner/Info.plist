@@ -13,6 +13,7 @@
 			<string>Editor</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
+				<string>com.googleusercontent.apps.749754037761-8f1dn7c2vgotf9dlafimn2sdd301825t</string>
 				<string>com.googleusercontent.apps.749754037761-57hheott5qftrrvoob6l5ajhocr274h1</string>
 				<string>connectapp</string>
 			</array>

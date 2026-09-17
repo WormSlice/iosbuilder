@@ -64,6 +64,7 @@ exports.sendPushNotificationOnNewDoc = functions.firestore
           headers: {
             "apns-priority": "10",
             "apns-push-type": "alert",
+            "apns-topic": "com.connectapp.co",
           },
           payload: {
             aps: {
@@ -131,6 +132,7 @@ exports.sendDirectPush = functions.https.onRequest(async (req, res) => {
         headers: {
           "apns-priority": "10",
           "apns-push-type": "alert",
+          "apns-topic": "com.connectapp.co",
         },
         payload: {
           aps: {
@@ -224,6 +226,7 @@ exports.sendPushOnNewChatMessage = functions.firestore
           headers: {
             "apns-priority": "10",
             "apns-push-type": "alert",
+            "apns-topic": "com.connectapp.co",
           },
           payload: {
             aps: {
