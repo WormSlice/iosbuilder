@@ -49,6 +49,13 @@
                 <data android:scheme="http" android:host="connectapp.com.co" />
                 <data android:scheme="https" android:host="connectapp.com.co" />
             </intent-filter>
+            <!-- Deep linking & OAuth callback for connectapp:// scheme (Spotify OAuth, etc.) -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="connectapp" />
+            </intent-filter>
         </activity>
         <!-- Firebase Cloud Messaging default channel & icon -->
         <meta-data

@@ -132,7 +132,7 @@ class MusicAuthService extends ChangeNotifier {
   /// Procesa la URL de redirección cuando Spotify devuelve el código de autorización (code)
   Future<bool> handleIncomingUri(Uri uri) async {
     final uriStr = uri.toString();
-    if (!uriStr.contains('spotify-callback')) {
+    if (!uriStr.contains('spotify-callback') && !uriStr.contains('callback')) {
       return false;
     }
 
