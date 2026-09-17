@@ -15,6 +15,8 @@ exports.sendPushNotificationOnNewDoc = functions.firestore
     const userId = context.params.userId;
 
     if (!notification) return null;
+    // Los mensajes de chat se manejan automáticamente por sendPushOnNewChatMessage para evitar duplicados
+    if (notification.type === "chat_message") return null;
 
     try {
       // 1. Obtener el token FCM del usuario destinatario
@@ -151,3 +153,100 @@ exports.sendDirectPush = functions.https.onRequest(async (req, res) => {
     return res.status(500).json({ error: error.message });
   }
 });
+
+/**
+ * Trigger directo en chats/{chatId}/messages/{messageId}
+ * Garantiza que CUALQUIER mensaje enviado (incluso por usuarios con versiones viejas de la app)
+ * dispare automáticamente una notificación push al destinatario.
+ */
+exports.sendPushOnNewChatMessage = functions.firestore
+  .document("chats/{chatId}/messages/{messageId}")
+  .onCreate(async (snap, context) => {
+    const message = snap.data();
+    const chatId = context.params.chatId;
+    if (!message) return null;
+
+    try {
+      const senderId = message.senderId;
+      const chatDoc = await admin.firestore().collection("chats").doc(chatId).get();
+      if (!chatDoc.exists) return null;
+
+      const participants = chatDoc.data()?.participants || [];
+      const recipientId = participants.find((p) => p !== senderId);
+      if (!recipientId) return null;
+
+      // 1. Obtener token FCM del destinatario
+      const recipientDoc = await admin.firestore().collection("users").doc(recipientId).get();
+      const fcmToken = recipientDoc.data()?.fcmToken;
+      if (!fcmToken || typeof fcmToken !== "string" || fcmToken.trim() === "") {
+        return null;
+      }
+
+      // 2. Obtener nombre del remitente
+      let senderName = "CONNECT";
+      if (senderId) {
+        const senderDoc = await admin.firestore().collection("users").doc(senderId).get();
+        const sData = senderDoc.data();
+        senderName = sData?.displayName || sData?.name || sData?.username || "CONNECT";
+      }
+
+      // 3. Formatear texto según tipo
+      let bodyText = message.text || "Nuevo mensaje";
+      const type = message.type || "text";
+      if (type === "image") bodyText = "📷 Foto";
+      else if (type === "voice") bodyText = "🎤 Mensaje de voz";
+      else if (type === "file") bodyText = "📎 Archivo";
+      else if (type === "location") bodyText = "📍 Ubicación";
+      else if (type === "socials") bodyText = "🔗 Redes sociales";
+
+      const pushPayload = {
+        token: fcmToken,
+        notification: {
+          title: senderName,
+          body: bodyText,
+        },
+        data: {
+          chatId: String(chatId),
+          senderId: String(senderId || ""),
+          type: "chat_message",
+          click_action: "FLUTTER_NOTIFICATION_CLICK",
+        },
+        android: {
+          priority: "high",
+          notification: {
+            channelId: "high_importance_channel",
+            sound: "default",
+            priority: "high",
+            defaultSound: true,
+            defaultVibrateTimings: true,
+            visibility: "public",
+          },
+        },
+        apns: {
+          payload: {
+            aps: {
+              alert: {
+                title: senderName,
+                body: bodyText,
+              },
+              sound: "default",
+              badge: 1,
+              "content-available": 1,
+            },
+          },
+          headers: {
+            "apns-priority": "10",
+            "apns-push-type": "alert",
+          },
+        },
+      };
+
+      const resp = await admin.messaging().send(pushPayload);
+      console.log(`[Push Chat] Notificación enviada a ${recipientId} por mensaje de ${senderName}:`, resp);
+      return resp;
+    } catch (err) {
+      console.error("[Push Chat] Error:", err);
+      return null;
+    }
+  });
+
