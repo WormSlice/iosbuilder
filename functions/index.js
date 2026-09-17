@@ -61,6 +61,10 @@ exports.sendPushNotificationOnNewDoc = functions.firestore
           },
         },
         apns: {
+          headers: {
+            "apns-priority": "10",
+            "apns-push-type": "alert",
+          },
           payload: {
             aps: {
               alert: {
@@ -69,12 +73,7 @@ exports.sendPushNotificationOnNewDoc = functions.firestore
               },
               sound: "default",
               badge: 1,
-              "content-available": 1,
             },
-          },
-          headers: {
-            "apns-priority": "10",
-            "apns-push-type": "alert",
           },
         },
       };
@@ -129,6 +128,10 @@ exports.sendDirectPush = functions.https.onRequest(async (req, res) => {
         },
       },
       apns: {
+        headers: {
+          "apns-priority": "10",
+          "apns-push-type": "alert",
+        },
         payload: {
           aps: {
             alert: {
@@ -137,12 +140,7 @@ exports.sendDirectPush = functions.https.onRequest(async (req, res) => {
             },
             sound: "default",
             badge: 1,
-            "content-available": 1,
           },
-        },
-        headers: {
-          "apns-priority": "10",
-          "apns-push-type": "alert",
         },
       },
     };
@@ -223,6 +221,10 @@ exports.sendPushOnNewChatMessage = functions.firestore
           },
         },
         apns: {
+          headers: {
+            "apns-priority": "10",
+            "apns-push-type": "alert",
+          },
           payload: {
             aps: {
               alert: {
@@ -231,12 +233,7 @@ exports.sendPushOnNewChatMessage = functions.firestore
               },
               sound: "default",
               badge: 1,
-              "content-available": 1,
             },
-          },
-          headers: {
-            "apns-priority": "10",
-            "apns-push-type": "alert",
           },
         },
       };

@@ -249,9 +249,9 @@ class MessagingService {
       if (!kIsWeb && Platform.isIOS) {
         apnsToken = await _fm.getAPNSToken();
         if (apnsToken == null) {
-          // Retry for iOS APNs registration handshake
-          for (int i = 0; i < 6; i++) {
-            await Future.delayed(const Duration(milliseconds: 500));
+          // Reintentar hasta 10 segundos para dar tiempo al usuario a aceptar permisos
+          for (int i = 0; i < 10; i++) {
+            await Future.delayed(const Duration(seconds: 1));
             apnsToken = await _fm.getAPNSToken();
             if (apnsToken != null) break;
           }
@@ -261,7 +261,18 @@ class MessagingService {
         }
       }
 
-      final fcmToken = token ?? await _fm.getToken();
+      String? fcmToken = token;
+      if (fcmToken == null || fcmToken.isEmpty) {
+        try {
+          fcmToken = await _fm.getToken();
+        } catch (tokenErr) {
+          debugPrint('Initial getToken failed (waiting for APNs): $tokenErr');
+          if (!kIsWeb && Platform.isIOS) {
+            await Future.delayed(const Duration(seconds: 2));
+            fcmToken = await _fm.getToken();
+          }
+        }
+      }
       if (fcmToken == null || fcmToken.isEmpty) return;
 
       String platformName = 'unknown';

@@ -241,7 +241,75 @@ class MusicAuthService extends ChangeNotifier {
     return await refreshSpotifyToken();
   }
 
-  /// Encabezados de autorización para peticiones a Spotify Web API
+  String? _spotifyClientCredentialsToken;
+  DateTime? _spotifyClientCredentialsExpiresAt;
+
+  /// Obtiene un token de acceso a nivel de aplicación (Client Credentials Flow)
+  /// Permite consultar el catálogo, buscar canciones y obtener portadas oficiales de Spotify 24/7.
+  Future<String?> getClientCredentialsToken() async {
+    if (_spotifyClientCredentialsToken != null &&
+        _spotifyClientCredentialsExpiresAt != null &&
+        DateTime.now().isBefore(_spotifyClientCredentialsExpiresAt!)) {
+      return _spotifyClientCredentialsToken;
+    }
+
+    try {
+      final credentials =
+          '${MusicKeys.spotifyClientId}:${MusicKeys.spotifyClientSecret}';
+      final basicAuth = base64Encode(utf8.encode(credentials));
+
+      final res = await http.post(
+        Uri.parse('https://accounts.spotify.com/api/token'),
+        headers: {
+          'Authorization': 'Basic $basicAuth',
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: {'grant_type': 'client_credentials'},
+      ).timeout(const Duration(seconds: 8));
+
+      if (res.statusCode == 200) {
+        final data = json.decode(res.body);
+        _spotifyClientCredentialsToken = data['access_token'];
+        final expiresIn = data['expires_in'] as int? ?? 3600;
+        _spotifyClientCredentialsExpiresAt =
+            DateTime.now().add(Duration(seconds: expiresIn - 60));
+        return _spotifyClientCredentialsToken;
+      } else {
+        if (kDebugMode) {
+          print('Spotify client credentials error: ${res.statusCode} ${res.body}');
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) print('Error obtaining Spotify client credentials token: $e');
+    }
+    return null;
+  }
+
+  /// Devuelve headers oficiales válidos de Spotify.
+  /// Si el usuario conectó su cuenta, usa su token personal.
+  /// Si no, utiliza el token oficial de la aplicación (Client Credentials).
+  Future<Map<String, String>?> getAnyValidSpotifyHeaders() async {
+    if (_isSpotifyConnected) {
+      final userToken = await getValidAccessToken();
+      if (userToken != null && userToken.isNotEmpty) {
+        return {
+          'Authorization': 'Bearer $userToken',
+          'Content-Type': 'application/json',
+        };
+      }
+    }
+
+    final appToken = await getClientCredentialsToken();
+    if (appToken != null && appToken.isNotEmpty) {
+      return {
+        'Authorization': 'Bearer $appToken',
+        'Content-Type': 'application/json',
+      };
+    }
+    return null;
+  }
+
+  /// Encabezados de autorización para peticiones a Spotify Web API (específicas de usuario)
   Future<Map<String, String>?> getSpotifyHeaders() async {
     final token = await getValidAccessToken();
     if (token == null || token.isEmpty) return null;

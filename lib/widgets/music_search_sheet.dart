@@ -191,6 +191,7 @@ class _MusicSearchSheetState extends State<MusicSearchSheet>
             );
 
       if (url != null && url.isNotEmpty && mounted) {
+        song['audioUrl'] = url;
         final audioSource =
             await MusicService.createAudioSource(url, cacheKey: id);
         await _previewPlayer.setAudioSource(audioSource);
@@ -247,6 +248,11 @@ class _MusicSearchSheetState extends State<MusicSearchSheet>
             ? song['audioUrl'].toString()
             : song['id'].toString();
 
+    final workingAudioUrl = (song['audioUrl'] != null &&
+            song['audioUrl'].toString().startsWith('http'))
+        ? song['audioUrl'].toString()
+        : null;
+
     final rawDur = song['duration'];
     final totalSec = (rawDur is int && rawDur > 0)
         ? rawDur
@@ -256,6 +262,7 @@ class _MusicSearchSheetState extends State<MusicSearchSheet>
     final trimmed = await InstagramAudioTrimmerSheet.show(
       context: context,
       musicId: audioKey,
+      audioUrl: workingAudioUrl,
       title: song['title'].toString(),
       artist: song['artist'].toString(),
       thumbnail: song['thumbnail'].toString(),
@@ -272,6 +279,7 @@ class _MusicSearchSheetState extends State<MusicSearchSheet>
         'thumbnail': song['thumbnail'].toString(),
         'startSeconds': trimmed['startSeconds'] ?? autoHighlight,
         'duration': trimmed['duration'] ?? 30,
+        'audioUrl': workingAudioUrl ?? song['audioUrl'],
       });
     }
   }

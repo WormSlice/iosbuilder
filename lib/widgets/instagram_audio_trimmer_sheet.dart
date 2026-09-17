@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -16,6 +17,7 @@ class InstagramAudioTrimmerSheet extends StatefulWidget {
   final int totalTrackSeconds;
   final int initialStartSeconds;
   final int initialDuration;
+  final String? audioUrl;
 
   const InstagramAudioTrimmerSheet({
     super.key,
@@ -26,6 +28,7 @@ class InstagramAudioTrimmerSheet extends StatefulWidget {
     this.totalTrackSeconds = 30,
     this.initialStartSeconds = 0,
     this.initialDuration = 30,
+    this.audioUrl,
   });
 
   static Future<Map<String, int>?> show({
@@ -37,6 +40,7 @@ class InstagramAudioTrimmerSheet extends StatefulWidget {
     int totalTrackSeconds = 30,
     int initialStartSeconds = 0,
     int initialDuration = 30,
+    String? audioUrl,
   }) {
     return showModalBottomSheet<Map<String, int>>(
       context: context,
@@ -50,6 +54,7 @@ class InstagramAudioTrimmerSheet extends StatefulWidget {
         totalTrackSeconds: totalTrackSeconds > 0 ? totalTrackSeconds : 30,
         initialStartSeconds: initialStartSeconds,
         initialDuration: initialDuration,
+        audioUrl: audioUrl,
       ),
     );
   }
@@ -160,15 +165,20 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
     });
 
     try {
-      final fullData = await MusicService.getFullAudioStream(
-        title: widget.title,
-        artist: widget.artist,
-        fallbackPreviewUrl: widget.musicId,
-        expectedDurationSec: widget.totalTrackSeconds,
-      );
+      String? streamUrl = widget.audioUrl;
+      if (streamUrl == null || !streamUrl.startsWith('http')) {
+        if (widget.musicId.startsWith('http')) {
+          streamUrl = widget.musicId;
+        }
+      }
 
-      final streamUrl = fullData?['url']?.toString() ??
-          (widget.musicId.startsWith('http') ? widget.musicId : null);
+      if (streamUrl == null || !streamUrl.startsWith('http')) {
+        streamUrl = await MusicService.getAudioStreamUrl(
+          widget.musicId,
+          title: widget.title,
+          artist: widget.artist,
+        );
+      }
 
       if (streamUrl != null && streamUrl.isNotEmpty && mounted) {
         final audioSource = await MusicService.createAudioSource(
@@ -177,15 +187,10 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
         );
         final loadedDuration = await _player.setAudioSource(audioSource);
 
-        final streamDurSec = fullData?['durationSeconds'] as int? ?? 0;
-        if (loadedDuration != null && loadedDuration.inSeconds > 35) {
-          _totalTrackDurationSec = loadedDuration.inSeconds.toDouble();
-        } else if (streamDurSec > 35) {
-          _totalTrackDurationSec = streamDurSec.toDouble();
-        } else if (widget.totalTrackSeconds > 35) {
-          _totalTrackDurationSec = widget.totalTrackSeconds.toDouble();
-        } else if (loadedDuration != null && loadedDuration.inSeconds > 0) {
-          _totalTrackDurationSec = loadedDuration.inSeconds.toDouble();
+        if (loadedDuration != null && loadedDuration.inSeconds > 0) {
+          if (widget.totalTrackSeconds <= 30 && loadedDuration.inSeconds > 30) {
+            _totalTrackDurationSec = loadedDuration.inSeconds.toDouble();
+          }
         }
 
         _duration = _duration.clamp(5, _totalTrackDurationSec.toInt());
@@ -193,7 +198,6 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
         _startSeconds = _startSeconds.clamp(0, maxStart.toInt());
 
         await _player.seek(Duration(seconds: _startSeconds));
-
         await _player.play();
 
         if (mounted) {
@@ -206,6 +210,7 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
         if (mounted) setState(() => _isLoading = false);
       }
     } catch (e) {
+      if (kDebugMode) print('Error en trimmer audio: $e');
       if (mounted) setState(() => _isLoading = false);
     }
   }

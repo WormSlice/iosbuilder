@@ -184,6 +184,7 @@ class _MusicSelectorFieldState extends State<MusicSelectorField>
     final trimResult = await InstagramAudioTrimmerSheet.show(
       context: context,
       musicId: widget.musicId!,
+      audioUrl: widget.musicId!.startsWith('http') ? widget.musicId : null,
       title: widget.musicTitle ?? 'Canción',
       artist: widget.musicArtist ?? '',
       thumbnail: widget.musicThumbnail ?? '',
