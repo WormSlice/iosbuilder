@@ -61,12 +61,6 @@ android {
             signingConfig = signingConfigs.getByName("release")
         }
     }
-
-    packaging {
-        jniLibs {
-            keepDebugSymbols.add("/**")
-        }
-    }
 }
 
 flutter {
