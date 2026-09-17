@@ -73,3 +73,8 @@ dependencies {
 tasks.matching { it.name.startsWith("cleanMerge") && it.name.endsWith("Assets") }.configureEach {
     enabled = false
 }
+
+tasks.matching { it.name.contains("NativeSymbolTables") || it.name.contains("NativeDebugMetadata") }.configureEach {
+    enabled = false
+}
+
