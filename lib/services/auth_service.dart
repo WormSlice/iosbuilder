@@ -12,7 +12,9 @@ import 'messaging_service.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final GoogleSignIn _google = GoogleSignIn();
+  final GoogleSignIn _google = GoogleSignIn(
+    serverClientId: '749754037761-hss3gknjferi1errhbl7p9olcs0r0gvp.apps.googleusercontent.com',
+  );
 
   Stream<User?> get userChanges => _auth.userChanges();
 
