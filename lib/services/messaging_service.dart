@@ -370,7 +370,7 @@ class MessagingService {
   }) async {
     try {
       final relayUrl = dotenv.env['PUSH_RELAY_URL'] ??
-          'https://push.connectapp.com.co/send-push';
+          'https://us-central1-connect2025-37b7c.cloudfunctions.net/sendDirectPush';
 
       final res = await http.post(
         Uri.parse(relayUrl),
