@@ -44,6 +44,8 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+/android/.kotlin/
+.kotlin/
 
 meilisearch
 assets/fonts/MCPELauncher.flatpak
@@ -58,6 +60,8 @@ dist/
 admin/.env
 AuthKey_*.p8
 recovery-codes-*.txt
+node_modules/
+functions/node_modules/
 iconos_extraidos/
 Nuevos Iconos/
 Disenos/

@@ -232,6 +232,25 @@ class MusicAuthService extends ChangeNotifier {
     return null;
   }
 
+  /// Obtiene un token válido de acceso de Spotify, refrescándolo si es necesario
+  Future<String?> getValidAccessToken() async {
+    if (!_isSpotifyConnected) return null;
+    if (_spotifyAccessToken != null && _spotifyAccessToken!.isNotEmpty) {
+      return _spotifyAccessToken;
+    }
+    return await refreshSpotifyToken();
+  }
+
+  /// Encabezados de autorización para peticiones a Spotify Web API
+  Future<Map<String, String>?> getSpotifyHeaders() async {
+    final token = await getValidAccessToken();
+    if (token == null || token.isEmpty) return null;
+    return {
+      'Authorization': 'Bearer $token',
+      'Content-Type': 'application/json',
+    };
+  }
+
   /// Refresca el access token cuando expira usando el refresh token
   Future<String?> refreshSpotifyToken() async {
     if (_spotifyRefreshToken == null || _spotifyRefreshToken!.isEmpty) {
@@ -259,6 +278,7 @@ class MusicAuthService extends ChangeNotifier {
         _spotifyAccessToken = data['access_token'];
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('music_spotify_token', _spotifyAccessToken!);
+        notifyListeners();
         return _spotifyAccessToken;
       }
     } catch (e) {

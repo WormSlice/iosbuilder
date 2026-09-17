@@ -4,6 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:just_audio/just_audio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:youtube_explode_dart/youtube_explode_dart.dart';
+import 'music_auth_service.dart';
 
 class CachedAudioStream {
   final String url;
@@ -278,9 +280,81 @@ class MusicService {
     return List<Map<String, dynamic>>.from(_curatedSongs);
   }
 
-  /// Alias para listas de tendencias
+  /// Obtiene canciones principales para la pantalla inicial ("Para ti")
   static Future<List<Map<String, dynamic>>> getSpotifyTopCharts() async {
+    if (MusicAuthService.instance.isSpotifyConnected) {
+      try {
+        final spotifySongs = await _fetchSpotifyTopTracks();
+        if (spotifySongs.isNotEmpty) {
+          return spotifySongs;
+        }
+      } catch (e) {
+        if (kDebugMode) print('Error obteniendo top tracks de Spotify: $e');
+      }
+    }
     return getCuratedSongs();
+  }
+
+  /// Consulta las canciones más escuchadas del usuario o novedades en Spotify
+  static Future<List<Map<String, dynamic>>> _fetchSpotifyTopTracks() async {
+    final headers = await MusicAuthService.instance.getSpotifyHeaders();
+    if (headers == null) return [];
+
+    try {
+      // 1. Intentar obtener top tracks del usuario
+      var uri = Uri.parse('https://api.spotify.com/v1/me/top/tracks?limit=30&time_range=short_term');
+      var response = await http.get(uri, headers: headers).timeout(const Duration(seconds: 4));
+
+      // Si token expiró (401), refrescar e intentar de nuevo
+      if (response.statusCode == 401) {
+        await MusicAuthService.instance.refreshSpotifyToken();
+        final refreshedHeaders = await MusicAuthService.instance.getSpotifyHeaders();
+        if (refreshedHeaders != null) {
+          response = await http.get(uri, headers: refreshedHeaders).timeout(const Duration(seconds: 4));
+        }
+      }
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final items = data['items'] as List? ?? [];
+        if (items.isNotEmpty) {
+          return _mapSpotifyItems(items);
+        }
+      }
+
+      // 2. Si el usuario aún no tiene historial o viene vacío, buscar novedades globales
+      final newReleasesUri = Uri.parse('https://api.spotify.com/v1/browse/new-releases?limit=20');
+      final newReleasesRes = await http.get(newReleasesUri, headers: headers).timeout(const Duration(seconds: 4));
+      if (newReleasesRes.statusCode == 200) {
+        final data = json.decode(newReleasesRes.body);
+        final albums = data['albums']?['items'] as List? ?? [];
+        final list = <Map<String, dynamic>>[];
+        for (var album in albums) {
+          final albumId = album['id']?.toString();
+          if (albumId != null && albumId.isNotEmpty) {
+            final tracksRes = await http.get(
+              Uri.parse('https://api.spotify.com/v1/albums/$albumId/tracks?limit=2'),
+              headers: headers,
+            ).timeout(const Duration(seconds: 3));
+            if (tracksRes.statusCode == 200) {
+              final tData = json.decode(tracksRes.body);
+              final tItems = tData['items'] as List? ?? [];
+              final albumImages = album['images'] as List? ?? [];
+              final thumb = albumImages.isNotEmpty ? albumImages.first['url']?.toString() ?? '' : '';
+              for (var t in tItems) {
+                t['album'] = {'images': [{'url': thumb}]};
+                list.addAll(_mapSpotifyItems([t]));
+              }
+            }
+          }
+          if (list.length >= 25) break;
+        }
+        if (list.isNotEmpty) return list;
+      }
+    } catch (e) {
+      if (kDebugMode) print('Error en _fetchSpotifyTopTracks: $e');
+    }
+    return [];
   }
 
   /// Prefetch ligero para asegurar disponibilidad instantánea
@@ -291,17 +365,30 @@ class MusicService {
     return searchTracks(query);
   }
 
-  /// Busca canciones en iTunes y Deezer con previews AAC/MP3 de alta fidelidad
+  /// Busca canciones. Si Spotify está vinculado, busca en el catálogo oficial de Spotify.
+  /// Si no, o en caso de fallo, utiliza iTunes y Deezer.
   static Future<List<Map<String, dynamic>>> searchTracks(String query) async {
     final trimmedQuery = query.trim();
     if (trimmedQuery.isEmpty) {
-      return getCuratedSongs();
+      return getSpotifyTopCharts();
+    }
+
+    // 1. Búsqueda directa en Spotify si la cuenta está vinculada
+    if (MusicAuthService.instance.isSpotifyConnected) {
+      try {
+        final spotifyResults = await _searchSpotify(trimmedQuery);
+        if (spotifyResults.isNotEmpty) {
+          return spotifyResults;
+        }
+      } catch (e) {
+        if (kDebugMode) print('Fallo búsqueda en Spotify, pasando a fallback: $e');
+      }
     }
 
     final results = <Map<String, dynamic>>[];
     final seenTracks = <String>{};
 
-    // 1. Búsqueda principal en iTunes (AAC de alta fidelidad, soporte Range HTTP 206)
+    // 2. Búsqueda en iTunes (fallback transparente de alta fidelidad)
     try {
       final itunesUrl = Uri.parse(
         'https://itunes.apple.com/search?term=${Uri.encodeComponent(trimmedQuery)}&entity=song&limit=30',
@@ -324,10 +411,10 @@ class MusicService {
 
           final trackKey =
               '${trackName.toLowerCase()}_${artistName.toLowerCase()}';
-          if (trackName.isNotEmpty && previewUrl.isNotEmpty && !seenTracks.contains(trackKey)) {
+          if (trackName.isNotEmpty && !seenTracks.contains(trackKey)) {
             seenTracks.add(trackKey);
             results.add({
-              'id': previewUrl,
+              'id': previewUrl.isNotEmpty ? previewUrl : trackKey,
               'title': trackName,
               'artist': artistName,
               'thumbnail': artworkHd,
@@ -341,7 +428,7 @@ class MusicService {
       if (kDebugMode) print('Error en búsqueda iTunes: $e');
     }
 
-    // 2. Búsqueda complementaria en Deezer si faltan resultados
+    // 3. Búsqueda complementaria en Deezer
     if (results.length < 10) {
       try {
         final deezerUrl = Uri.parse(
@@ -364,10 +451,10 @@ class MusicService {
 
             final trackKey =
                 '${trackName.toLowerCase()}_${artistName.toLowerCase()}';
-            if (trackName.isNotEmpty && previewUrl.isNotEmpty && !seenTracks.contains(trackKey)) {
+            if (trackName.isNotEmpty && !seenTracks.contains(trackKey)) {
               seenTracks.add(trackKey);
               results.add({
-                'id': previewUrl,
+                'id': previewUrl.isNotEmpty ? previewUrl : trackKey,
                 'title': trackName,
                 'artist': artistName,
                 'thumbnail': artworkHd,
@@ -395,59 +482,177 @@ class MusicService {
     }).toList();
   }
 
-  /// Obtiene el enlace de audio streaming directo y confiable
+  /// Realiza la búsqueda oficial en el catálogo de Spotify Web API
+  static Future<List<Map<String, dynamic>>> _searchSpotify(String query) async {
+    var headers = await MusicAuthService.instance.getSpotifyHeaders();
+    if (headers == null) return [];
+
+    final searchUri = Uri.parse(
+      'https://api.spotify.com/v1/search?q=${Uri.encodeComponent(query)}&type=track&limit=25',
+    );
+
+    var response = await http.get(searchUri, headers: headers).timeout(const Duration(seconds: 4));
+
+    if (response.statusCode == 401) {
+      await MusicAuthService.instance.refreshSpotifyToken();
+      headers = await MusicAuthService.instance.getSpotifyHeaders();
+      if (headers != null) {
+        response = await http.get(searchUri, headers: headers).timeout(const Duration(seconds: 4));
+      }
+    }
+
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      final tracks = data['tracks']?['items'] as List? ?? [];
+      return _mapSpotifyItems(tracks);
+    }
+    return [];
+  }
+
+  /// Mapea las pistas de la API de Spotify con su metadata y duración real en segundos
+  static List<Map<String, dynamic>> _mapSpotifyItems(List items) {
+    final results = <Map<String, dynamic>>[];
+    for (var item in items) {
+      final id = item['id']?.toString() ?? '';
+      final title = item['name']?.toString() ?? '';
+      final artistsList = item['artists'] as List? ?? [];
+      final artists = artistsList
+          .map((a) => a['name']?.toString() ?? '')
+          .where((name) => name.isNotEmpty)
+          .join(', ');
+
+      final album = item['album'];
+      final images = album?['images'] as List? ?? [];
+      String thumbnail = '';
+      if (images.isNotEmpty) {
+        // Seleccionar la mejor calidad disponible
+        thumbnail = images.first['url']?.toString() ?? '';
+      }
+
+      final durationMs = item['duration_ms'] as int? ?? 180000;
+      final durationSec = durationMs ~/ 1000;
+      final previewUrl = item['preview_url']?.toString();
+
+      if (id.isNotEmpty && title.isNotEmpty) {
+        results.add({
+          'id': id,
+          'spotifyId': id,
+          'title': title,
+          'artist': artists.isNotEmpty ? artists : 'Artista desconocido',
+          'thumbnail': thumbnail,
+          'duration': durationSec > 0 ? durationSec : 180,
+          'audioUrl': previewUrl ?? '',
+          'spotifyUri': item['uri']?.toString() ?? 'spotify:track:$id',
+          'isSpotify': true,
+        });
+      }
+    }
+    return results;
+  }
+
+  /// Obtiene el enlace de audio streaming directo y confiable de la CANCIÓN COMPLETA
   static Future<Map<String, dynamic>?> getFullAudioStream({
     required String title,
     required String artist,
     String? fallbackPreviewUrl,
+    int? expectedDurationSec,
   }) async {
     final searchTitle = title.trim();
     final searchArtist = artist.trim();
     final cacheKey = 'stream_${searchTitle}_$searchArtist'.toLowerCase();
 
-    // 1. Revisar caché en memoria
+    // 1. Revisar caché en memoria si la duración es de canción completa (> 40s)
     final cached = _streamCache[cacheKey];
-    if (cached != null && !cached.isExpired) {
+    if (cached != null && !cached.isExpired && cached.durationSeconds > 40) {
       return {
         'url': cached.url,
         'durationSeconds': cached.durationSeconds,
       };
     }
 
-    // 2. Si ya tenemos URL directa de preview
+    // 2. Extraer audio completo en alta calidad con YoutubeExplode
+    try {
+      final yt = YoutubeExplode();
+      final query = '$searchTitle $searchArtist audio';
+      final searchList = await yt.search.search(query).timeout(const Duration(seconds: 4));
+      if (searchList.isNotEmpty) {
+        final video = searchList.first;
+        final manifest = await yt.videos.streamsClient.getManifest(video.id).timeout(const Duration(seconds: 4));
+        final audioStream = manifest.audioOnly.withHighestBitrate();
+        final durSec = video.duration?.inSeconds ?? expectedDurationSec ?? 180;
+        yt.close();
+
+        final streamUrl = audioStream.url.toString();
+        _streamCache[cacheKey] = CachedAudioStream(
+          url: streamUrl,
+          durationSeconds: durSec,
+          expiresAt: DateTime.now().add(const Duration(hours: 3)),
+        );
+        return {
+          'url': streamUrl,
+          'durationSeconds': durSec,
+        };
+      }
+      yt.close();
+    } catch (e) {
+      if (kDebugMode) print('Resolución YouTube Explode fallback: $e');
+    }
+
+    // 3. Respaldo multi-servidor vía Invidious Mirror
+    try {
+      final query = Uri.encodeComponent('$searchTitle $searchArtist audio');
+      final searchUrl = Uri.parse('https://inv.nadeko.net/api/v1/search?q=$query&type=video');
+      final res = await http.get(searchUrl, headers: {'User-Agent': 'Mozilla/5.0'}).timeout(const Duration(seconds: 4));
+      if (res.statusCode == 200) {
+        final list = json.decode(res.body) as List? ?? [];
+        if (list.isNotEmpty) {
+          final videoId = list.first['videoId']?.toString();
+          if (videoId != null && videoId.isNotEmpty) {
+            final vRes = await http.get(
+              Uri.parse('https://inv.nadeko.net/api/v1/videos/$videoId'),
+              headers: {'User-Agent': 'Mozilla/5.0'},
+            ).timeout(const Duration(seconds: 4));
+            if (vRes.statusCode == 200) {
+              final vData = json.decode(vRes.body);
+              final durSec = vData['lengthSeconds'] as int? ?? expectedDurationSec ?? 180;
+              final adaptive = vData['adaptiveFormats'] as List? ?? [];
+              for (var format in adaptive) {
+                if (format['type']?.toString().contains('audio') == true && format['url'] != null) {
+                  final streamUrl = format['url'].toString();
+                  _streamCache[cacheKey] = CachedAudioStream(
+                    url: streamUrl,
+                    durationSeconds: durSec,
+                    expiresAt: DateTime.now().add(const Duration(hours: 3)),
+                  );
+                  return {
+                    'url': streamUrl,
+                    'durationSeconds': durSec,
+                  };
+                }
+              }
+            }
+          }
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) print('Resolución Invidious fallback: $e');
+    }
+
+    // 4. Fallback a preview directa si la conexión es lenta o falla la extracción completa
     if (fallbackPreviewUrl != null && fallbackPreviewUrl.startsWith('http')) {
+      final safeDur = expectedDurationSec != null && expectedDurationSec > 0 ? expectedDurationSec : 30;
       _streamCache[cacheKey] = CachedAudioStream(
         url: fallbackPreviewUrl,
-        durationSeconds: 30,
-        expiresAt: DateTime.now().add(const Duration(hours: 4)),
+        durationSeconds: safeDur,
+        expiresAt: DateTime.now().add(const Duration(hours: 2)),
       );
       return {
         'url': fallbackPreviewUrl,
-        'durationSeconds': 30,
+        'durationSeconds': safeDur,
       };
     }
 
-    // 3. Revisar en lista curada
-    final curated = _curatedSongs.firstWhere(
-      (s) =>
-          (searchTitle.isNotEmpty &&
-              s['title'].toString().toLowerCase() == searchTitle.toLowerCase()),
-      orElse: () => {},
-    );
-    if (curated.isNotEmpty && curated['audioUrl'] != null) {
-      final url = curated['audioUrl'].toString();
-      _streamCache[cacheKey] = CachedAudioStream(
-        url: url,
-        durationSeconds: 30,
-        expiresAt: DateTime.now().add(const Duration(hours: 4)),
-      );
-      return {
-        'url': url,
-        'durationSeconds': 30,
-      };
-    }
-
-    // 4. Buscar stream oficial en iTunes
+    // 5. Fallback a stream oficial en iTunes
     if (searchTitle.isNotEmpty) {
       try {
         final query = '$searchTitle $searchArtist'.trim();
@@ -461,20 +666,16 @@ class MusicService {
           if (items.isNotEmpty) {
             final preview = items.first['previewUrl']?.toString();
             if (preview != null && preview.isNotEmpty) {
-              _streamCache[cacheKey] = CachedAudioStream(
-                url: preview,
-                durationSeconds: 30,
-                expiresAt: DateTime.now().add(const Duration(hours: 4)),
-              );
+              final safeDur = expectedDurationSec != null && expectedDurationSec > 0 ? expectedDurationSec : 30;
               return {
                 'url': preview,
-                'durationSeconds': 30,
+                'durationSeconds': safeDur,
               };
             }
           }
         }
       } catch (e) {
-        if (kDebugMode) print('Error buscando stream iTunes: $e');
+        if (kDebugMode) print('Error en fallback iTunes: $e');
       }
     }
 
@@ -488,67 +689,26 @@ class MusicService {
     String? artist,
     bool forceFullTrack = false,
   }) async {
-    // 1. Si ya es una URL directa
+    // Si se requiere la pista completa o no es una URL directa
+    if (forceFullTrack || !audioIdOrUrl.startsWith('http')) {
+      final searchTitle = (title != null && title.isNotEmpty)
+          ? title
+          : audioIdOrUrl.replaceAll('_', ' ');
+      final searchArtist = (artist != null && artist.isNotEmpty) ? artist : '';
+
+      final streamData = await getFullAudioStream(
+        title: searchTitle,
+        artist: searchArtist,
+        fallbackPreviewUrl: audioIdOrUrl.startsWith('http') ? audioIdOrUrl : null,
+      );
+
+      if (streamData != null && streamData['url'] != null) {
+        return streamData['url'].toString();
+      }
+    }
+
     if (audioIdOrUrl.startsWith('http')) {
       return audioIdOrUrl;
-    }
-
-    final searchTitle = (title != null && title.isNotEmpty)
-        ? title
-        : audioIdOrUrl.replaceAll('_', ' ');
-    final searchArtist = (artist != null && artist.isNotEmpty) ? artist : '';
-    final cacheKey = '${searchTitle}_$searchArtist'.trim().toLowerCase();
-
-    // 2. Revisar caché de stream en memoria
-    final cached = _streamCache[cacheKey];
-    if (cached != null && !cached.isExpired) {
-      return cached.url;
-    }
-
-    // 3. Revisar en lista curada
-    final curated = _curatedSongs.firstWhere(
-      (s) =>
-          s['id'] == audioIdOrUrl ||
-          (title != null &&
-              s['title'].toString().toLowerCase() == title.toLowerCase()),
-      orElse: () => {},
-    );
-    if (curated.isNotEmpty && curated['audioUrl'] != null) {
-      final url = curated['audioUrl'].toString();
-      _streamCache[cacheKey] = CachedAudioStream(
-        url: url,
-        durationSeconds: 30,
-        expiresAt: DateTime.now().add(const Duration(hours: 4)),
-      );
-      return url;
-    }
-
-    // 4. Búsqueda rápida en iTunes
-    if (searchTitle.isNotEmpty) {
-      try {
-        final query = '$searchTitle $searchArtist'.trim();
-        final itUrl = Uri.parse(
-          'https://itunes.apple.com/search?term=${Uri.encodeComponent(query)}&entity=song&limit=1',
-        );
-        final res = await http.get(itUrl).timeout(const Duration(seconds: 3));
-        if (res.statusCode == 200) {
-          final data = json.decode(res.body);
-          final items = data['results'] as List? ?? [];
-          if (items.isNotEmpty) {
-            final preview = items.first['previewUrl']?.toString();
-            if (preview != null && preview.isNotEmpty) {
-              _streamCache[cacheKey] = CachedAudioStream(
-                url: preview,
-                durationSeconds: 30,
-                expiresAt: DateTime.now().add(const Duration(hours: 4)),
-              );
-              return preview;
-            }
-          }
-        }
-      } catch (e) {
-        if (kDebugMode) print('Error en fallback getAudioStreamUrl: $e');
-      }
     }
 
     return null;

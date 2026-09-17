@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'app.dart';
 import 'services/messaging_service.dart';
 import 'services/local_notification_service.dart';
@@ -25,8 +26,11 @@ Future<void> main() async {
 
     try {
       await Firebase.initializeApp();
+      // Registro temprano del handler en segundo plano para estados terminado/background
+      FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+      await LocalNotificationService.init();
     } catch (e) {
-      debugPrint("Firebase init error: $e");
+      debugPrint("Firebase/Notification early init error: $e");
     }
 
     PaintingBinding.instance.imageCache.maximumSize = 200;
@@ -35,11 +39,6 @@ Future<void> main() async {
     runApp(const App());
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      try {
-        await LocalNotificationService.init();
-      } catch (e) {
-        debugPrint("LocalNotificationService init error: $e");
-      }
       try {
         await MessagingService().init();
       } catch (e) {

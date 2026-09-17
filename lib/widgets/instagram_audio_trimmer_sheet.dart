@@ -4,8 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../services/music_service.dart';
-import '../services/music_auth_service.dart';
-import '../screens/settings/linked_music_accounts_screen.dart';
 
 /// Hoja modal estilo Instagram para seleccionar y recortar cualquier fragmento
 /// de audio con diseño limpio CONNECT (fondo blanco, azul vibrante, CanvaSans)
@@ -166,6 +164,7 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
         title: widget.title,
         artist: widget.artist,
         fallbackPreviewUrl: widget.musicId,
+        expectedDurationSec: widget.totalTrackSeconds,
       );
 
       final streamUrl = fullData?['url']?.toString() ??
@@ -178,7 +177,14 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
         );
         final loadedDuration = await _player.setAudioSource(audioSource);
 
-        if (loadedDuration != null && loadedDuration.inSeconds > 0) {
+        final streamDurSec = fullData?['durationSeconds'] as int? ?? 0;
+        if (loadedDuration != null && loadedDuration.inSeconds > 35) {
+          _totalTrackDurationSec = loadedDuration.inSeconds.toDouble();
+        } else if (streamDurSec > 35) {
+          _totalTrackDurationSec = streamDurSec.toDouble();
+        } else if (widget.totalTrackSeconds > 35) {
+          _totalTrackDurationSec = widget.totalTrackSeconds.toDouble();
+        } else if (loadedDuration != null && loadedDuration.inSeconds > 0) {
           _totalTrackDurationSec = loadedDuration.inSeconds.toDouble();
         }
 
@@ -187,6 +193,7 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
         _startSeconds = _startSeconds.clamp(0, maxStart.toInt());
 
         await _player.seek(Duration(seconds: _startSeconds));
+
         await _player.play();
 
         if (mounted) {
@@ -287,8 +294,10 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
       return [15, _totalTrackDurationSec.toInt()];
     } else if (_totalTrackDurationSec <= 60) {
       return [15, 30, _totalTrackDurationSec.toInt()];
+    } else if (_totalTrackDurationSec <= 90) {
+      return [15, 30, 60, _totalTrackDurationSec.toInt()];
     } else {
-      return [15, 30, 60];
+      return [15, 30, 60, 90];
     }
   }
 
@@ -603,82 +612,7 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
               ),
             ],
           ),
-          const SizedBox(height: 12),
-
-          // Estado de cuenta vinculada / Acceso a canción completa
-          if (MusicAuthService.instance.hasAnyLinkedAccount)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Row(
-                children: [
-                  Icon(
-                    MusicAuthService.instance.isSpotifyConnected
-                        ? Icons.graphic_eq_rounded
-                        : Icons.apple_rounded,
-                    size: 14,
-                    color: MusicAuthService.instance.isSpotifyConnected
-                        ? const Color(0xFF1DB954)
-                        : const Color(0xFFFC3C44),
-                  ),
-                  const SizedBox(width: 5),
-                  Text(
-                    '${MusicAuthService.instance.linkedAccountStatusText} • Canción completa activa',
-                    style: TextStyle(
-                      fontFamily: 'CanvaSans',
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      color: MusicAuthService.instance.isSpotifyConnected
-                          ? const Color(0xFF1DB954)
-                          : const Color(0xFFFC3C44),
-                    ),
-                  ),
-                ],
-              ),
-            )
-          else
-            Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: _BouncingWidget(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) =>
-                          const LinkedMusicAccountsScreen(),
-                    ),
-                  );
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF1F5F9),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.link_rounded,
-                          size: 14, color: Colors.grey[700]),
-                      const SizedBox(width: 5),
-                      Text(
-                        '¿Quieres canciones completas? Vincula Spotify o Apple',
-                        style: TextStyle(
-                          fontFamily: 'CanvaSans',
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.grey[700],
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      Icon(Icons.arrow_forward_ios_rounded,
-                          size: 10, color: Colors.grey[600]),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 14),
 
           // Visualizador de onda de sonido (Waveform) interactivo
           LayoutBuilder(
@@ -768,7 +702,7 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'Duración disponible: ${_formatTime(effectiveTotal.toInt())}',
+                      'Duración de la canción: ${_formatTime(effectiveTotal.toInt())}',
                       style: TextStyle(
                         fontFamily: 'CanvaSans',
                         fontSize: 11.5,

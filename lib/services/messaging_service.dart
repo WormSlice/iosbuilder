@@ -7,6 +7,8 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:http/http.dart' as http;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../app.dart';
 import '../screens/chats/chat_room_screen.dart';
 import 'local_notification_service.dart';
@@ -17,18 +19,22 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     await Firebase.initializeApp();
     debugPrint("FCM Background message received: ${message.messageId}");
 
-    String title = message.notification?.title ?? message.data['title']?.toString() ?? 'CONNECT';
-    String body = message.notification?.body ??
-        message.data['body']?.toString() ??
-        message.data['message']?.toString() ??
-        '';
+    // Si el mensaje no trae bloque notification nativo (mensaje data puro),
+    // despertar plugin local para mostrarlo en la bandeja del sistema.
+    if (message.notification == null) {
+      String title = message.data['title']?.toString() ?? 'CONNECT';
+      String body = message.data['body']?.toString() ??
+          message.data['message']?.toString() ??
+          '';
 
-    if (title.isNotEmpty || body.isNotEmpty) {
-      await LocalNotificationService.showNotification(
-        title: title,
-        body: body,
-        payload: message.data.isNotEmpty ? jsonEncode(message.data) : null,
-      );
+      if (title.isNotEmpty || body.isNotEmpty) {
+        await LocalNotificationService.init();
+        await LocalNotificationService.showNotification(
+          title: title,
+          body: body,
+          payload: message.data.isNotEmpty ? jsonEncode(message.data) : null,
+        );
+      }
     }
   } catch (e) {
     debugPrint("Error in background FCM handler: $e");
@@ -289,6 +295,7 @@ class MessagingService {
   }
 
   /// Sends a push notification document to a recipient user in Firestore
+  /// and dispatches the actual push notification to FCM for delivery outside the app.
   static Future<void> sendNotificationToUser({
     required String recipientUid,
     required String title,
@@ -311,15 +318,77 @@ class MessagingService {
         ...?data,
       };
 
+      // 1. Guardar documento en Firestore para historial in-app y disparador
       await FirebaseFirestore.instance
           .collection('users')
           .doc(recipientUid)
           .collection('notifications')
           .add(notificationPayload);
 
-      debugPrint('Push notification dispatched to user $recipientUid: "$title - $body"');
+      debugPrint('Push notification document stored for user $recipientUid');
+
+      // 2. Obtener el token FCM del destinatario y despachar push para entrega fuera de la app
+      try {
+        final recipientDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(recipientUid)
+            .get();
+
+        final fcmToken = recipientDoc.data()?['fcmToken']?.toString();
+        final platform = recipientDoc.data()?['devicePlatform']?.toString() ?? 'android';
+
+        if (fcmToken != null && fcmToken.isNotEmpty) {
+          await _dispatchPushNotification(
+            token: fcmToken,
+            title: title,
+            body: body,
+            platform: platform,
+            data: {
+              'chatId': data?['chatId']?.toString() ?? '',
+              'senderId': senderId,
+              'senderName': title,
+              'type': data?['type'] ?? 'chat_message',
+              'collectionPath': data?['collectionPath'] ?? 'chats',
+            },
+          );
+        }
+      } catch (e) {
+        debugPrint('Error obteniendo token FCM o enviando push: $e');
+      }
     } catch (e) {
       debugPrint('Error sending notification to user $recipientUid: $e');
+    }
+  }
+
+  /// Despacha la notificación push a través del relay serverless FCM
+  static Future<void> _dispatchPushNotification({
+    required String token,
+    required String title,
+    required String body,
+    required String platform,
+    required Map<String, dynamic> data,
+  }) async {
+    try {
+      final relayUrl = dotenv.env['PUSH_RELAY_URL'] ??
+          'https://push.connectapp.com.co/send-push';
+
+      final res = await http.post(
+        Uri.parse(relayUrl),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'token': token,
+          'title': title,
+          'body': body,
+          'platform': platform,
+          'data': data,
+        }),
+      ).timeout(const Duration(seconds: 4));
+
+      if (kDebugMode) {
+        print('FCM Push Relay status: ${res.statusCode} -> ${res.body}');
+      }
+    } catch (e) {
+      if (kDebugMode) print('Error despachando push relay: $e');
     }
   }
 
