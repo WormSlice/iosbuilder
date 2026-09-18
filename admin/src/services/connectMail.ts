@@ -1,7 +1,10 @@
 /**
- * Servicio de envío y consulta de correos electrónicos vía Cloudflare Worker (CONNECT Mail).
+ * Servicio de envío y consulta de correos electrónicos para CONNECT (CONNECT Mail).
+ * 1. Intenta enviar a través de la Cloud Function de Firebase (sendDirectEmail), que soporta cualquier destinatario vía SMTP.
+ * 2. Si la Cloud Function no está disponible o no tiene SMTP aún, recurre al Cloudflare Worker como fallback.
  */
 
+const CLOUD_FUNCTION_URL = 'https://us-central1-connect2025-37b7c.cloudfunctions.net/sendDirectEmail';
 const WORKER_URL = import.meta.env.VITE_MAIL_WORKER_URL || 'https://connect-email-receiver.irenzulsierra.workers.dev';
 
 export interface EmailData {
@@ -29,7 +32,7 @@ const fileToBase64 = (file: File): Promise<string> => {
 };
 
 /**
- * Envía un correo electrónico a través del Cloudflare Worker de CONNECT Mail.
+ * Envía un correo electrónico intentando primero vía Cloud Function (SMTP) y con fallback a Cloudflare.
  */
 export const sendEmail = async (data: EmailData) => {
     let fromEmail = 'contacto@connectapp.com.co';
@@ -48,19 +51,14 @@ export const sendEmail = async (data: EmailData) => {
     const toEmail = data.to.trim();
 
     const payload: any = {
-        from: `${fromName} <${fromEmail}>`,
+        from: fromEmail,
         fromEmail,
         fromName,
         to: toEmail,
-        subject: data.subject
+        subject: data.subject,
+        text: data.text,
+        html: data.html
     };
-
-    if (data.html) {
-        payload.html = data.html;
-    }
-    if (data.text) {
-        payload.text = data.text;
-    }
 
     if (data.attachments && data.attachments.length > 0) {
         const attachments = await Promise.all(
@@ -73,25 +71,42 @@ export const sendEmail = async (data: EmailData) => {
         payload.attachments = attachments;
     }
 
+    // 1. Intentar primero con la Cloud Function de Firebase
+    try {
+        const cfResponse = await fetch(CLOUD_FUNCTION_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        const cfText = await cfResponse.text();
+        let cfJson: any = null;
+        try { cfJson = JSON.parse(cfText); } catch (_) {}
+
+        if (cfResponse.ok) {
+            return cfJson || { success: true };
+        }
+
+        console.warn('Firebase Cloud Function sendDirectEmail reportó:', cfJson?.error || cfText);
+    } catch (cfError) {
+        console.warn('Fallo de conexión a Firebase Cloud Function sendDirectEmail:', cfError);
+    }
+
+    // 2. Fallback a Cloudflare Worker
     try {
         const response = await fetch(WORKER_URL, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
 
         const resText = await response.text();
         let resJson: any = null;
-        try {
-            resJson = JSON.parse(resText);
-        } catch (_) {}
+        try { resJson = JSON.parse(resText); } catch (_) {}
 
         if (!response.ok) {
             const errorDetail = resJson?.error || resJson?.message || resText || response.statusText;
-            console.error('Cloudflare Mail Worker Error:', errorDetail);
-            throw new Error(`Error Cloudflare Mail (${response.status}): ${errorDetail}`);
+            throw new Error(`Error en entrega: ${errorDetail}`);
         }
 
         return resJson || { success: true };
@@ -112,5 +127,5 @@ export const fetchMailEvents = async () => {
  * Obtiene contenido detallado de un mensaje
  */
 export const fetchMessageContent = async (_messageId: string) => {
-    return { body: 'Contenido procesado por Cloudflare Mail.', attachments: [] };
+    return { body: 'Contenido procesado por CONNECT Mail.', attachments: [] };
 };

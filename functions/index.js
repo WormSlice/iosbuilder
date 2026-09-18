@@ -335,3 +335,176 @@ exports.sendPushOnBroadcast = functions.firestore
       return null;
     }
   });
+
+const nodemailer = require("nodemailer");
+
+/**
+ * Obtiene el transportador de correo SMTP configurado en Firestore o en variables de entorno
+ */
+async function getEmailTransporter() {
+  try {
+    const configSnap = await admin.firestore().collection("system_settings").doc("email_config").get();
+    if (configSnap.exists) {
+      const c = configSnap.data();
+      if (c && c.user && c.pass) {
+        const host = (c.host || "smtp.gmail.com").trim();
+        const port = Number(c.port) || (host.includes("gmail") ? 465 : 587);
+        const secure = port === 465;
+        return {
+          transporter: nodemailer.createTransport({
+            host,
+            port,
+            secure,
+            auth: {
+              user: c.user.trim(),
+              pass: c.pass.trim(),
+            },
+          }),
+          senderEmail: (c.senderEmail || c.user).trim(),
+          senderName: c.senderName || "CONNECT",
+        };
+      }
+    }
+  } catch (err) {
+    console.error("[Mail] Error al leer system_settings/email_config:", err);
+  }
+
+  const envUser = process.env.SMTP_USER;
+  const envPass = process.env.SMTP_PASS;
+  if (envUser && envPass) {
+    const host = (process.env.SMTP_HOST || "smtp.gmail.com").trim();
+    const port = Number(process.env.SMTP_PORT) || (host.includes("gmail") ? 465 : 587);
+    return {
+      transporter: nodemailer.createTransport({
+        host,
+        port,
+        secure: port === 465,
+        auth: { user: envUser.trim(), pass: envPass.trim() },
+      }),
+      senderEmail: (process.env.SMTP_SENDER_EMAIL || envUser).trim(),
+      senderName: process.env.SMTP_SENDER_NAME || "CONNECT",
+    };
+  }
+
+  return null;
+}
+
+/**
+ * Trigger para despachar correos automáticamente cuando se crea un registro en mail/
+ * con status: 'sending' y category: 'sent'
+ */
+exports.sendEmailOnNewDoc = functions.firestore
+  .document("mail/{mailId}")
+  .onCreate(async (snap, context) => {
+    const data = snap.data();
+    if (!data) return null;
+    if (data.status !== "sending" || data.category !== "sent") return null;
+
+    try {
+      const emailConfig = await getEmailTransporter();
+      if (!emailConfig) {
+        console.warn("[Mail] No hay configuración SMTP activa en system_settings/email_config.");
+        await snap.ref.update({
+          status: "error",
+          error: "Falta configurar credenciales SMTP en Ajustes > Servidor de Correo (ej. Gmail y Contraseña de Aplicación) para despachar a buzones externos.",
+        });
+        return null;
+      }
+
+      const { transporter, senderEmail, senderName } = emailConfig;
+      const to = data.to;
+      const subject = data.subject || "(Sin Asunto)";
+      const text = data.message || data.text || "";
+      const html =
+        data.html ||
+        `<div style="font-family: Arial, sans-serif; color: #1e293b; max-width: 600px; margin: 0 auto; padding: 25px; border: 1px solid #e2e8f0; border-radius: 8px;">
+          <h2 style="color: #0094FF; font-size: 20px; font-weight: 800; margin-bottom: 20px;">CONNECT APP</h2>
+          <div style="font-size: 14px; line-height: 1.6; color: #334155; margin-bottom: 25px;">
+            ${(text || "").replace(/\n/g, "<br>")}
+          </div>
+          <div style="margin-top: 30px; border-top: 1px solid #e2e8f0; padding-top: 15px;">
+            <p style="font-size: 11px; color: #94a3b8; text-align: center; margin: 0;">
+              CONNECT © 2026. Todos los derechos reservados.
+            </p>
+          </div>
+        </div>`;
+
+      const info = await transporter.sendMail({
+        from: `"${data.fromName || senderName}" <${senderEmail}>`,
+        replyTo: data.from || "contacto@connectapp.com.co",
+        to: to,
+        subject: subject,
+        text: text,
+        html: html,
+      });
+
+      console.log(`[Mail] Correo enviado exitosamente a ${to}. MessageId: ${info.messageId}`);
+      await snap.ref.update({
+        status: "sent",
+        messageId: info.messageId,
+        sentAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+      return info;
+    } catch (error) {
+      console.error("[Mail] Error enviando correo:", error);
+      await snap.ref.update({
+        status: "error",
+        error: error.message,
+      });
+      return null;
+    }
+  });
+
+/**
+ * Endpoint HTTP para envío directo de correos desde el Panel Admin o servicios
+ */
+exports.sendDirectEmail = functions.https.onRequest(async (req, res) => {
+  res.set("Access-Control-Allow-Origin", "*");
+  res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+
+  if (req.method === "OPTIONS") {
+    return res.status(204).send("");
+  }
+
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
+
+  const { to, subject, text, html, from, fromName } = req.body || {};
+  if (!to || !subject) {
+    return res.status(400).json({ error: "Faltan campos obligatorios (to, subject)" });
+  }
+
+  try {
+    const emailConfig = await getEmailTransporter();
+    if (!emailConfig) {
+      return res.status(500).json({
+        error: "Falta configurar credenciales SMTP en Ajustes > Servidor de Correo para despachar a buzones externos.",
+      });
+    }
+
+    const { transporter, senderEmail, senderName } = emailConfig;
+    const info = await transporter.sendMail({
+      from: `"${fromName || senderName}" <${senderEmail}>`,
+      replyTo: from || "contacto@connectapp.com.co",
+      to: to,
+      subject: subject,
+      text: text || "",
+      html: html || `<p>${(text || "").replace(/\n/g, "<br>")}</p>`,
+    });
+
+    return res.status(200).json({ success: true, messageId: info.messageId });
+  } catch (error) {
+    console.error("[Mail Direct] Error:", error);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * Endpoint de compatibilidad para evitar eliminación accidental en deploy
+ */
+exports.api = functions.https.onRequest((req, res) => {
+  res.status(200).send("CONNECT API Active");
+});
+
