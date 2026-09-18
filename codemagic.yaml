@@ -44,9 +44,9 @@ workflows:
           if [[ "$LATEST_BUILD" =~ ^[0-9]+$ ]] && [ "$LATEST_BUILD" -ge "$NEXT_BUILD" ]; then
             NEXT_BUILD=$((LATEST_BUILD + 1))
           fi
-          # Safety floor: Apple TestFlight already has build 76
-          if [ "$NEXT_BUILD" -le 76 ]; then
-            NEXT_BUILD=78
+          # Safety floor
+          if [ "$NEXT_BUILD" -le 78 ]; then
+            NEXT_BUILD=79
           fi
           echo "Building iOS Release version $VERSION_NAME (Build $NEXT_BUILD)"
           
