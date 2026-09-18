@@ -1,161 +1,168 @@
-import React from 'react';
-import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useState } from 'react';
+import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import {
-    Layout as LayoutIcon,
+    LayoutDashboard,
     Users,
-    User as UserCheck,
+    UserCheck,
     Zap,
     Megaphone,
-    Edit as FileEdit,
+    FileText,
     AlertCircle,
     Bell,
-    Settings as Wrench,
-    Mail as MailIcon,
+    Sliders,
+    Mail,
     LogOut,
-    ChevronRight,
     Menu,
-    Headphones
+    ChevronLeft,
+    Headphones,
+    Shield
 } from 'lucide-react';
-import { useState } from 'react';
 import { auth } from '../services/firebase';
 import { ErrorBoundary } from './ErrorBoundary';
 
 const menuItems = [
-    { path: '/admin/dashboard', label: 'Dashboard', icon: LayoutIcon },
+    { path: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { path: '/admin/users', label: 'Usuarios', icon: Users },
+    { path: '/admin/publications', label: 'Publicaciones', icon: FileText },
     { path: '/admin/verifications', label: 'Verificaciones', icon: UserCheck },
     { path: '/admin/boosts', label: 'Impulsos', icon: Zap },
     { path: '/admin/ads', label: 'Anuncios', icon: Megaphone },
-    { path: '/admin/publications', label: 'Publicaciones', icon: FileEdit },
     { path: '/admin/reports', label: 'Reportes', icon: AlertCircle },
-    { path: '/admin/notifications', label: 'Notificaciones', icon: Bell },
-    { path: '/admin/mail', label: 'Mail', icon: MailIcon },
     { path: '/admin/support', label: 'Soporte', icon: Headphones },
-    { path: '/admin/tools', label: 'Herramientas', icon: Wrench },
+    { path: '/admin/notifications', label: 'Notificaciones', icon: Bell },
+    { path: '/admin/mail', label: 'Correo', icon: Mail },
+    { path: '/admin/tools', label: 'Herramientas (Spotify)', icon: Sliders },
 ];
 
 export const Layout: React.FC = () => {
     const [isCollapsed, setIsCollapsed] = useState(false);
-    const navigate = useNavigate();
     const location = useLocation();
     const user = auth.currentUser;
 
     const handleLogout = () => {
-        auth.signOut();
+        if (window.confirm('¿Deseas cerrar sesión en el Panel de Administración?')) {
+            auth.signOut();
+        }
     };
 
+    const currentTitle = menuItems.find(item => location.pathname.startsWith(item.path))?.label || 'Panel de Administración';
+
     return (
-        <div className="flex min-h-screen bg-transparent text-zinc-900 font-inter">
-            {/* Sidebar */}
-            <motion.aside
-                animate={{ width: isCollapsed ? 80 : 260 }}
-                className={`text-white flex flex-col z-20 overflow-hidden relative transition-all duration-500 ${isCollapsed ? 'bg-transparent border-none' : 'glass-panel-dark border-r border-white/5'}`}
+        <div className="flex min-h-screen bg-[#F8FAFC] text-[#0F172A] font-sans antialiased">
+            {/* Barra Lateral Sólida (Negro CONNECT) */}
+            <aside
+                className={`bg-[#0A0A0A] text-white flex flex-col z-30 transition-all duration-300 border-r border-zinc-800 ${
+                    isCollapsed ? 'w-16' : 'w-60'
+                }`}
             >
-                <div className={`p-8 flex items-center ${isCollapsed ? 'justify-center mt-2' : 'justify-between'}`}>
-                    <AnimatePresence mode="wait">
-                        {!isCollapsed && (
-                            <motion.h1
-                                initial={{ opacity: 0, x: -10 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                exit={{ opacity: 0, x: -10 }}
-                                className="text-2xl font-black font-archivo tracking-tighter uppercase leading-none text-white/90"
-                            >
-                                CONNECT
-                            </motion.h1>
-                        )}
-                    </AnimatePresence>
+                {/* Logo CONNECT */}
+                <div className="h-14 px-4 flex items-center justify-between border-b border-zinc-800/80">
+                    {!isCollapsed ? (
+                        <div className="flex items-center gap-2">
+                            <span className="font-archivo font-black text-lg tracking-tight text-white">CONNECT</span>
+                            <span className="text-[10px] font-bold uppercase tracking-wider bg-[#0094FF] text-white px-1.5 py-0.5 rounded">
+                                Admin
+                            </span>
+                        </div>
+                    ) : (
+                        <div className="mx-auto w-7 h-7 bg-[#0094FF] text-white rounded-lg flex items-center justify-center font-black text-xs">
+                            C
+                        </div>
+                    )}
                     <button
                         onClick={() => setIsCollapsed(!isCollapsed)}
-                        className={`text-white/60 hover:text-white transition-all p-2 rounded-xl ${isCollapsed ? 'glass-button' : 'hover:bg-white/10'}`}
+                        className="text-zinc-400 hover:text-white p-1 rounded-md hover:bg-zinc-800 transition-colors"
+                        title={isCollapsed ? 'Expandir menú' : 'Colapsar menú'}
                     >
-                        {isCollapsed ? <Menu size={18} /> : <ChevronRight size={18} className="rotate-180" />}
+                        {isCollapsed ? <Menu size={16} /> : <ChevronLeft size={16} />}
                     </button>
                 </div>
 
-                {!isCollapsed && <div className="h-0.5 w-6 bg-white/20 ml-8 rounded-full mb-2"></div>}
-
-                <nav className={`flex-1 space-y-3 mt-4 ${isCollapsed ? 'px-3' : 'px-5'}`}>
-                    {menuItems.map((item) => (
-                        <NavLink
-                            key={item.path}
-                            to={item.path}
-                            end={item.path === '/admin/dashboard'} // <--- Importante para que el dashboard no quede active siempre
-                            className={({ isActive }: { isActive: boolean }) => `
-                                relative flex items-center gap-4 py-3 rounded-2xl text-sm font-bold transition-all duration-300 group overflow-hidden
-                                ${isCollapsed ? 'px-0 justify-center' : 'px-5'}
-                                ${isActive 
-                                    ? 'text-white glass-panel shadow-lg shadow-white/5 scale-105' 
-                                    : `text-white/50 hover:text-white hover:scale-105 ${isCollapsed ? 'hover:glass-panel' : 'hover:bg-white/5'}`
-                                }
-                            `}
-                        >
-                            {({ isActive }: { isActive: boolean }) => (
-                                <>
-                                    <span className={`relative z-10 flex items-center justify-center ${isCollapsed ? 'w-10 h-10' : ''}`}>
-                                        <item.icon size={isCollapsed ? 22 : 18} strokeWidth={isActive ? 2.5 : 2} className={isActive ? 'text-white' : ''} />
-                                    </span>
-                                    {!isCollapsed && (
-                                        <>
-                                            <span className="relative z-10 flex-1 tracking-wide">{item.label}</span>
-                                            <ChevronRight
-                                                size={14}
-                                                className={`relative z-10 transition-all ${isActive ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0'}`}
-                                            />
-                                        </>
-                                    )}
-                                </>
-                            )}
-                        </NavLink>
-                    ))}
+                {/* Lista de Navegación Compacta */}
+                <nav className="flex-1 py-3 px-2 space-y-1 overflow-y-auto">
+                    {menuItems.map((item) => {
+                        const Icon = item.icon;
+                        const isTools = item.path === '/admin/tools';
+                        return (
+                            <NavLink
+                                key={item.path}
+                                to={item.path}
+                                end={item.path === '/admin/dashboard'}
+                                className={({ isActive }) => `
+                                    flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium transition-colors
+                                    ${isActive
+                                        ? 'bg-[#0094FF] text-white font-semibold shadow-none'
+                                        : 'text-zinc-400 hover:text-white hover:bg-zinc-900'
+                                    }
+                                    ${isCollapsed ? 'justify-center px-0' : ''}
+                                `}
+                                title={isCollapsed ? item.label : undefined}
+                            >
+                                <Icon size={16} className="flex-shrink-0" />
+                                {!isCollapsed && (
+                                    <span className="truncate flex-1">{item.label}</span>
+                                )}
+                            </NavLink>
+                        );
+                    })}
                 </nav>
 
-                <div className={`p-6 border-t ${isCollapsed ? 'border-transparent' : 'border-white/5'}`}>
-                    <div className={`flex items-center gap-4 py-2 rounded-2xl transition-all group ${isCollapsed ? 'px-0 justify-center' : 'px-4 hover:bg-white/5'}`}>
-                        <div className={`flex-shrink-0 rounded-xl flex items-center justify-center text-sm font-black transition-all ${isCollapsed ? 'w-12 h-12 glass-panel group-hover:scale-110' : 'w-10 h-10 glass-panel-dark'}`}>
-                            {user?.email?.[0].toUpperCase()}
+                {/* Perfil del Administrador y Logout */}
+                <div className="p-3 border-t border-zinc-800/80 bg-zinc-950/60">
+                    <div className={`flex items-center gap-2.5 ${isCollapsed ? 'justify-center' : ''}`}>
+                        <div className="w-8 h-8 rounded-lg bg-zinc-800 text-zinc-200 flex items-center justify-center font-bold text-xs flex-shrink-0 border border-zinc-700">
+                            {user?.email?.[0].toUpperCase() || 'A'}
                         </div>
                         {!isCollapsed && (
-                            <>
-                                <div className="flex-1 min-w-0 text-left">
-                                    <p className="text-[11px] font-black truncate uppercase tracking-widest text-white/90">{user?.displayName || 'Root Admin'}</p>
-                                    <p className="text-[9px] text-white/40 truncate font-bold">{user?.email}</p>
-                                </div>
-                                <button
-                                    onClick={handleLogout}
-                                    className="text-white/40 hover:text-red-400 transition-colors p-2 hover:bg-red-400/10 rounded-lg"
-                                >
-                                    <LogOut size={16} />
-                                </button>
-                            </>
+                            <div className="flex-1 min-w-0">
+                                <p className="text-xs font-semibold text-white truncate leading-tight">
+                                    {user?.displayName || 'Administrador'}
+                                </p>
+                                <p className="text-[11px] text-zinc-400 truncate leading-tight mt-0.5">
+                                    {user?.email || 'admin@connect.com'}
+                                </p>
+                            </div>
+                        )}
+                        {!isCollapsed && (
+                            <button
+                                onClick={handleLogout}
+                                className="text-zinc-400 hover:text-red-400 p-1.5 rounded-md hover:bg-zinc-800 transition-colors"
+                                title="Cerrar sesión"
+                            >
+                                <LogOut size={15} />
+                            </button>
                         )}
                     </div>
                 </div>
-            </motion.aside>
+            </aside>
 
-            {/* Main Content */}
-            <main className="flex-1 flex flex-col h-screen overflow-hidden bg-transparent">
-                <div className="flex-1 overflow-hidden relative">
-                    <AnimatePresence>
+            {/* Contenido Principal */}
+            <div className="flex-1 flex flex-col h-screen overflow-hidden bg-[#F8FAFC]">
+                {/* Header Superior Limpio */}
+                <header className="h-14 bg-white border-b border-zinc-200 px-6 flex items-center justify-between flex-shrink-0">
+                    <div className="flex items-center gap-2 text-xs font-medium text-zinc-500">
+                        <span>Panel</span>
+                        <span>/</span>
+                        <span className="font-semibold text-zinc-900">{currentTitle}</span>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 border border-emerald-200 rounded-md text-[11px] font-semibold text-emerald-700">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                            <span>Conectado a Firebase</span>
+                        </div>
+                    </div>
+                </header>
+
+                {/* Área de Visualización */}
+                <main className="flex-1 overflow-y-auto p-6 md:p-8">
+                    <div className="max-w-7xl mx-auto">
                         <ErrorBoundary>
-                            <motion.section
-                                key={location.pathname}
-                                initial={{ x: -10, opacity: 0 }}
-                                animate={{ x: 0, opacity: 1 }}
-                                exit={{ x: 10, opacity: 0 }}
-                                transition={{
-                                    type: "spring",
-                                    stiffness: 300,
-                                    damping: 20
-                                }}
-                                className="absolute inset-0 overflow-y-auto px-12 pb-12 pt-6"
-                            >
-                                <Outlet />
-                            </motion.section>
+                            <Outlet />
                         </ErrorBoundary>
-                    </AnimatePresence>
-                </div>
-            </main>
+                    </div>
+                </main>
+            </div>
         </div>
     );
 };

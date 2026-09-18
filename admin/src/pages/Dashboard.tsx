@@ -1,145 +1,321 @@
 import React, { useState, useEffect } from 'react';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy, limit } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import {
     Users,
     FileText,
-    Activity,
-    Zap,
-    ArrowUpRight,
-    BarChart3,
-    TrendingUp,
-    MousePointerClick,
-    Server,
-    Clock
+    AlertCircle,
+    UserCheck,
+    Headphones,
+    ShoppingBag,
+    ArrowRight,
+    Clock,
+    RefreshCw
 } from 'lucide-react';
-interface DashboardStats {
-    users: number;
-    posts: number;
-    active: number;
-    conversion: string;
+import { Link } from 'react-router-dom';
+
+interface RealStats {
+    usersCount: number;
+    postsCount: number;
+    wantsCount: number;
+    reportsCount: number;
+    verificationsCount: number;
+    supportCount: number;
+}
+
+interface RecentUser {
+    id: string;
+    email?: string;
+    displayName?: string;
+    photoURL?: string;
+    createdAt?: any;
+    role?: string;
+}
+
+interface RecentPost {
+    id: string;
+    title?: string;
+    category?: string;
+    price?: number;
+    userName?: string;
+    createdAt?: any;
+    status?: string;
 }
 
 export const Dashboard: React.FC = () => {
-    const [stats, setStats] = useState<DashboardStats>({ users: 0, posts: 0, active: 42, conversion: '3.2%' });
+    const [stats, setStats] = useState<RealStats>({
+        usersCount: 0,
+        postsCount: 0,
+        wantsCount: 0,
+        reportsCount: 0,
+        verificationsCount: 0,
+        supportCount: 0,
+    });
+    const [recentUsers, setRecentUsers] = useState<RecentUser[]>([]);
+    const [recentPosts, setRecentPosts] = useState<RecentPost[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [isRefreshing, setIsRefreshing] = useState(false);
+
+    const loadRealData = async () => {
+        setIsRefreshing(true);
+        try {
+            // 1. Conteo real de documentos en Firestore
+            const [
+                usersSnap,
+                postsSnap,
+                wantsSnap,
+                reportsSnap,
+                verificationsSnap,
+                supportSnap
+            ] = await Promise.all([
+                getDocs(collection(db, 'users')),
+                getDocs(collection(db, 'posts')),
+                getDocs(collection(db, 'wants')),
+                getDocs(collection(db, 'reports')),
+                getDocs(collection(db, 'verifications')),
+                getDocs(collection(db, 'support_requests')),
+            ]);
+
+            setStats({
+                usersCount: usersSnap.size,
+                postsCount: postsSnap.size,
+                wantsCount: wantsSnap.size,
+                reportsCount: reportsSnap.size,
+                verificationsCount: verificationsSnap.size,
+                supportCount: supportSnap.size,
+            });
+
+            // 2. Últimos 5 usuarios reales
+            const recentUsersList: RecentUser[] = usersSnap.docs
+                .slice(0, 5)
+                .map(d => ({ id: d.id, ...d.data() } as RecentUser));
+            setRecentUsers(recentUsersList);
+
+            // 3. Últimas 5 publicaciones reales
+            const recentPostsList: RecentPost[] = postsSnap.docs
+                .slice(0, 5)
+                .map(d => ({ id: d.id, ...d.data() } as RecentPost));
+            setRecentPosts(recentPostsList);
+        } catch (error) {
+            console.error('Error al cargar datos reales del Dashboard:', error);
+        } finally {
+            setLoading(false);
+            setIsRefreshing(false);
+        }
+    };
 
     useEffect(() => {
-        const fetchData = async () => {
-            try {
-                const usersSnapshot = await getDocs(collection(db, 'users'));
-                const postsSnapshot = await getDocs(collection(db, 'posts'));
-                setStats(prev => ({
-                    ...prev,
-                    users: usersSnapshot.size,
-                    posts: postsSnapshot.size
-                }));
-            } catch (error) {
-                console.error("Error fetching dashboard stats:", error);
-            }
-        };
-        fetchData();
+        loadRealData();
     }, []);
 
+    const formatDate = (timestamp: any) => {
+        if (!timestamp) return 'Reciente';
+        try {
+            if (timestamp.toDate) {
+                return timestamp.toDate().toLocaleDateString('es-ES', { day: '2-digit', month: 'short' });
+            }
+            if (timestamp.seconds) {
+                return new Date(timestamp.seconds * 1000).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' });
+            }
+            return new Date(timestamp).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' });
+        } catch {
+            return 'Reciente';
+        }
+    };
+
     return (
-        <div className="space-y-12 animate-in fade-in duration-700">
-            <div className="flex justify-between items-end">
-                <div className="space-y-1">
-                    <h1 className="text-4xl font-black tracking-tighter">Dashboard</h1>
-                    <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest">Global Overview</p>
+        <div className="space-y-6">
+            {/* Título de la Página y Acción Rápida */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-zinc-200">
+                <div>
+                    <h1 className="text-xl font-bold text-zinc-900 tracking-tight">Resumen General</h1>
+                    <p className="text-xs text-zinc-500">Métricas y actividad en tiempo real directamente desde Firebase Firestore</p>
                 </div>
-                <div className="flex p-1 glass-button rounded-xl">
-                    <button className="px-4 py-2 glass-panel shadow-sm rounded-lg text-[10px] font-black uppercase tracking-wider">Hoy</button>
-                    <button className="px-4 py-2 text-zinc-400 text-[10px] font-black uppercase tracking-wider hover:text-black transition-all">Semana</button>
+
+                <button
+                    onClick={loadRealData}
+                    disabled={isRefreshing}
+                    className="btn-outline self-start sm:self-auto"
+                >
+                    <RefreshCw size={13} className={isRefreshing ? 'animate-spin' : ''} />
+                    <span>{isRefreshing ? 'Actualizando...' : 'Actualizar Datos'}</span>
+                </button>
+            </div>
+
+            {/* Cuadrícula de Métricas 100% Reales */}
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                {/* Usuarios */}
+                <div className="bg-white border border-zinc-200 rounded-xl p-3.5">
+                    <div className="flex items-center justify-between text-zinc-500 mb-1.5">
+                        <span className="text-[11px] font-semibold">Usuarios</span>
+                        <Users size={15} className="text-[#0094FF]" />
+                    </div>
+                    <p className="text-2xl font-bold text-zinc-900 tracking-tight">
+                        {loading ? '...' : stats.usersCount}
+                    </p>
+                    <span className="text-[10px] text-zinc-400 font-medium">Registrados en total</span>
+                </div>
+
+                {/* Publicaciones */}
+                <div className="bg-white border border-zinc-200 rounded-xl p-3.5">
+                    <div className="flex items-center justify-between text-zinc-500 mb-1.5">
+                        <span className="text-[11px] font-semibold">Publicaciones</span>
+                        <FileText size={15} className="text-[#0094FF]" />
+                    </div>
+                    <p className="text-2xl font-bold text-zinc-900 tracking-tight">
+                        {loading ? '...' : stats.postsCount}
+                    </p>
+                    <span className="text-[10px] text-zinc-400 font-medium">Posts en catálogo</span>
+                </div>
+
+                {/* Lo Tienes / Wants */}
+                <div className="bg-white border border-zinc-200 rounded-xl p-3.5">
+                    <div className="flex items-center justify-between text-zinc-500 mb-1.5">
+                        <span className="text-[11px] font-semibold">Lo Tienes</span>
+                        <ShoppingBag size={15} className="text-zinc-700" />
+                    </div>
+                    <p className="text-2xl font-bold text-zinc-900 tracking-tight">
+                        {loading ? '...' : stats.wantsCount}
+                    </p>
+                    <span className="text-[10px] text-zinc-400 font-medium">Solicitudes activas</span>
+                </div>
+
+                {/* Reportes */}
+                <div className="bg-white border border-zinc-200 rounded-xl p-3.5">
+                    <div className="flex items-center justify-between text-zinc-500 mb-1.5">
+                        <span className="text-[11px] font-semibold">Reportes</span>
+                        <AlertCircle size={15} className="text-amber-500" />
+                    </div>
+                    <p className="text-2xl font-bold text-zinc-900 tracking-tight">
+                        {loading ? '...' : stats.reportsCount}
+                    </p>
+                    <span className="text-[10px] text-zinc-400 font-medium">Casos registrados</span>
+                </div>
+
+                {/* Verificaciones */}
+                <div className="bg-white border border-zinc-200 rounded-xl p-3.5">
+                    <div className="flex items-center justify-between text-zinc-500 mb-1.5">
+                        <span className="text-[11px] font-semibold">Verificaciones</span>
+                        <UserCheck size={15} className="text-emerald-600" />
+                    </div>
+                    <p className="text-2xl font-bold text-zinc-900 tracking-tight">
+                        {loading ? '...' : stats.verificationsCount}
+                    </p>
+                    <span className="text-[10px] text-zinc-400 font-medium">Solicitudes totales</span>
+                </div>
+
+                {/* Soporte */}
+                <div className="bg-white border border-zinc-200 rounded-xl p-3.5">
+                    <div className="flex items-center justify-between text-zinc-500 mb-1.5">
+                        <span className="text-[11px] font-semibold">Soporte</span>
+                        <Headphones size={15} className="text-zinc-700" />
+                    </div>
+                    <p className="text-2xl font-bold text-zinc-900 tracking-tight">
+                        {loading ? '...' : stats.supportCount}
+                    </p>
+                    <span className="text-[10px] text-zinc-400 font-medium">Tickets de ayuda</span>
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-                <div className="glass-panel border border-zinc-100 rounded-[2rem] p-8 shadow-sm border-l-4 border-l-black group hover:border-zinc-300 transition-all">
-                    <div className="flex justify-between items-start mb-2">
-                        <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Usuarios</p>
-                        <Users size={18} className="text-zinc-300" />
+            {/* Dos Columnas Principales: Últimos Usuarios y Últimas Publicaciones */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                {/* Últimos Usuarios Reales */}
+                <div className="bg-white border border-zinc-200 rounded-xl overflow-hidden">
+                    <div className="p-4 border-b border-zinc-100 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <Users size={16} className="text-[#0094FF]" />
+                            <h2 className="text-xs font-bold uppercase tracking-wider text-zinc-800">
+                                Últimos Usuarios Registrados
+                            </h2>
+                        </div>
+                        <Link to="/admin/users" className="text-xs font-semibold text-[#0094FF] hover:underline flex items-center gap-1">
+                            <span>Ver todos</span>
+                            <ArrowRight size={12} />
+                        </Link>
                     </div>
-                    <p className="text-4xl font-black group-hover:scale-110 transition-transform origin-left">{stats.users}</p>
-                    <div className="mt-4 flex items-center gap-2 text-green-500 font-bold text-[10px]"><ArrowUpRight size={12} /> 8% <span className="text-zinc-300 font-medium">vs mes anterior</span></div>
-                </div>
-                <div className="glass-panel border border-zinc-100 rounded-[2rem] p-8 shadow-sm group hover:border-zinc-300 transition-all">
-                    <div className="flex justify-between items-start mb-2">
-                        <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Contenido Activo</p>
-                        <FileText size={18} className="text-zinc-300" />
-                    </div>
-                    <p className="text-4xl font-black group-hover:scale-110 transition-transform origin-left">{stats.posts}</p>
-                    <div className="mt-4 flex items-center gap-2 text-green-500 font-bold text-[10px]"><TrendingUp size={12} /> +124 <span className="text-zinc-300 font-medium">hoy</span></div>
-                </div>
-                <div className="glass-panel border border-zinc-100 rounded-[2rem] p-8 shadow-sm group hover:border-zinc-300 transition-all">
-                    <div className="flex justify-between items-start mb-2">
-                        <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Sesiones en Vivo</p>
-                        <div className="w-2 h-2 rounded-full bg-green-500 animate-ping"></div>
-                    </div>
-                    <p className="text-4xl font-black group-hover:scale-110 transition-transform origin-left">{stats.active}</p>
-                    <div className="mt-4 flex items-center gap-2 text-zinc-300 font-medium text-[10px]"><Activity size={12} /> Tráfico global estable</div>
-                </div>
-                <div className="glass-panel border border-zinc-100 rounded-[2rem] p-8 shadow-sm group hover:border-zinc-300 transition-all">
-                    <div className="flex justify-between items-start mb-2">
-                        <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Estabilidad Core</p>
-                        <Server size={18} className="text-zinc-300" />
-                    </div>
-                    <p className="text-4xl font-black group-hover:scale-110 transition-transform origin-left">99.9%</p>
-                    <div className="mt-4 flex items-center gap-2 text-zinc-300 font-medium text-[10px]"><Clock size={12} /> Uptime garantizado</div>
-                </div>
-            </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div className="lg:col-span-2 glass-panel-dark text-white rounded-[2.5rem] p-10 h-96 flex flex-col justify-between overflow-hidden relative shadow-2xl">
-                    <div className="flex justify-between items-center relative z-10">
-                        <div className="flex items-center gap-3">
-                            <BarChart3 size={20} className="text-zinc-500" />
-                            <h3 className="font-bold text-xl tracking-tight">Analytics Predictivo</h3>
-                        </div>
-                        <button className="text-[10px] font-black uppercase tracking-widest border-b border-zinc-700 pb-1 hover:border-white transition-all">Ver PDF Completo</button>
+                    <div className="divide-y divide-zinc-100">
+                        {loading ? (
+                            <div className="p-6 text-center text-xs text-zinc-400">Cargando usuarios reales...</div>
+                        ) : recentUsers.length === 0 ? (
+                            <div className="p-6 text-center text-xs text-zinc-400">No hay usuarios registrados aún.</div>
+                        ) : (
+                            recentUsers.map((user) => (
+                                <div key={user.id} className="p-3.5 flex items-center justify-between gap-3 hover:bg-zinc-50/70 transition-colors">
+                                    <div className="flex items-center gap-3 overflow-hidden">
+                                        {user.photoURL ? (
+                                            <img src={user.photoURL} alt="" className="w-8 h-8 rounded-full object-cover border border-zinc-200 flex-shrink-0" />
+                                        ) : (
+                                            <div className="w-8 h-8 rounded-full bg-zinc-100 text-zinc-600 font-bold text-xs flex items-center justify-center flex-shrink-0 border border-zinc-200">
+                                                {(user.displayName || user.email || 'U')[0].toUpperCase()}
+                                            </div>
+                                        )}
+                                        <div className="overflow-hidden">
+                                            <p className="text-xs font-semibold text-zinc-900 truncate">
+                                                {user.displayName || 'Usuario sin nombre'}
+                                            </p>
+                                            <p className="text-[11px] text-zinc-500 truncate">
+                                                {user.email || 'Sin correo'}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="text-right flex-shrink-0">
+                                        <span className="text-[10px] font-mono text-zinc-400">
+                                            {formatDate(user.createdAt)}
+                                        </span>
+                                    </div>
+                                </div>
+                            ))
+                        )}
                     </div>
-                    <div className="flex-1 flex items-end justify-around pb-4 relative z-10">
-                        {[40, 70, 50, 90, 60, 80, 45, 65, 30, 85].map((h, i) => (
-                            <div key={i} className="w-6 glass-panel rounded-t-sm hover:glass-panel transition-all cursor-crosshair group relative" style={{ height: `${h}%` }}>
-                                <div className="absolute -top-8 left-1/2 -translate-x-1/2 glass-panel text-black text-[10px] font-black px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">{(h * 123).toLocaleString()}</div>
-                            </div>
-                        ))}
-                    </div>
-                    <div className="absolute top-0 right-0 w-64 h-64 glass-panel rounded-full -mr-20 -mt-20 blur-3xl"></div>
                 </div>
-                <div className="glass-button rounded-[2.5rem] p-10 space-y-8">
-                    <div className="space-y-1">
-                        <h3 className="font-bold text-lg">Cálculos de Sistema</h3>
-                        <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Métricas de Rentabilidad</p>
+
+                {/* Últimas Publicaciones Reales */}
+                <div className="bg-white border border-zinc-200 rounded-xl overflow-hidden">
+                    <div className="p-4 border-b border-zinc-100 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <FileText size={16} className="text-[#0094FF]" />
+                            <h2 className="text-xs font-bold uppercase tracking-wider text-zinc-800">
+                                Publicaciones Recientes
+                            </h2>
+                        </div>
+                        <Link to="/admin/publications" className="text-xs font-semibold text-[#0094FF] hover:underline flex items-center gap-1">
+                            <span>Ver todas</span>
+                            <ArrowRight size={12} />
+                        </Link>
                     </div>
-                    <div className="space-y-6">
-                        <div className="space-y-2">
-                            <div className="flex justify-between items-end">
-                                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400 flex items-center gap-2"><TrendingUp size={12} /> Retención</span>
-                                <span className="text-sm font-black">94.2%</span>
-                            </div>
-                            <div className="h-1 bg-zinc-200 rounded-full overflow-hidden">
-                                <div className="h-full glass-panel-dark w-[94%]"></div>
-                            </div>
-                        </div>
-                        <div className="space-y-2">
-                            <div className="flex justify-between items-end">
-                                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400 flex items-center gap-2"><Server size={12} /> Estabilidad</span>
-                                <span className="text-sm font-black">99.9%</span>
-                            </div>
-                            <div className="h-1 bg-zinc-200 rounded-full overflow-hidden">
-                                <div className="h-full glass-panel-dark w-[99%]"></div>
-                            </div>
-                        </div>
-                        <div className="pt-6 grid grid-cols-2 gap-4">
-                            <div className="p-5 glass-panel rounded-2xl shadow-sm">
-                                <p className="text-[9px] font-black text-zinc-300 uppercase mb-1">CAC</p>
-                                <p className="text-xl font-black">$1.24</p>
-                            </div>
-                            <div className="p-5 glass-panel rounded-2xl shadow-sm">
-                                <p className="text-[9px] font-black text-zinc-300 uppercase mb-1">LTV</p>
-                                <p className="text-xl font-black">$48.0</p>
-                            </div>
-                        </div>
+
+                    <div className="divide-y divide-zinc-100">
+                        {loading ? (
+                            <div className="p-6 text-center text-xs text-zinc-400">Cargando publicaciones reales...</div>
+                        ) : recentPosts.length === 0 ? (
+                            <div className="p-6 text-center text-xs text-zinc-400">No hay publicaciones en el catálogo aún.</div>
+                        ) : (
+                            recentPosts.map((post) => (
+                                <div key={post.id} className="p-3.5 flex items-center justify-between gap-3 hover:bg-zinc-50/70 transition-colors">
+                                    <div className="overflow-hidden">
+                                        <p className="text-xs font-semibold text-zinc-900 truncate">
+                                            {post.title || 'Publicación sin título'}
+                                        </p>
+                                        <div className="flex items-center gap-2 mt-0.5 text-[11px] text-zinc-500">
+                                            <span className="font-medium text-[#0094FF] bg-blue-50 px-1.5 py-0.2 rounded text-[10px]">
+                                                {post.category || 'General'}
+                                            </span>
+                                            {post.price !== undefined && (
+                                                <span className="font-semibold text-zinc-700">
+                                                    ${post.price.toLocaleString()}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <div className="text-right flex-shrink-0">
+                                        <span className="text-[10px] font-mono text-zinc-400">
+                                            {formatDate(post.createdAt)}
+                                        </span>
+                                    </div>
+                                </div>
+                            ))
+                        )}
                     </div>
                 </div>
             </div>

@@ -1,166 +1,296 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     Bell,
     Send,
     User,
-    Smartphone,
-    Mail,
     Globe,
-    Megaphone,
-    Zap,
-    Users
+    CheckCircle,
+    Clock,
+    Trash2,
+    RefreshCw
 } from 'lucide-react';
+import { db } from '../services/firebase';
+import { collection, addDoc, query, orderBy, limit, onSnapshot, serverTimestamp } from 'firebase/firestore';
+import toast from 'react-hot-toast';
 
-interface NotificationHistory {
+interface RealNotification {
     id: string;
-    title: string;
-    target: string;
-    channel: string;
-    timestamp: string;
-    status: 'Sent' | 'Scheduled' | 'Failed';
+    title?: string;
+    body?: string;
+    target?: string;
+    createdAt?: any;
+    status?: string;
 }
 
 export const Notifications: React.FC = () => {
     const [target, setTarget] = useState<'all' | 'specific'>('all');
+    const [targetUserId, setTargetUserId] = useState('');
     const [title, setTitle] = useState('');
     const [body, setBody] = useState('');
-    const [channel, setChannel] = useState('Push');
-    const [priority, setPriority] = useState('Normal');
+    const [isSending, setIsSending] = useState(false);
+    const [history, setHistory] = useState<RealNotification[]>([]);
+    const [loadingHistory, setLoadingHistory] = useState(true);
 
-    const history: NotificationHistory[] = [
-        { id: '1', title: 'Nueva Actualización v2.4', target: 'Global', channel: 'Push', timestamp: '7 ENE 2026, 09:12', status: 'Sent' },
-        { id: '2', title: 'Verificación Exitosa', target: 'irenzulsierra@gmail.com', channel: 'Email', timestamp: '6 ENE 2026, 14:05', status: 'Sent' },
-        { id: '3', title: 'Mantenimiento Programado', target: 'Global', channel: 'Push', timestamp: '8 ENE 2026, 02:00', status: 'Scheduled' },
-    ];
+    useEffect(() => {
+        const q = query(
+            collection(db, 'system_notifications'),
+            orderBy('createdAt', 'desc'),
+            limit(30)
+        );
 
-    const handleSend = () => {
-        alert(`Difundiendo via ${channel} a ${target === 'all' ? 'Todos' : 'Usuario'}...`);
-        setTitle('');
-        setBody('');
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const list = snapshot.docs.map(d => ({
+                id: d.id,
+                ...d.data()
+            })) as RealNotification[];
+            setHistory(list);
+            setLoadingHistory(false);
+        }, (err) => {
+            // Si la colección aún no tiene índice o no existe, intentar sin orderBy
+            getFallbackHistory();
+        });
+
+        return () => unsubscribe();
+    }, []);
+
+    const getFallbackHistory = () => {
+        const qSimple = query(collection(db, 'system_notifications'), limit(30));
+        onSnapshot(qSimple, (snapshot) => {
+            setHistory(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as RealNotification)));
+            setLoadingHistory(false);
+        });
+    };
+
+    const handleSend = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!title.trim() || !body.trim()) {
+            toast.error('Por favor completa el título y el mensaje.');
+            return;
+        }
+
+        setIsSending(true);
+        try {
+            // Guardar notificación real en Firestore
+            await addDoc(collection(db, 'system_notifications'), {
+                title: title.trim(),
+                body: body.trim(),
+                target: target === 'all' ? 'global' : targetUserId.trim(),
+                status: 'sent',
+                createdAt: serverTimestamp(),
+            });
+
+            // Si es dirigida a un usuario específico, registrar en su subcolección de notificaciones
+            if (target === 'specific' && targetUserId.trim()) {
+                await addDoc(collection(db, `users/${targetUserId.trim()}/notifications`), {
+                    title: title.trim(),
+                    body: body.trim(),
+                    type: 'system',
+                    read: false,
+                    createdAt: serverTimestamp(),
+                });
+            }
+
+            toast.success('Notificación enviada y registrada correctamente');
+            setTitle('');
+            setBody('');
+            setTargetUserId('');
+        } catch (error: any) {
+            toast.error(`Error al enviar: ${error.message}`);
+        } finally {
+            setIsSending(false);
+        }
+    };
+
+    const formatDate = (timestamp: any) => {
+        if (!timestamp) return 'Reciente';
+        try {
+            if (timestamp.toDate) return timestamp.toDate().toLocaleDateString('es-ES', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+            if (timestamp.seconds) return new Date(timestamp.seconds * 1000).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+            return new Date(timestamp).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' });
+        } catch {
+            return 'Reciente';
+        }
     };
 
     return (
-        <div className="space-y-12 animate-in slide-in-from-right duration-700 pb-20">
-            <div className="flex justify-between items-end">
-                <div className="space-y-1">
-                    <h1 className="text-4xl font-black tracking-tighter uppercase leading-none">Broadcast Engine</h1>
-                    <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest mt-2">Omnichannel Communications Control</p>
-                </div>
-                <div className="flex gap-4">
-                    <div className="flex items-center gap-2 px-4 py-2 glass-button rounded-xl border border-zinc-100">
-                        <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-                        <span className="text-[9px] font-black uppercase text-zinc-500 tracking-widest">Gateway Active</span>
-                    </div>
+        <div className="space-y-6">
+            {/* Header */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-zinc-200">
+                <div>
+                    <h1 className="text-xl font-bold text-zinc-900 tracking-tight">Centro de Notificaciones Push</h1>
+                    <p className="text-xs text-zinc-500">Emisión de avisos globales y mensajes del sistema a la aplicación móvil CONNECT</p>
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
-                <div className="lg:col-span-2 space-y-8">
-                    <div className="glass-panel rounded-[3.5rem] p-12 border border-zinc-100 shadow-sm space-y-10">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                            <div className="space-y-4">
-                                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 ml-2">Audiencia</label>
-                                <div className="flex p-1.5 glass-button rounded-2xl">
-                                    <button onClick={() => setTarget('all')} className={`flex-1 py-3 rounded-xl font-black text-[9px] uppercase tracking-widest transition-all ${target === 'all' ? 'glass-panel-dark text-white' : 'text-zinc-400'}`}>
-                                        Global
-                                    </button>
-                                    <button onClick={() => setTarget('specific')} className={`flex-1 py-3 rounded-xl font-black text-[9px] uppercase tracking-widest transition-all ${target === 'specific' ? 'glass-panel-dark text-white' : 'text-zinc-400'}`}>
-                                        Targeted
-                                    </button>
-                                </div>
-                            </div>
-                            <div className="space-y-4">
-                                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 ml-2">Canal de Envío</label>
-                                <div className="flex p-1.5 glass-button rounded-2xl overflow-x-auto no-scrollbar">
-                                    {['Push', 'Email', 'SMS', 'In-App'].map(c => (
-                                        <button key={c} onClick={() => setChannel(c)} className={`flex-1 px-4 py-3 rounded-xl font-black text-[9px] uppercase tracking-widest transition-all whitespace-nowrap ${channel === c ? 'glass-panel-dark text-white' : 'text-zinc-400'}`}>
-                                            {c}
-                                        </button>
-                                    ))}
-                                </div>
+            {/* Dos Columnas: Formulario de Envío a la izquierda y Registro Histórico a la derecha */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                {/* Formulario de Emisión */}
+                <div className="lg:col-span-5 bg-white border border-zinc-200 rounded-xl p-5 space-y-4">
+                    <div className="flex items-center gap-2 pb-2 border-b border-zinc-100">
+                        <Send size={16} className="text-[#0094FF]" />
+                        <h2 className="text-xs font-bold uppercase tracking-wider text-zinc-800">
+                            Redactar Notificación
+                        </h2>
+                    </div>
+
+                    <form onSubmit={handleSend} className="space-y-3.5">
+                        {/* Selector de Audiencia */}
+                        <div className="space-y-1">
+                            <label className="text-[11px] font-semibold text-zinc-600 uppercase tracking-wider block">
+                                Audiencia Destinataria
+                            </label>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setTarget('all')}
+                                    className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 ${
+                                        target === 'all'
+                                            ? 'bg-zinc-900 text-white'
+                                            : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
+                                    }`}
+                                >
+                                    <Globe size={13} />
+                                    <span>Todos (Global)</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setTarget('specific')}
+                                    className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 ${
+                                        target === 'specific'
+                                            ? 'bg-zinc-900 text-white'
+                                            : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
+                                    }`}
+                                >
+                                    <User size={13} />
+                                    <span>Usuario Específico</span>
+                                </button>
                             </div>
                         </div>
 
                         {target === 'specific' && (
-                            <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
-                                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 ml-2">User ID / Email</label>
-                                <input className="w-full glass-button border-zinc-100 rounded-2xl px-6 py-4 text-xs font-bold outline-none focus:border-black transition-all" placeholder="uuid-example-1234" />
+                            <div className="space-y-1">
+                                <label className="text-[11px] font-semibold text-zinc-600 uppercase tracking-wider block">
+                                    UID del Usuario
+                                </label>
+                                <input
+                                    type="text"
+                                    placeholder="Ingresa el UID del usuario..."
+                                    value={targetUserId}
+                                    onChange={(e) => setTargetUserId(e.target.value)}
+                                    className="input-clean font-mono"
+                                    required
+                                />
                             </div>
                         )}
 
-                        <div className="space-y-3">
-                            <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 ml-2">Título de Notificación</label>
+                        {/* Título */}
+                        <div className="space-y-1">
+                            <label className="text-[11px] font-semibold text-zinc-600 uppercase tracking-wider block">
+                                Título del Aviso
+                            </label>
                             <input
+                                type="text"
+                                placeholder="Ej: Nueva función disponible en CONNECT"
                                 value={title}
                                 onChange={(e) => setTitle(e.target.value)}
-                                className="w-full glass-button border-zinc-100 rounded-2xl px-6 py-4 text-xs font-bold outline-none focus:border-black transition-all"
-                                placeholder="Escribe un asunto impactante..."
+                                className="input-clean"
+                                required
                             />
                         </div>
 
-                        <div className="space-y-3">
-                            <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 ml-2">Cuerpo del Mensaje</label>
+                        {/* Mensaje */}
+                        <div className="space-y-1">
+                            <label className="text-[11px] font-semibold text-zinc-600 uppercase tracking-wider block">
+                                Contenido del Mensaje
+                            </label>
                             <textarea
+                                rows={3}
+                                placeholder="Escribe el mensaje claro y conciso..."
                                 value={body}
                                 onChange={(e) => setBody(e.target.value)}
-                                className="w-full glass-button border-zinc-100 rounded-[2rem] px-6 py-6 text-xs font-bold outline-none focus:border-black transition-all h-40 resize-none"
-                                placeholder="Detalla el contenido aquí..."
+                                className="input-clean resize-none"
+                                required
                             />
                         </div>
 
-                        <div className="pt-4 flex items-center justify-between gap-8">
-                            <div className="flex-1 flex gap-4">
-                                {['Normal', 'High', 'Urgent'].map(p => (
-                                    <button key={p} onClick={() => setPriority(p)} className={`px-4 py-2 rounded-lg text-[8px] font-black uppercase tracking-widest border transition-all ${priority === p ? 'glass-button border-zinc-200 text-black' : 'border-transparent text-zinc-300'}`}>
-                                        {p}
-                                    </button>
-                                ))}
-                            </div>
-                            <button
-                                onClick={handleSend}
-                                className="px-12 glass-panel-dark text-white h-16 rounded-2xl font-black uppercase tracking-widest text-[10px] hover:shadow-2xl shadow-black/20 hover:-translate-y-1 transition-all flex items-center gap-3"
-                            >
-                                <Send size={16} /> Desplegar
-                            </button>
-                        </div>
-                    </div>
+                        <button
+                            type="submit"
+                            disabled={isSending}
+                            className="btn-primary w-full py-2 justify-center"
+                        >
+                            <Send size={13} className={isSending ? 'animate-spin' : ''} />
+                            <span>{isSending ? 'Enviando...' : 'Enviar Notificación'}</span>
+                        </button>
+                    </form>
                 </div>
 
-                <div className="space-y-8">
-                    <div className="space-y-1">
-                        <h3 className="font-black text-xs uppercase tracking-[0.3em]">Recent Broadcasts</h3>
-                        <p className="text-zinc-300 text-[10px] font-bold uppercase tracking-widest underline decoration-zinc-100 underline-offset-4">Full Logs</p>
+                {/* Historial Real de Notificaciones Enviadas */}
+                <div className="lg:col-span-7 bg-white border border-zinc-200 rounded-xl overflow-hidden flex flex-col">
+                    <div className="p-4 border-b border-zinc-100 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <Bell size={16} className="text-[#0094FF]" />
+                            <h2 className="text-xs font-bold uppercase tracking-wider text-zinc-800">
+                                Historial Real de Notificaciones
+                            </h2>
+                        </div>
+                        <span className="text-xs text-zinc-400 font-mono">
+                            {history.length} registradas
+                        </span>
                     </div>
 
-                    <div className="space-y-4">
-                        {history.map((item) => (
-                            <div key={item.id} className="glass-panel border border-zinc-100 rounded-3xl p-6 space-y-4 hover:shadow-md transition-shadow cursor-pointer group">
-                                <div className="flex justify-between items-start">
-                                    <div className={`px-2 py-0.5 rounded-full text-[7px] font-black uppercase tracking-tighter ${item.status === 'Sent' ? 'bg-green-50 text-green-600' : item.status === 'Scheduled' ? 'bg-blue-50 text-blue-600' : 'bg-red-50 text-red-600'}`}>
-                                        {item.status}
-                                    </div>
-                                    <span className="text-[8px] font-black text-zinc-300 uppercase">{item.timestamp}</span>
-                                </div>
-                                <div>
-                                    <h4 className="font-black text-[10px] uppercase line-clamp-1 group-hover:text-black transition-colors">{item.title}</h4>
-                                    <div className="flex items-center gap-4 mt-2">
-                                        <div className="flex items-center gap-1.5">
-                                            <Globe size={10} className="text-zinc-300" />
-                                            <span className="text-[8px] font-black text-zinc-400 uppercase tracking-tighter">{item.target}</span>
-                                        </div>
-                                        <div className="flex items-center gap-1.5">
-                                            <Smartphone size={10} className="text-zinc-300" />
-                                            <span className="text-[8px] font-black text-zinc-400 uppercase tracking-tighter">{item.channel}</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
+                    <div className="flex-1 overflow-x-auto">
+                        <table className="table-clean">
+                            <thead>
+                                <tr>
+                                    <th>Título & Mensaje</th>
+                                    <th>Destinatario</th>
+                                    <th>Fecha</th>
+                                    <th className="text-right">Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {loadingHistory ? (
+                                    <tr>
+                                        <td colSpan={4} className="text-center py-8 text-zinc-400">
+                                            Cargando historial real de notificaciones...
+                                        </td>
+                                    </tr>
+                                ) : history.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={4} className="text-center py-8 text-zinc-400">
+                                            No se han emitido notificaciones del sistema aún.
+                                        </td>
+                                    </tr>
+                                ) : (
+                                    history.map((n) => (
+                                        <tr key={n.id}>
+                                            <td>
+                                                <div>
+                                                    <p className="font-semibold text-zinc-900 truncate max-w-xs">{n.title || 'Sin título'}</p>
+                                                    <p className="text-[11px] text-zinc-500 line-clamp-1 max-w-xs">{n.body || 'Sin mensaje'}</p>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <span className="text-[11px] font-mono text-zinc-600 bg-zinc-100 px-1.5 py-0.5 rounded">
+                                                    {n.target === 'global' ? 'Global' : (n.target ? `${n.target.substring(0, 10)}...` : 'Global')}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <span className="text-[11px] text-zinc-500">
+                                                    {formatDate(n.createdAt)}
+                                                </span>
+                                            </td>
+                                            <td className="text-right">
+                                                <span className="inline-flex items-center gap-1 text-emerald-600 font-semibold text-[11px]">
+                                                    <CheckCircle size={12} /> Enviada
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
                     </div>
-
-                    <button className="w-full py-4 border border-zinc-100 rounded-2xl text-[9px] font-black uppercase tracking-[0.3em] text-zinc-300 hover:text-black hover:glass-button transition-all">
-                        Cargar Historial Completo
-                    </button>
                 </div>
             </div>
         </div>

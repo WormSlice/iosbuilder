@@ -1,6 +1,6 @@
 require 'xcodeproj'
 
-project_path = '/Users/duvanconde/Documents/proyectos/CONNECT/ios/Runner.xcodeproj'
+project_path = File.expand_path('Runner.xcodeproj', __dir__)
 project = Xcodeproj::Project.open(project_path)
 
 # Find the Runner target

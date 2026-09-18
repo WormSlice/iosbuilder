@@ -272,6 +272,9 @@ class _MusicSearchSheetState extends State<MusicSearchSheet>
     );
 
     if (trimmed != null && mounted) {
+      final resolvedUrl = trimmed['resolvedAudioUrl']?.toString() ??
+          workingAudioUrl ??
+          song['audioUrl']?.toString();
       Navigator.pop(context, {
         'id': audioKey,
         'title': song['title'].toString(),
@@ -279,7 +282,7 @@ class _MusicSearchSheetState extends State<MusicSearchSheet>
         'thumbnail': song['thumbnail'].toString(),
         'startSeconds': trimmed['startSeconds'] ?? autoHighlight,
         'duration': trimmed['duration'] ?? 30,
-        'audioUrl': workingAudioUrl ?? song['audioUrl'],
+        'audioUrl': resolvedUrl,
       });
     }
   }

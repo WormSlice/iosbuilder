@@ -26,49 +26,51 @@ export class ErrorBoundary extends Component<Props, State> {
   public render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen glass-button flex items-center justify-center p-8">
-          <div className="max-w-md w-full text-center space-y-8 animate-in fade-in zoom-in duration-500">
-            <div className="w-24 h-24 bg-red-500/10 rounded-[2.5rem] flex items-center justify-center mx-auto border border-red-500/20">
-              <AlertTriangle size={48} className="text-red-500" />
+        <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center p-6">
+          <div className="max-w-md w-full bg-white border border-slate-200 rounded-xl p-6 text-center space-y-5 shadow-sm">
+            <div className="w-12 h-12 bg-red-50 text-red-600 rounded-xl flex items-center justify-center mx-auto border border-red-200">
+              <AlertTriangle size={24} />
             </div>
-            
-            <div className="space-y-2">
-              <h1 className="text-3xl font-black tracking-tighter text-black uppercase italic">
-                SISTEMA EN PAUSA
+
+            <div className="space-y-1">
+              <h1 className="text-base font-bold text-slate-900">
+                Inconsistencia Detectada
               </h1>
-              <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest leading-relaxed">
-                Se detectó una inconsistencia en la renderización de este componente. No te preocupes, el resto del panel sigue operativo.
+              <p className="text-xs text-slate-500">
+                Se detectó un error al procesar este módulo. El resto del panel administrativo sigue disponible.
               </p>
             </div>
 
-            <div className="glass-panel border border-zinc-100 p-6 rounded-3xl text-left shadow-sm">
-              <p className="text-[10px] font-black text-red-500 uppercase tracking-widest mb-1">Error Identificado</p>
-              <p className="text-[11px] font-mono text-zinc-600 break-words leading-relaxed">
+            <div className="bg-slate-50 border border-slate-200 p-3.5 rounded-lg text-left">
+              <p className="text-[10px] font-bold text-red-600 uppercase tracking-wider mb-1">Detalle del Error</p>
+              <p className="text-xs font-mono text-slate-700 break-words">
                 {this.state.error?.message || 'Error de componente desconocido'}
               </p>
             </div>
 
-            <div className="flex flex-col gap-3">
+            <div className="flex items-center justify-center gap-2 pt-2">
               <button
                 onClick={() => window.location.reload()}
-                className="w-full py-4 glass-panel-dark text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] hover:glass-panel-dark transition-all flex items-center justify-center gap-3 shadow-lg shadow-black/10"
+                className="btn-primary text-xs flex items-center gap-1.5"
               >
-                <RefreshCw size={14} /> Reiniciar Aplicación
+                <RefreshCw size={13} />
+                <span>Reintentar</span>
               </button>
-              
+
               <button
                 onClick={() => {
-                    this.setState({ hasError: false });
-                    window.location.href = '/admin/dashboard';
+                  this.setState({ hasError: false });
+                  window.location.href = '/admin/dashboard';
                 }}
-                className="w-full py-4 glass-panel text-black rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] hover:glass-button transition-all border border-zinc-200 flex items-center justify-center gap-3"
+                className="btn-secondary text-xs flex items-center gap-1.5"
               >
-                <Home size={14} /> Volver al Dashboard
+                <Home size={13} />
+                <span>Ir al Dashboard</span>
               </button>
             </div>
 
-            <p className="text-[9px] text-zinc-400 font-bold uppercase tracking-[0.3em]">
-              CONNECT MASTER SYSTEM • v1.1.0
+            <p className="text-[10px] text-slate-400 font-mono pt-2 border-t border-slate-100">
+              CONNECT Admin • Error Handler
             </p>
           </div>
         </div>

@@ -4,11 +4,13 @@ import {
     Shield,
     Camera,
     Check,
-    ChevronRight,
     Lock,
     Mail,
-    Smartphone,
-    LogOut
+    LogOut,
+    CheckCircle2,
+    AlertCircle,
+    Server,
+    Key
 } from 'lucide-react';
 import {
     auth,
@@ -18,17 +20,16 @@ import {
     signOut
 } from '../services/firebase';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
-import { motion, AnimatePresence } from 'framer-motion';
+import toast from 'react-hot-toast';
 
 export const Settings: React.FC = () => {
-    const [activeTab, setActiveTab] = useState<'perfil' | 'seguridad'>('perfil');
+    const [activeTab, setActiveTab] = useState<'perfil' | 'seguridad' | 'sistema'>('perfil');
     const [name, setName] = useState(auth.currentUser?.displayName || '');
     const [photoURL, setPhotoURL] = useState(auth.currentUser?.photoURL || '');
     const [email] = useState(auth.currentUser?.email || '');
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [loading, setLoading] = useState(false);
-    const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
     useEffect(() => {
         const fetchUserData = async () => {
@@ -36,11 +37,12 @@ export const Settings: React.FC = () => {
                 try {
                     const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
                     if (userDoc.exists()) {
-                        setName(userDoc.data().displayName || '');
-                        setPhotoURL(userDoc.data().photoURL || '');
+                        const data = userDoc.data();
+                        setName(data.displayName || auth.currentUser.displayName || '');
+                        setPhotoURL(data.photoURL || auth.currentUser.photoURL || '');
                     }
                 } catch (error) {
-                    console.error("Error fetching user data:", error);
+                    console.error('Error fetching user data:', error);
                 }
             }
         };
@@ -51,19 +53,18 @@ export const Settings: React.FC = () => {
         e.preventDefault();
         if (!auth.currentUser) return;
         setLoading(true);
-        setMessage(null);
         try {
             await updateProfile(auth.currentUser, {
-                displayName: name,
-                photoURL: photoURL
+                displayName: name.trim(),
+                photoURL: photoURL.trim()
             });
             await updateDoc(doc(db, 'users', auth.currentUser.uid), {
-                displayName: name,
-                photoURL: photoURL
+                displayName: name.trim(),
+                photoURL: photoURL.trim()
             });
-            setMessage({ type: 'success', text: 'Perfil actualizado correctamente' });
-        } catch (error) {
-            setMessage({ type: 'error', text: 'Error al actualizar el perfil' });
+            toast.success('Perfil de administrador actualizado');
+        } catch (error: any) {
+            toast.error(`Error al actualizar perfil: ${error.message}`);
         } finally {
             setLoading(false);
         }
@@ -72,231 +73,258 @@ export const Settings: React.FC = () => {
     const handleChangePassword = async (e: FormEvent) => {
         e.preventDefault();
         if (newPassword !== confirmPassword) {
-            setMessage({ type: 'error', text: 'Las contraseñas no coinciden' });
+            toast.error('Las contraseñas no coinciden');
+            return;
+        }
+        if (newPassword.length < 6) {
+            toast.error('La contraseña debe tener al menos 6 caracteres');
             return;
         }
         if (!auth.currentUser) return;
+
         setLoading(true);
-        setMessage(null);
         try {
             await updatePassword(auth.currentUser, newPassword);
-            setMessage({ type: 'success', text: 'Contraseña actualizada correctamente' });
+            toast.success('Contraseña actualizada correctamente');
             setNewPassword('');
             setConfirmPassword('');
-        } catch (error) {
-            setMessage({ type: 'error', text: 'Error al cambiar la contraseña. Reintenta iniciando sesión nuevamente.' });
+        } catch (error: any) {
+            toast.error('Error al cambiar contraseña. Vuelve a iniciar sesión para validar credenciales.');
         } finally {
             setLoading(false);
         }
     };
 
     const handleSignOut = async () => {
+        if (!window.confirm('¿Seguro que deseas cerrar la sesión administrativa?')) return;
         try {
             await signOut(auth);
+            toast.success('Sesión cerrada');
         } catch (error) {
             console.error('Error signing out:', error);
         }
     };
 
     return (
-        <div className="p-6 max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+        <div className="space-y-5 max-w-4xl">
             {/* Header */}
-            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-white/[0.04] pb-8">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-4">
                 <div>
-                    <h1 className="text-2xl md:text-3xl font-black font-archivo tracking-tight uppercase text-white">Configuración</h1>
-                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#0094FF] mt-1">Gestión de Cuenta y Seguridad</p>
+                    <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
+                        <Shield size={20} className="text-[#0094FF]" />
+                        Configuración de la Cuenta
+                    </h1>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                        Perfil administrativo, credenciales de acceso y preferencias del sistema
+                    </p>
                 </div>
+
                 <button
                     onClick={handleSignOut}
-                    className="flex items-center gap-2 px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 rounded-xl transition-all font-black text-[10px] uppercase tracking-widest border border-red-500/20"
+                    className="btn-danger flex items-center gap-1.5 self-start sm:self-auto"
                 >
-                    <LogOut size={14} />
-                    Cerrar Sesión
+                    <LogOut size={13} />
+                    <span>Cerrar Sesión</span>
                 </button>
             </div>
 
             {/* Navigation Tabs */}
-            <div className="flex gap-2 p-1 glass-panel/[0.02] border border-white/[0.04] rounded-2xl w-fit">
+            <div className="flex items-center gap-1 border-b border-slate-200">
                 <button
                     onClick={() => setActiveTab('perfil')}
-                    className={`px-6 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${activeTab === 'perfil'
-                        ? 'bg-[#0094FF] text-white shadow-[0_0_20px_rgba(0,148,255,0.3)]'
-                        : 'text-zinc-500 hover:text-white hover:glass-panel/[0.03]'
-                        }`}
+                    className={`px-3 py-2 text-xs font-semibold border-b-2 transition-colors flex items-center gap-1.5 ${
+                        activeTab === 'perfil'
+                            ? 'border-[#0094FF] text-[#0094FF]'
+                            : 'border-transparent text-slate-500 hover:text-slate-800'
+                    }`}
                 >
-                    Perfil
+                    <User size={13} />
+                    <span>Perfil de Administrador</span>
                 </button>
                 <button
                     onClick={() => setActiveTab('seguridad')}
-                    className={`px-6 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${activeTab === 'seguridad'
-                        ? 'bg-[#0094FF] text-white shadow-[0_0_20px_rgba(0,148,255,0.3)]'
-                        : 'text-zinc-500 hover:text-white hover:glass-panel/[0.03]'
-                        }`}
+                    className={`px-3 py-2 text-xs font-semibold border-b-2 transition-colors flex items-center gap-1.5 ${
+                        activeTab === 'seguridad'
+                            ? 'border-[#0094FF] text-[#0094FF]'
+                            : 'border-transparent text-slate-500 hover:text-slate-800'
+                    }`}
                 >
-                    Seguridad
+                    <Lock size={13} />
+                    <span>Seguridad & Contraseña</span>
+                </button>
+                <button
+                    onClick={() => setActiveTab('sistema')}
+                    className={`px-3 py-2 text-xs font-semibold border-b-2 transition-colors flex items-center gap-1.5 ${
+                        activeTab === 'sistema'
+                            ? 'border-[#0094FF] text-[#0094FF]'
+                            : 'border-transparent text-slate-500 hover:text-slate-800'
+                    }`}
+                >
+                    <Server size={13} />
+                    <span>Estado del Sistema</span>
                 </button>
             </div>
 
-            <AnimatePresence mode="wait">
-                {activeTab === 'perfil' ? (
-                    <motion.div
-                        key="perfil"
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: 20 }}
-                        className="grid grid-cols-1 md:grid-cols-3 gap-8"
-                    >
-                        {/* Avatar Section */}
-                        <div className="md:col-span-1 space-y-6">
-                            <div className="relative group">
-                                <div className="aspect-square rounded-[2rem] overflow-hidden border-2 border-white/[0.08] relative mb-4">
-                                    {photoURL ? (
-                                        <img src={photoURL} alt="Profile" className="w-full h-full object-cover" />
-                                    ) : (
-                                        <div className="w-full h-full glass-panel-dark flex items-center justify-center text-zinc-500">
-                                            <User size={48} strokeWidth={1} />
-                                        </div>
-                                    )}
-                                    <div className="absolute inset-0 glass-panel-dark opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer">
-                                        <Camera className="text-white" size={24} />
-                                    </div>
-                                </div>
-                                <div className="text-center">
-                                    <p className="text-[10px] font-black text-white uppercase tracking-wider mb-1">{name || 'Sin Nombre'}</p>
-                                    <p className="text-[9px] text-zinc-600 font-bold uppercase tracking-widest truncate">{email}</p>
-                                </div>
-                            </div>
+            {/* Tab: Perfil */}
+            {activeTab === 'perfil' && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                    {/* User summary card */}
+                    <div className="bg-white border border-slate-200 rounded-lg p-5 flex flex-col items-center text-center">
+                        <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-slate-200 bg-slate-100 mb-3 flex items-center justify-center">
+                            {photoURL ? (
+                                <img src={photoURL} alt="Avatar" className="w-full h-full object-cover" />
+                            ) : (
+                                <User size={36} className="text-slate-400" />
+                            )}
                         </div>
+                        <p className="font-bold text-slate-900 text-sm">{name || 'Administrador CONNECT'}</p>
+                        <p className="text-xs text-slate-500 font-mono mt-0.5">{email}</p>
+                        <span className="mt-3 px-2 py-0.5 bg-blue-50 text-[#0094FF] text-[10px] font-bold uppercase rounded-md border border-blue-200">
+                            Super Administrador
+                        </span>
+                    </div>
 
-                        {/* Form Section */}
-                        <div className="md:col-span-2">
-                            <form onSubmit={handleUpdateProfile} className="space-y-6 glass-panel/[0.02] border border-white/[0.04] p-6 md:p-8 rounded-[2rem]">
-                                <div className="space-y-4">
-                                    <div className="grid grid-cols-1 gap-4">
-                                        <div className="space-y-2">
-                                            <label className="text-[9px] font-black text-zinc-500 uppercase tracking-[0.2em] ml-1">Nombre Público</label>
-                                            <div className="relative">
-                                                <User className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600" size={16} />
-                                                <input
-                                                    type="text"
-                                                    value={name}
-                                                    onChange={(e) => setName(e.target.value)}
-                                                    className="w-full glass-panel-dark border border-white/[0.08] rounded-2xl py-4 pl-12 pr-4 text-xs font-bold text-white focus:outline-none focus:border-[#0094FF] transition-all placeholder:text-zinc-800"
-                                                    placeholder="Tu nombre administrativo"
-                                                />
-                                            </div>
-                                        </div>
-                                        <div className="space-y-2">
-                                            <label className="text-[9px] font-black text-zinc-500 uppercase tracking-[0.2em] ml-1">URL de Avatar</label>
-                                            <div className="relative">
-                                                <Camera className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600" size={16} />
-                                                <input
-                                                    type="text"
-                                                    value={photoURL}
-                                                    onChange={(e) => setPhotoURL(e.target.value)}
-                                                    className="w-full glass-panel-dark border border-white/[0.08] rounded-2xl py-4 pl-12 pr-4 text-xs font-bold text-white focus:outline-none focus:border-[#0094FF] transition-all placeholder:text-zinc-800"
-                                                    placeholder="https://instancia.com/mi-foto.jpg"
-                                                />
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
+                    {/* Edit Form */}
+                    <div className="md:col-span-2 bg-white border border-slate-200 rounded-lg p-5">
+                        <h2 className="text-sm font-bold text-slate-900 mb-4 pb-2 border-b border-slate-100">
+                            Editar Información Personal
+                        </h2>
+                        <form onSubmit={handleUpdateProfile} className="space-y-4">
+                            <div>
+                                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                                    Nombre Público
+                                </label>
+                                <input
+                                    type="text"
+                                    value={name}
+                                    onChange={(e) => setName(e.target.value)}
+                                    className="input-clean w-full text-xs"
+                                    placeholder="Tu nombre completo"
+                                />
+                            </div>
 
-                                {message && (
-                                    <div className={`p-4 rounded-xl text-[10px] font-bold uppercase tracking-widest flex items-center gap-3 ${message.type === 'success' ? 'bg-green-500/10 text-green-500 border border-green-500/20' : 'bg-red-500/10 text-red-500 border border-red-500/20'
-                                        }`}>
-                                        <Check size={14} />
-                                        {message.text}
-                                    </div>
-                                )}
+                            <div>
+                                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                                    Correo Electrónico (Solo Lectura)
+                                </label>
+                                <input
+                                    type="email"
+                                    disabled
+                                    value={email}
+                                    className="input-clean w-full text-xs bg-slate-50 text-slate-500 cursor-not-allowed"
+                                />
+                            </div>
 
+                            <div>
+                                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                                    URL de la Foto de Perfil
+                                </label>
+                                <input
+                                    type="url"
+                                    value={photoURL}
+                                    onChange={(e) => setPhotoURL(e.target.value)}
+                                    placeholder="https://..."
+                                    className="input-clean w-full text-xs font-mono"
+                                />
+                            </div>
+
+                            <div className="pt-2 flex justify-end">
                                 <button
                                     type="submit"
                                     disabled={loading}
-                                    className="w-full bg-[#0094FF] text-white py-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] hover:shadow-[0_0_30px_rgba(0,148,255,0.4)] hover:brightness-110 transition-all disabled:opacity-50 active:scale-[0.98] shadow-lg"
+                                    className="btn-primary text-xs"
                                 >
-                                    {loading ? 'Sincronizando...' : 'Guardar Cambios'}
+                                    {loading ? 'Guardando...' : 'Guardar Cambios'}
                                 </button>
-                            </form>
-                        </div>
-                    </motion.div>
-                ) : (
-                    <motion.div
-                        key="seguridad"
-                        initial={{ opacity: 0, x: 20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: -20 }}
-                        className="max-w-2xl mx-auto w-full space-y-8"
-                    >
-                        <form onSubmit={handleChangePassword} className="space-y-6 glass-panel/[0.02] border border-white/[0.04] p-6 md:p-8 rounded-[2rem]">
-                            <div className="space-y-4">
-                                <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-[#0094FF] mb-6">Actualizar Credenciales</h4>
-
-                                <div className="space-y-2">
-                                    <label className="text-[9px] font-black text-zinc-500 uppercase tracking-[0.2em] ml-1">Nueva Contraseña</label>
-                                    <div className="relative">
-                                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600" size={16} />
-                                        <input
-                                            type="password"
-                                            value={newPassword}
-                                            onChange={(e) => setNewPassword(e.target.value)}
-                                            className="w-full glass-panel-dark border border-white/[0.08] rounded-2xl py-4 pl-12 pr-4 text-xs font-bold text-white focus:outline-none focus:border-[#0094FF] transition-all placeholder:text-zinc-800"
-                                            placeholder="••••••••"
-                                        />
-                                    </div>
-                                </div>
-
-                                <div className="space-y-2">
-                                    <label className="text-[9px] font-black text-zinc-500 uppercase tracking-[0.2em] ml-1">Confirmar Contraseña</label>
-                                    <div className="relative">
-                                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600" size={16} />
-                                        <input
-                                            type="password"
-                                            value={confirmPassword}
-                                            onChange={(e) => setConfirmPassword(e.target.value)}
-                                            className="w-full glass-panel-dark border border-white/[0.08] rounded-2xl py-4 pl-12 pr-4 text-xs font-bold text-white focus:outline-none focus:border-[#0094FF] transition-all placeholder:text-zinc-800"
-                                            placeholder="••••••••"
-                                        />
-                                    </div>
-                                </div>
                             </div>
+                        </form>
+                    </div>
+                </div>
+            )}
 
-                            {message && (
-                                <div className={`p-4 rounded-xl text-[10px] font-bold uppercase tracking-widest flex items-center gap-3 ${message.type === 'success' ? 'bg-green-500/10 text-green-500 border border-green-500/20' : 'bg-red-500/10 text-red-500 border border-red-500/20'
-                                    }`}>
-                                    <Check size={14} />
-                                    {message.text}
-                                </div>
-                            )}
+            {/* Tab: Seguridad */}
+            {activeTab === 'seguridad' && (
+                <div className="bg-white border border-slate-200 rounded-lg p-5 max-w-xl">
+                    <h2 className="text-sm font-bold text-slate-900 mb-1">Cambiar Contraseña de Acceso</h2>
+                    <p className="text-xs text-slate-500 mb-4 pb-3 border-b border-slate-100">
+                        Asegúrate de utilizar una contraseña segura con al menos 6 caracteres.
+                    </p>
 
+                    <form onSubmit={handleChangePassword} className="space-y-4">
+                        <div>
+                            <label className="block text-xs font-semibold text-slate-700 mb-1">
+                                Nueva Contraseña
+                            </label>
+                            <input
+                                type="password"
+                                required
+                                value={newPassword}
+                                onChange={(e) => setNewPassword(e.target.value)}
+                                placeholder="••••••••"
+                                className="input-clean w-full text-xs font-mono"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-semibold text-slate-700 mb-1">
+                                Confirmar Nueva Contraseña
+                            </label>
+                            <input
+                                type="password"
+                                required
+                                value={confirmPassword}
+                                onChange={(e) => setConfirmPassword(e.target.value)}
+                                placeholder="••••••••"
+                                className="input-clean w-full text-xs font-mono"
+                            />
+                        </div>
+
+                        <div className="pt-2 flex justify-end">
                             <button
                                 type="submit"
                                 disabled={loading}
-                                className="w-full bg-[#0094FF] text-white py-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] hover:shadow-[0_0_30px_rgba(0,148,255,0.4)] hover:brightness-110 transition-all disabled:opacity-50 active:scale-[0.98] shadow-lg"
+                                className="btn-primary text-xs"
                             >
-                                {loading ? 'Actualizando...' : 'Cambiar Contraseña'}
+                                {loading ? 'Actualizando...' : 'Actualizar Contraseña'}
                             </button>
-                        </form>
-
-                        <div className="pt-6 border-t border-white/[0.04] space-y-6">
-                            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-[#0094FF]">Seguridad Avanzada</h4>
-                            <div className="flex items-center justify-between p-6 glass-panel/[0.02] border border-white/[0.04] rounded-[2rem] group hover:glass-panel/[0.03] transition-all cursor-not-allowed opacity-60">
-                                <div className="flex items-center gap-4">
-                                    <div className="w-12 h-12 rounded-2xl glass-panel-dark flex items-center justify-center text-zinc-600">
-                                        <Shield size={20} />
-                                    </div>
-                                    <div>
-                                        <p className="text-[10px] font-black text-white uppercase tracking-wider">MFA (Autenticación Multi-Factor)</p>
-                                        <p className="text-[9px] text-zinc-600 font-bold uppercase tracking-widest">Añade una capa extra a tu administración.</p>
-                                    </div>
-                                </div>
-                                <Smartphone size={16} className="text-zinc-800" />
-                            </div>
-                            <p className="text-[8px] text-zinc-800 font-black uppercase tracking-[0.2em] text-center">La configuración de MFA debe completarse en dispositivos registrados.</p>
                         </div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+                    </form>
+                </div>
+            )}
+
+            {/* Tab: Sistema */}
+            {activeTab === 'sistema' && (
+                <div className="bg-white border border-slate-200 rounded-lg p-5 space-y-4 max-w-2xl">
+                    <h2 className="text-sm font-bold text-slate-900 pb-2 border-b border-slate-100">
+                        Información del Entorno
+                    </h2>
+
+                    <div className="grid grid-cols-2 gap-4 text-xs">
+                        <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
+                            <span className="text-slate-500 font-medium">Plataforma:</span>
+                            <p className="font-bold text-slate-800 mt-0.5">CONNECT Web Admin Panel</p>
+                        </div>
+                        <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
+                            <span className="text-slate-500 font-medium">Versión:</span>
+                            <p className="font-bold text-slate-800 mt-0.5">v2.4.0 (Septiembre 2026)</p>
+                        </div>
+                        <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
+                            <span className="text-slate-500 font-medium">Motor de Datos:</span>
+                            <p className="font-bold text-slate-800 mt-0.5 flex items-center gap-1.5">
+                                <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                                Google Cloud Firestore (Live)
+                            </p>
+                        </div>
+                        <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
+                            <span className="text-slate-500 font-medium">Autenticación:</span>
+                            <p className="font-bold text-slate-800 mt-0.5 flex items-center gap-1.5">
+                                <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                                Firebase Authentication
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

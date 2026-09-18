@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:just_audio/just_audio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 import 'music_auth_service.dart';
 
 class CachedAudioStream {
@@ -466,22 +467,11 @@ class MusicService {
     String? fallbackPreviewUrl,
     int? expectedDurationSec,
   }) async {
-    // 1. Si ya tenemos una URL directa válida, usarla de inmediato
-    if (fallbackPreviewUrl != null && fallbackPreviewUrl.startsWith('http')) {
-      final safeDur = (expectedDurationSec != null && expectedDurationSec > 0)
-          ? expectedDurationSec
-          : 30;
-      return {
-        'url': fallbackPreviewUrl,
-        'durationSeconds': safeDur,
-      };
-    }
-
     final searchTitle = title.trim();
     final searchArtist = artist.trim();
     final cacheKey = 'stream_${searchTitle}_$searchArtist'.toLowerCase();
 
-    // 2. Revisar caché en memoria
+    // 1. Revisar caché en memoria
     final cached = _streamCache[cacheKey];
     if (cached != null && !cached.isExpired) {
       return {
@@ -490,39 +480,115 @@ class MusicService {
       };
     }
 
-    // 3. Obtener el stream de audio oficial de alta fidelidad vía Apple Music / iTunes
-    // Compatible nativamente con iOS (AVPlayer) y Android (ExoPlayer) con 0 errores 403.
+    // 2. Extraer PISTA COMPLETA (3-4 minutos) vía YouTube Explode
+    if (searchTitle.isNotEmpty) {
+      final yt = YoutubeExplode();
+      try {
+        final query = '$searchTitle $searchArtist audio'.trim();
+        var searchResults = await yt.search.search(query).timeout(const Duration(seconds: 5));
+        if (searchResults.isEmpty) {
+          searchResults = await yt.search.search('$searchTitle $searchArtist'.trim()).timeout(const Duration(seconds: 4));
+        }
+        if (searchResults.isNotEmpty) {
+          final video = searchResults.first;
+          final manifest = await yt.videos.streamsClient.getManifest(video.id).timeout(const Duration(seconds: 6));
+          final audioStream = manifest.audioOnly.withHighestBitrate();
+          final durSec = video.duration?.inSeconds ?? expectedDurationSec ?? 180;
+          yt.close();
+
+          final streamUrl = audioStream.url.toString();
+          _streamCache[cacheKey] = CachedAudioStream(
+            url: streamUrl,
+            durationSeconds: durSec,
+            expiresAt: DateTime.now().add(const Duration(hours: 4)),
+          );
+          if (kDebugMode) {
+            print('[MusicService] Stream COMPLETO de YouTube resuelto con éxito: $durSec segundos');
+          }
+          return {
+            'url': streamUrl,
+            'durationSeconds': durSec,
+          };
+        }
+      } catch (e) {
+        if (kDebugMode) print('[MusicService] Fallo YouTube Explode search: $e');
+      } finally {
+        yt.close();
+      }
+
+      // 2.2 Fallback YouTube vía Invidious API si yt.search falló
+      try {
+        final q = Uri.encodeComponent('$searchTitle $searchArtist'.trim());
+        final invRes = await http.get(Uri.parse('https://invidious.f5.si/api/v1/search?q=$q')).timeout(const Duration(seconds: 4));
+        if (invRes.statusCode == 200) {
+          final items = json.decode(invRes.body) as List? ?? [];
+          final first = items.firstWhere(
+            (it) => it['videoId'] != null && (it['type'] == 'video' || it['type'] == null),
+            orElse: () => items.isNotEmpty ? items.first : null,
+          );
+          if (first != null && first['videoId'] != null) {
+            final yt = YoutubeExplode();
+            final manifest = await yt.videos.streamsClient.getManifest(first['videoId']).timeout(const Duration(seconds: 6));
+            final audioStream = manifest.audioOnly.withHighestBitrate();
+            final durSec = first['lengthSeconds'] as int? ?? expectedDurationSec ?? 180;
+            yt.close();
+            final streamUrl = audioStream.url.toString();
+            _streamCache[cacheKey] = CachedAudioStream(
+              url: streamUrl,
+              durationSeconds: durSec,
+              expiresAt: DateTime.now().add(const Duration(hours: 4)),
+            );
+            if (kDebugMode) {
+              print('[MusicService] Stream COMPLETO Invidious/YouTube resuelto: $durSec segundos');
+            }
+            return {
+              'url': streamUrl,
+              'durationSeconds': durSec,
+            };
+          }
+        }
+      } catch (e) {
+        if (kDebugMode) print('[MusicService] Fallo Invidious fallback: $e');
+      }
+    }
+
+    // 3. Respaldo oficial vía Apple Music / iTunes preview (30s) solo si YouTube falló completamente
     if (searchTitle.isNotEmpty) {
       try {
         final query = '$searchTitle $searchArtist'.trim();
         final itUrl = Uri.parse(
           'https://itunes.apple.com/search?term=${Uri.encodeComponent(query)}&entity=song&limit=1',
         );
-        final res = await http.get(itUrl).timeout(const Duration(seconds: 4));
+        final res = await http.get(itUrl).timeout(const Duration(seconds: 3));
         if (res.statusCode == 200) {
           final data = json.decode(res.body);
           final items = data['results'] as List? ?? [];
           if (items.isNotEmpty) {
             final preview = items.first['previewUrl']?.toString();
             if (preview != null && preview.isNotEmpty) {
-              final safeDur = (expectedDurationSec != null && expectedDurationSec > 0)
-                  ? expectedDurationSec
-                  : 30;
               _streamCache[cacheKey] = CachedAudioStream(
                 url: preview,
-                durationSeconds: safeDur,
-                expiresAt: DateTime.now().add(const Duration(hours: 6)),
+                durationSeconds: 30,
+                expiresAt: DateTime.now().add(const Duration(hours: 4)),
               );
               return {
                 'url': preview,
-                'durationSeconds': safeDur,
+                'durationSeconds': 30,
               };
             }
           }
         }
       } catch (e) {
-        if (kDebugMode) print('Error resolviendo audio stream: $e');
+        if (kDebugMode) print('Error en fallback iTunes: $e');
       }
+    }
+
+    // 4. Si viene fallback previo directo
+    if (fallbackPreviewUrl != null && fallbackPreviewUrl.startsWith('http')) {
+      return {
+        'url': fallbackPreviewUrl,
+        'durationSeconds': 30,
+      };
     }
 
     return null;
@@ -533,10 +599,13 @@ class MusicService {
     String audioIdOrUrl, {
     String? title,
     String? artist,
-    bool forceFullTrack = false,
+    bool forceFullTrack = true,
   }) async {
-    if (audioIdOrUrl.startsWith('http')) {
-      return audioIdOrUrl;
+    // Si ya es un stream de YouTube o directo y no es un preview de 30s
+    if (audioIdOrUrl.startsWith('http') && !forceFullTrack) {
+      if (!audioIdOrUrl.contains('p.scdn.co') && !audioIdOrUrl.contains('audio-ssl.itunes.apple.com')) {
+        return audioIdOrUrl;
+      }
     }
 
     final searchTitle = (title != null && title.isNotEmpty)
@@ -547,7 +616,7 @@ class MusicService {
     final streamData = await getFullAudioStream(
       title: searchTitle,
       artist: searchArtist,
-      fallbackPreviewUrl: null,
+      fallbackPreviewUrl: audioIdOrUrl.startsWith('http') ? audioIdOrUrl : null,
     );
 
     if (streamData != null && streamData['url'] != null) {

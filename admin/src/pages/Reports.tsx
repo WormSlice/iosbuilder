@@ -1,15 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import {
     AlertCircle,
-    ShieldAlert,
-    UserX,
     CheckCircle,
+    Trash2,
     Eye,
-    MoreVertical,
-    Clock,
+    X,
     Filter,
-    ArrowUpRight,
-    Trash,
     Image as ImageIcon
 } from 'lucide-react';
 import { db } from '../services/firebase';
@@ -25,12 +21,12 @@ interface Report {
     images?: string[];
     userId?: string;
     userEmail?: string;
-    status: 'pending' | 'resolved';
-    timestamp: any;
+    status?: 'pending' | 'resolved';
+    timestamp?: any;
 }
 
 export const Reports: React.FC = () => {
-    const [filter, setFilter] = useState<'all' | 'pending' | 'resolved'>('all');
+    const [filter, setFilter] = useState<'pending' | 'resolved' | 'all'>('pending');
     const [reports, setReports] = useState<Report[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedImages, setSelectedImages] = useState<string[] | null>(null);
@@ -38,11 +34,14 @@ export const Reports: React.FC = () => {
     useEffect(() => {
         const q = query(collection(db, 'reports'), orderBy('timestamp', 'desc'));
         const unsubscribe = onSnapshot(q, (snapshot) => {
-            const fetched = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
+            const fetched = snapshot.docs.map(d => ({
+                id: d.id,
+                ...d.data()
             })) as Report[];
             setReports(fetched);
+            setLoading(false);
+        }, (err) => {
+            console.error('Error al escuchar reportes:', err);
             setLoading(false);
         });
         return () => unsubscribe();
@@ -52,135 +51,192 @@ export const Reports: React.FC = () => {
         try {
             await updateDoc(doc(db, 'reports', id), { status: 'resolved' });
             toast.success('Reporte marcado como resuelto');
-        } catch (error) {
-            toast.error('Error al resolver reporte');
+        } catch (error: any) {
+            toast.error(`Error: ${error.message}`);
         }
     };
 
     const handleDelete = async (id: string) => {
-        if (window.confirm('¿Eliminar este reporte permanentemente?')) {
-            try {
-                await deleteDoc(doc(db, 'reports', id));
-                toast.success('Reporte eliminado');
-            } catch (err) {
-                toast.error('Error al eliminar');
-            }
+        if (!window.confirm('¿Eliminar este reporte permanentemente?')) return;
+        try {
+            await deleteDoc(doc(db, 'reports', id));
+            toast.success('Reporte eliminado');
+        } catch (err: any) {
+            toast.error(`Error: ${err.message}`);
         }
     };
 
+    const formatDate = (timestamp: any) => {
+        if (!timestamp) return 'Reciente';
+        try {
+            if (timestamp.toDate) return timestamp.toDate().toLocaleDateString('es-ES', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+            if (timestamp.seconds) return new Date(timestamp.seconds * 1000).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+            return new Date(timestamp).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' });
+        } catch {
+            return 'Reciente';
+        }
+    };
+
+    const filteredReports = reports.filter(r => {
+        if (filter === 'all') return true;
+        if (filter === 'pending') return r.status !== 'resolved';
+        if (filter === 'resolved') return r.status === 'resolved';
+        return true;
+    });
+
     return (
-        <div className="space-y-12 animate-in slide-in-from-bottom duration-700">
-            <div className="flex items-center justify-between">
-                <div className="space-y-1">
-                    <h1 className="text-4xl font-black tracking-tighter uppercase italic">Moderation Center</h1>
-                    <p className="text-zinc-400 text-[10px] font-bold uppercase tracking-widest">Community Safety & Reports Control</p>
+        <div className="space-y-5">
+            {/* Header */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-zinc-200">
+                <div>
+                    <h1 className="text-xl font-bold text-zinc-900 tracking-tight">Centro de Moderación y Reportes</h1>
+                    <p className="text-xs text-zinc-500">Supervisión de denuncias comunitarias sobre publicaciones o usuarios</p>
                 </div>
-                <div className="flex p-1 glass-button rounded-2xl border border-zinc-100 shadow-sm">
+
+                <div className="flex items-center gap-1.5">
                     {(['pending', 'resolved', 'all'] as const).map((f) => (
                         <button
                             key={f}
                             onClick={() => setFilter(f)}
-                            className={`px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filter === f ? 'glass-panel-dark text-white' : 'text-zinc-400'
-                                }`}
+                            className={`px-3 py-1 text-xs font-semibold rounded-lg transition-colors capitalize ${
+                                filter === f
+                                    ? 'bg-zinc-900 text-white'
+                                    : 'bg-white border border-zinc-200 text-zinc-600 hover:bg-zinc-100'
+                            }`}
                         >
-                            {f}
+                            {f === 'pending' ? 'Pendientes' : f === 'resolved' ? 'Resueltos' : 'Todos'}
                         </button>
                     ))}
                 </div>
             </div>
 
-            <div className="glass-panel rounded-[3.5rem] border border-zinc-100 overflow-hidden shadow-2xl shadow-zinc-200/20">
-                <table className="w-full text-left">
-                    <thead>
-                        <tr className="glass-button pb-4">
-                            <th className="px-10 py-8 text-[10px] font-black uppercase tracking-widest text-zinc-400">Tipo / Usuario</th>
-                            <th className="px-10 py-8 text-[10px] font-black uppercase tracking-widest text-zinc-400">Descripción / Motivo</th>
-                            <th className="px-10 py-8 text-[10px] font-black uppercase tracking-widest text-zinc-400">Evidencias</th>
-                            <th className="px-10 py-8 text-[10px] font-black uppercase tracking-widest text-zinc-400 text-center">Estado</th>
-                            <th className="px-10 py-8 text-[10px] font-black uppercase tracking-widest text-zinc-400 text-right">Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-zinc-50">
-                        {loading && <tr><td colSpan={5} className="text-center py-10 font-black text-xs">CARGANDO REVISIONES...</td></tr>}
-                        {!loading && reports.filter(r => filter === 'all' || r.status === filter).map((report) => (
-                            <tr key={report.id} className="hover:glass-button transition-colors group">
-                                <td className="px-10 py-8">
-                                    <div className="flex items-center gap-4">
-                                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black text-[10px] uppercase ${report.postId ? 'bg-amber-50 text-amber-600' : 'bg-red-50 text-red-600'}`}>
-                                            {report.postId ? 'Post' : 'App'}
-                                        </div>
-                                        <div>
-                                            <p className="text-sm font-black tracking-tight">{report.userEmail || 'Usuario Anónimo'}</p>
-                                            <p className="text-[10px] text-zinc-400 font-bold uppercase truncate max-w-[150px]">{report.userId || 'N/A'}</p>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td className="px-10 py-8">
-                                    <div className="space-y-1 max-w-xs">
-                                        <p className="text-xs font-bold text-zinc-800 leading-relaxed">
-                                            {report.reason || report.description || 'Sin descripción'}
-                                        </p>
-                                        {report.postTitle && <p className="text-[10px] text-primary font-black uppercase">Post: {report.postTitle}</p>}
-                                    </div>
-                                </td>
-                                <td className="px-10 py-8">
-                                    {report.images && report.images.length > 0 ? (
-                                        <div className="flex gap-1">
-                                            {report.images.slice(0, 3).map((img, idx) => (
-                                                <img 
-                                                    key={idx} 
-                                                    src={img} 
-                                                    onClick={() => setSelectedImages(report.images || null)}
-                                                    className="w-8 h-8 rounded-lg object-cover border border-zinc-100 cursor-pointer hover:scale-110 transition-transform" 
-                                                    alt="Evidencia" 
-                                                />
-                                            ))}
-                                            {report.images.length > 3 && (
-                                                <div className="w-8 h-8 rounded-lg glass-button flex items-center justify-center text-[10px] font-black text-zinc-400">
-                                                    +{report.images.length - 3}
-                                                </div>
-                                            )}
-                                        </div>
-                                    ) : (
-                                        <span className="text-[10px] font-bold text-zinc-300 italic uppercase">Sin fotos</span>
-                                    )}
-                                </td>
-                                <td className="px-10 py-8 text-center">
-                                    <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-[0.1em] ${report.status === 'pending' ? 'bg-red-50 text-red-600' : 'glass-panel-dark text-white'
-                                        }`}>
-                                        {report.status}
-                                    </span>
-                                </td>
-                                <td className="px-10 py-8 text-right">
-                                    <div className="flex items-center justify-end gap-2">
-                                        {report.status === 'pending' && (
-                                            <button
-                                                onClick={() => handleResolve(report.id)}
-                                                className="p-3 glass-button hover:glass-panel-dark hover:text-white transition-all rounded-xl text-green-500"
-                                                title="Marcar como Resuelto">
-                                                <CheckCircle size={16} />
-                                            </button>
-                                        )}
-                                        <button onClick={() => handleDelete(report.id)} className="p-3 glass-button hover:bg-red-50 hover:text-red-500 transition-all rounded-xl text-zinc-400">
-                                            <Trash size={16} />
-                                        </button>
-                                    </div>
-                                </td>
+            {/* Tabla Plana de Reportes */}
+            <div className="bg-white border border-zinc-200 rounded-xl overflow-hidden">
+                <div className="overflow-x-auto">
+                    <table className="table-clean">
+                        <thead>
+                            <tr>
+                                <th>Elemento / Usuario</th>
+                                <th>Motivo & Descripción</th>
+                                <th>Fecha</th>
+                                <th>Evidencias</th>
+                                <th>Estado</th>
+                                <th className="text-right">Acciones</th>
                             </tr>
-                        ))}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            {loading ? (
+                                <tr>
+                                    <td colSpan={6} className="text-center py-8 text-zinc-400">
+                                        Cargando reportes en vivo de Firebase...
+                                    </td>
+                                </tr>
+                            ) : filteredReports.length === 0 ? (
+                                <tr>
+                                    <td colSpan={6} className="text-center py-8 text-zinc-400">
+                                        No hay reportes en este estado.
+                                    </td>
+                                </tr>
+                            ) : (
+                                filteredReports.map((report) => (
+                                    <tr key={report.id}>
+                                        <td>
+                                            <div>
+                                                <p className="font-semibold text-zinc-900 truncate max-w-xs">
+                                                    {report.postTitle || (report.postId ? `Post ID: ${report.postId.substring(0, 8)}` : 'Reporte General')}
+                                                </p>
+                                                <p className="text-[11px] text-zinc-500 truncate max-w-xs">
+                                                    Por: {report.userEmail || report.userId || 'Anónimo'}
+                                                </p>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div>
+                                                <span className="font-semibold text-zinc-800 text-[11px] block">
+                                                    {report.reason || 'Sin motivo especificado'}
+                                                </span>
+                                                <p className="text-zinc-500 text-xs line-clamp-2 mt-0.5">
+                                                    {report.description || 'Sin descripción detallada.'}
+                                                </p>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span className="text-[11px] text-zinc-500">
+                                                {formatDate(report.timestamp)}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            {report.images && report.images.length > 0 ? (
+                                                <button
+                                                    onClick={() => setSelectedImages(report.images!)}
+                                                    className="btn-outline px-2 py-1 text-[11px]"
+                                                >
+                                                    <ImageIcon size={12} />
+                                                    <span>{report.images.length} fotos</span>
+                                                </button>
+                                            ) : (
+                                                <span className="text-zinc-400 text-[11px]">Sin fotos</span>
+                                            )}
+                                        </td>
+                                        <td>
+                                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold ${
+                                                report.status === 'resolved'
+                                                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                                    : 'bg-amber-50 text-amber-700 border border-amber-200'
+                                            }`}>
+                                                <span className={`w-1.5 h-1.5 rounded-full ${report.status === 'resolved' ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+                                                <span>{report.status === 'resolved' ? 'Resuelto' : 'Pendiente'}</span>
+                                            </span>
+                                        </td>
+                                        <td className="text-right">
+                                            <div className="inline-flex items-center gap-1.5">
+                                                {report.status !== 'resolved' && (
+                                                    <button
+                                                        onClick={() => handleResolve(report.id)}
+                                                        className="btn-primary px-2.5 py-1"
+                                                    >
+                                                        <CheckCircle size={12} />
+                                                        <span>Resolver</span>
+                                                    </button>
+                                                )}
+                                                <button
+                                                    onClick={() => handleDelete(report.id)}
+                                                    className="btn-danger px-2 py-1"
+                                                    title="Eliminar reporte"
+                                                >
+                                                    <Trash2 size={12} />
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
-            {/* Modal de Imágenes */}
+            {/* Modal de Evidencias */}
             {selectedImages && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-8 glass-panel-dark animate-in fade-in duration-300" onClick={() => setSelectedImages(null)}>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4 max-w-5xl" onClick={e => e.stopPropagation()}>
-                        {selectedImages.map((img, idx) => (
-                            <img key={idx} src={img} className="w-full h-64 object-cover rounded-3xl border-4 border-white/10" alt="Full Preview" />
-                        ))}
+                <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-xl max-w-xl w-full p-4 space-y-3">
+                        <div className="flex items-center justify-between border-b border-zinc-200 pb-2">
+                            <h3 className="text-xs font-bold text-zinc-900 uppercase">Evidencias Adjuntas al Reporte</h3>
+                            <button onClick={() => setSelectedImages(null)} className="text-zinc-400 hover:text-zinc-700">
+                                <X size={16} />
+                            </button>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 max-h-[60vh] overflow-y-auto">
+                            {selectedImages.map((img, i) => (
+                                <img key={i} src={img} alt="" className="w-full h-40 object-cover rounded-lg border border-zinc-200" />
+                            ))}
+                        </div>
+                        <div className="flex justify-end">
+                            <button onClick={() => setSelectedImages(null)} className="btn-outline">
+                                Cerrar
+                            </button>
+                        </div>
                     </div>
-                    <button className="absolute top-10 right-10 text-white font-black uppercase text-xs tracking-widest glass-panel px-6 py-3 rounded-2xl hover:glass-panel hover:text-black transition-all">Cerrar</button>
                 </div>
             )}
         </div>

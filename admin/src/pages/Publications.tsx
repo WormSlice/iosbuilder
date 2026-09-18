@@ -1,55 +1,103 @@
 import React, { useEffect, useState } from 'react';
-import { collection, limit, onSnapshot, doc, deleteDoc, updateDoc, query, orderBy, setDoc, getDocs } from 'firebase/firestore';
+import { collection, limit, onSnapshot, doc, deleteDoc, updateDoc, query, orderBy, getDocs } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import {
-    LayoutGrid,
     Search,
-    Filter,
+    RefreshCw,
     Trash2,
     Eye,
-    Zap,
-    ArrowUpRight,
     CheckCircle,
+    XCircle,
     ShoppingBag,
-    Activity,
-    Clock,
-    RefreshCw,
-    Shield,
-    Users,
-    Home
+    X,
+    Filter,
+    ExternalLink
 } from 'lucide-react';
-import { motion } from 'framer-motion';
+import toast from 'react-hot-toast';
 
 interface Publication {
     id: string;
-    title: string;
-    description: string;
+    title?: string;
+    description?: string;
     price?: number;
     category?: string;
+    images?: string[];
     imageUrl?: string;
-    status: 'active' | 'pending' | 'rejected' | 'sold';
-    createdAt: any;
+    image?: string;
+    status?: 'active' | 'pending' | 'rejected' | 'sold';
+    createdAt?: any;
+    userName?: string;
+    userEmail?: string;
+    userId?: string;
 }
+
+const CATEGORIES = [
+    'Todas',
+    'Lo Tienes',
+    'Productos',
+    'Vehículos',
+    'Propiedades',
+    'Servicios',
+    'Empleos',
+    'Mascotas',
+    'Trueques',
+    'Sugerencias'
+];
 
 export const Publications: React.FC = () => {
     const [posts, setPosts] = useState<Publication[]>([]);
     const [loading, setLoading] = useState(true);
-    const [filter, setFilter] = useState('all');
     const [searchTerm, setSearchTerm] = useState('');
     const [activeCategory, setActiveCategory] = useState('Todas');
-    const [isMarketplaceHidden, setIsMarketplaceHidden] = useState(false);
+    const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'pending' | 'sold'>('all');
+    const [selectedPost, setSelectedPost] = useState<Publication | null>(null);
+    const [isSyncingAlgolia, setIsSyncingAlgolia] = useState(false);
 
-    const categories = ['Todas', 'Lo Tienes', 'Productos', 'Vehículos', 'Propiedades', 'Servicios', 'Empleos', 'Mascotas', 'Trueques', 'Sugerencias'];
+    useEffect(() => {
+        const q = query(collection(db, 'posts'), limit(150));
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const list = snapshot.docs.map(d => ({
+                id: d.id,
+                ...d.data()
+            })) as Publication[];
+            setPosts(list);
+            setLoading(false);
+        }, (err) => {
+            console.error('Error al cargar publicaciones:', err);
+            setLoading(false);
+        });
 
-    const [isSyncing, setIsSyncing] = useState(false);
+        return () => unsubscribe();
+    }, []);
+
+    const handleDelete = async (postId: string, title?: string) => {
+        if (!window.confirm(`¿Estás seguro de que deseas eliminar permanentemente "${title || 'esta publicación'}"?`)) return;
+        try {
+            await deleteDoc(doc(db, 'posts', postId));
+            toast.success('Publicación eliminada correctamente');
+            if (selectedPost?.id === postId) setSelectedPost(null);
+        } catch (e: any) {
+            toast.error(`Error al eliminar: ${e.message}`);
+        }
+    };
+
+    const handleToggleStatus = async (post: Publication) => {
+        const nextStatus = post.status === 'active' ? 'pending' : 'active';
+        try {
+            await updateDoc(doc(db, 'posts', post.id), { status: nextStatus });
+            toast.success(`Estado cambiado a ${nextStatus === 'active' ? 'Activo' : 'Pausado'}`);
+        } catch (e: any) {
+            toast.error(`Error: ${e.message}`);
+        }
+    };
 
     const syncToAlgolia = async () => {
-        if (!window.confirm('¿Seguro que deseas re-indexar todas las publicaciones a Algolia? Esto puede tomar unos segundos.')) return;
-        setIsSyncing(true);
+        if (!window.confirm('¿Re-indexar todas las publicaciones a Algolia Search?')) return;
+        setIsSyncingAlgolia(true);
         try {
             const { algoliasearch } = await import('algoliasearch');
             const client = algoliasearch('P2CJMQDDSH', '4aa72340abeb49d79d888cc3271c23b1');
-            
+
             const sanitizeData = (data: any): any => {
                 const clean = { ...data };
                 for (const key in clean) {
@@ -68,15 +116,15 @@ export const Publications: React.FC = () => {
             };
 
             const postsSnap = await getDocs(collection(db, 'posts'));
-            const postsBatch = postsSnap.docs.map(doc => {
-                let data = doc.data();
+            const postsBatch = postsSnap.docs.map(d => {
+                let data = d.data();
                 data = sanitizeData(data);
                 return {
                     action: 'addObject',
-                    body: { ...data, objectID: doc.id, id: doc.id, type: data.type || 'post', status: data.status || 'active' }
+                    body: { ...data, objectID: d.id, id: d.id, type: data.type || 'post', status: data.status || 'active' }
                 };
             });
-            
+
             if (postsBatch.length > 0) {
                 const batchSize = 50;
                 for (let i = 0; i < postsBatch.length; i += batchSize) {
@@ -84,325 +132,301 @@ export const Publications: React.FC = () => {
                     await client.batch({ indexName: 'ALGOLIA', batchWriteParams: { requests: batch as any } });
                 }
             }
-
-            const wantsSnap = await getDocs(collection(db, 'wants'));
-            const wantsBatch = wantsSnap.docs.map(doc => {
-                let data = doc.data();
-                data = sanitizeData(data);
-                return {
-                    action: 'addObject',
-                    body: { ...data, objectID: doc.id, id: doc.id, type: data.type || 'want', status: data.status || 'active' }
-                };
-            });
-            
-            if (wantsBatch.length > 0) {
-                const batchSize = 50;
-                for (let i = 0; i < wantsBatch.length; i += batchSize) {
-                    const batch = wantsBatch.slice(i, i + batchSize);
-                    await client.batch({ indexName: 'wants', batchWriteParams: { requests: batch as any } });
-                }
-            }
-
-            alert('¡Indexación a Algolia completada con éxito!');
-        } catch (error) {
-            console.error('Error syncing to Algolia:', error);
-            alert('Error al indexar: ' + error);
+            toast.success('Índice de Algolia actualizado con éxito');
+        } catch (e: any) {
+            toast.error(`Error al sincronizar Algolia: ${e.message}`);
         } finally {
-            setIsSyncing(false);
+            setIsSyncingAlgolia(false);
         }
     };
 
-    useEffect(() => {
-        const fetchAllContent = async () => {
-            setLoading(true);
-            try {
-                // Fetch from products/posts
-                const qPosts = query(
-                    collection(db, 'posts'),
-                    orderBy('createdAt', 'desc'),
-                    limit(60)
-                );
-
-                // Fetch from wants
-                const qWants = query(
-                    collection(db, 'wants'),
-                    orderBy('createdAt', 'desc'),
-                    limit(40)
-                );
-
-                const unsubPosts = onSnapshot(qPosts, (postsSnap) => {
-                    const postsData = postsSnap.docs.map(docSnap => ({
-                        id: docSnap.id,
-                        type: 'post',
-                        ...docSnap.data()
-                    })) as Publication[];
-
-                    onSnapshot(qWants, (wantsSnap) => {
-                        const wantsData = wantsSnap.docs.map(docSnap => ({
-                            id: docSnap.id,
-                            type: 'want',
-                            category: 'Lo Tienes', // Force category for wants
-                            ...docSnap.data()
-                        })) as Publication[];
-
-                        const combined = [...postsData, ...wantsData].sort((a, b) => {
-                            const dateA = a.createdAt?.seconds || 0;
-                            const dateB = b.createdAt?.seconds || 0;
-                            return dateB - dateA;
-                        });
-
-                        setPosts(combined);
-                        setLoading(false);
-                    });
-                });
-
-                return () => unsubPosts();
-            } catch (err) {
-                console.error("Error fetching admin content:", err);
-                setLoading(false);
-            }
-        };
-
-        fetchAllContent();
-    }, []);
-
-    useEffect(() => {
-        const unsubscribe = onSnapshot(doc(db, 'settings', 'marketplace'), (docSnap) => {
-            if (docSnap.exists()) {
-                setIsMarketplaceHidden(docSnap.data().hideAllPosts || false);
-            }
-        });
-        return () => unsubscribe();
-    }, []);
-
-    const toggleMarketplaceVisibility = async () => {
+    const formatDate = (timestamp: any) => {
+        if (!timestamp) return 'Reciente';
         try {
-            await setDoc(doc(db, 'settings', 'marketplace'), {
-                hideAllPosts: !isMarketplaceHidden,
-                updatedAt: new Date()
-            }, { merge: true });
-        } catch (error) {
-            console.error('Error toggling marketplace:', error);
+            if (timestamp.toDate) return timestamp.toDate().toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' });
+            if (timestamp.seconds) return new Date(timestamp.seconds * 1000).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' });
+            return new Date(timestamp).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' });
+        } catch {
+            return 'Reciente';
         }
     };
 
-    const handleDelete = async (id: string) => {
-        if (!window.confirm('¿Eliminar publicación permanentemente?')) return;
-        try {
-            await deleteDoc(doc(db, 'posts', id));
-        } catch (error) {
-            console.error('Error deleting post:', error);
-        }
-    };
+    const filteredPosts = posts.filter(post => {
+        const matchesSearch = (
+            (post.title?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+            (post.description?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+            (post.category?.toLowerCase() || '').includes(searchTerm.toLowerCase())
+        );
 
-    const getFilteredPosts = () => {
-        return posts.filter(post => {
-            const matchesFilter = filter === 'all' || post.status === filter;
-            
-            // Fix categories matching
-            const postCat = (post.category || '').toLowerCase();
-            const activeCat = activeCategory.toLowerCase();
-            const matchesCategory = activeCategory === 'Todas' || postCat === activeCat;
-            
-            const matchesSearch = post.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                post.description?.toLowerCase().includes(searchTerm.toLowerCase());
-            return matchesFilter && matchesCategory && matchesSearch;
-        });
-    };
+        const matchesCat = activeCategory === 'Todas' || post.category?.toLowerCase() === activeCategory.toLowerCase();
 
-    const getCategoryIcon = (cat?: string) => {
-        switch (cat?.toLowerCase()) {
-            case 'vehículos': return <Activity size={14} />;
-            case 'propiedades': return <Home size={14} />;
-            case 'productos': return <ShoppingBag size={14} />;
-            case 'servicios': return <Activity size={14} />;
-            case 'empleos': return <Activity size={14} />;
-            case 'mascotas': return <Activity size={14} />;
-            case 'lo tienes': return <ShoppingBag size={14} className="text-blue-500" />;
-            case 'trueques': return <RefreshCw size={14} />;
-            default: return <LayoutGrid size={14} />;
-        }
-    };
+        let matchesStatus = true;
+        if (statusFilter === 'active') matchesStatus = post.status === 'active';
+        if (statusFilter === 'pending') matchesStatus = post.status === 'pending';
+        if (statusFilter === 'sold') matchesStatus = post.status === 'sold';
 
-    const filteredPosts = getFilteredPosts();
+        return matchesSearch && matchesCat && matchesStatus;
+    });
+
+    const getImage = (post: Publication) => {
+        return post.images?.[0] || post.imageUrl || post.image || '';
+    };
 
     return (
-        <div className="space-y-10 animate-in slide-in-from-right duration-500">
-            <div className="flex flex-col gap-8 md:flex-row md:items-end md:justify-between">
-                <div className="space-y-1">
-                    <h1 className="text-3xl font-black tracking-tighter uppercase leading-none">Marketplace Moderation</h1>
-                    <div className="flex items-center gap-4 mt-2">
-                        <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest">Control de Inventario y Calidad</p>
-                        <div className="h-4 w-px glass-button mx-2"></div>
-                        <div
-                            onClick={toggleMarketplaceVisibility}
-                            className="flex items-center gap-3 px-4 py-2 glass-button rounded-full border border-zinc-100 hover:border-black transition-all cursor-pointer group"
-                        >
-                            <div className={`w-8 h-4 rounded-full relative transition-colors ${isMarketplaceHidden ? 'glass-panel-dark' : 'bg-zinc-200'}`}>
-                                <motion.div
-                                    animate={{ x: isMarketplaceHidden ? 18 : 2 }}
-                                    className="w-3 h-3 glass-panel rounded-full absolute top-0.5 shadow-sm"
-                                />
-                            </div>
-                            <span className={`text-[9px] font-black uppercase tracking-widest ${isMarketplaceHidden ? 'text-black' : 'text-zinc-400'}`}>
-                                {isMarketplaceHidden ? 'Mercado en Pausa' : 'Mercado Activo'}
-                            </span>
-                            {isMarketplaceHidden && <Zap size={12} className="text-black" />}
-                        </div>
-                        
-                        <div className="h-4 w-px glass-button mx-2"></div>
-                        <button
-                            onClick={syncToAlgolia}
-                            disabled={isSyncing}
-                            className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-full border border-blue-100 hover:border-blue-300 transition-all cursor-pointer"
-                        >
-                            <RefreshCw size={12} className={isSyncing ? "animate-spin" : ""} />
-                            <span className="text-[9px] font-black uppercase tracking-widest">
-                                {isSyncing ? 'Indexando...' : 'Algolia Index'}
-                            </span>
-                        </button>
-                    </div>
+        <div className="space-y-5">
+            {/* Header */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-zinc-200">
+                <div>
+                    <h1 className="text-xl font-bold text-zinc-900 tracking-tight">Publicaciones del Catálogo</h1>
+                    <p className="text-xs text-zinc-500">Supervisión, estado de moderación y sincronización de contenido en CONNECT</p>
                 </div>
 
-                <div className="flex flex-col md:flex-row gap-4">
-                    {/* Search Bar */}
-                    <div className="relative group">
-                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-300 group-focus-within:text-black transition-colors" size={16} />
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={syncToAlgolia}
+                        disabled={isSyncingAlgolia}
+                        className="btn-outline"
+                        title="Re-indexar publicaciones a Algolia"
+                    >
+                        <RefreshCw size={12} className={isSyncingAlgolia ? 'animate-spin text-[#0094FF]' : ''} />
+                        <span>{isSyncingAlgolia ? 'Indexando...' : 'Re-indexar Algolia'}</span>
+                    </button>
+                    <span className="text-xs font-semibold text-zinc-500 bg-white border border-zinc-200 px-2.5 py-1 rounded-lg">
+                        Total: {posts.length}
+                    </span>
+                </div>
+            </div>
+
+            {/* Barra de Filtros y Búsqueda */}
+            <div className="space-y-2.5 bg-white p-3 rounded-xl border border-zinc-200">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                    <div className="relative flex-1 max-w-md">
                         <input
                             type="text"
-                            placeholder="Buscar publicación..."
+                            placeholder="Buscar publicación por título o descripción..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="glass-button border border-zinc-100 rounded-2xl pl-12 pr-6 py-3 text-[10px] font-bold uppercase tracking-widest outline-none focus:glass-panel focus:border-black transition-all w-full md:w-64"
+                            className="input-clean pl-8"
                         />
+                        <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-400" />
+                        {searchTerm && (
+                            <button onClick={() => setSearchTerm('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600">
+                                <X size={13} />
+                            </button>
+                        )}
                     </div>
 
-                    <div className="flex p-1 glass-button rounded-2xl">
-                        {['all', 'pending', 'approved'].map(f => (
+                    <div className="flex items-center gap-1.5 self-end sm:self-auto">
+                        {(['all', 'active', 'pending', 'sold'] as const).map((st) => (
                             <button
-                                key={f}
-                                onClick={() => setFilter(f)}
-                                className={`px-6 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${filter === f ? 'glass-panel-dark text-white shadow-lg' : 'text-zinc-400 hover:text-black'
-                                    }`}
+                                key={st}
+                                onClick={() => setStatusFilter(st)}
+                                className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition-colors capitalize ${
+                                    statusFilter === st
+                                        ? 'bg-zinc-900 text-white'
+                                        : 'bg-zinc-100 hover:bg-zinc-200 text-zinc-600'
+                                }`}
                             >
-                                {f === 'all' ? 'Todos' : f === 'pending' ? 'Borradores' : 'En Vivo'}
+                                {st === 'all' ? 'Todas' : st === 'active' ? 'Activas' : st === 'pending' ? 'Borrador' : 'Vendidas'}
                             </button>
                         ))}
                     </div>
                 </div>
-            </div>
 
-            {/* Category Chips */}
-            <div className="flex gap-2 overflow-x-auto pb-4 no-scrollbar">
-                {categories.map((cat) => (
-                    <button
-                        key={cat}
-                        onClick={() => setActiveCategory(cat)}
-                        className={`px-6 py-2 rounded-full text-[9px] font-black uppercase tracking-widest whitespace-nowrap transition-all border ${activeCategory === cat
-                            ? 'glass-panel-dark border-black text-white shadow-xl shadow-black/10'
-                            : 'glass-panel border-zinc-100 text-zinc-400 hover:border-black hover:text-black'
+                {/* Chips de Categorías */}
+                <div className="flex items-center gap-1.5 overflow-x-auto pb-1 pt-1 no-scrollbar text-xs">
+                    {CATEGORIES.map((cat) => (
+                        <button
+                            key={cat}
+                            onClick={() => setActiveCategory(cat)}
+                            className={`px-2.5 py-1 rounded-md whitespace-nowrap text-[11px] font-semibold transition-colors ${
+                                activeCategory === cat
+                                    ? 'bg-[#0094FF] text-white'
+                                    : 'bg-zinc-100 hover:bg-zinc-200 text-zinc-600'
                             }`}
-                    >
-                        {cat}
-                    </button>
-                ))}
+                        >
+                            {cat}
+                        </button>
+                    ))}
+                </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {loading ? (
-                    <div className="col-span-full py-40 text-center">
-                        <div className="w-8 h-8 border-2 border-black border-t-transparent rounded-full animate-spin mx-auto"></div>
-                    </div>
-                ) : filteredPosts.map((post) => (
-                    <div key={post.id} className="glass-panel rounded-[2.5rem] p-6 border border-zinc-100 flex gap-8 items-start hover:shadow-xl transition-all group">
-                        {/* Compact Card (Connect Style) */}
-                        <div className="w-40 flex-shrink-0 space-y-3">
-                            <div className="aspect-square glass-button rounded-3xl overflow-hidden relative border border-zinc-50 shadow-inner">
-                                {(() => {
-                                    const p = post as any;
-                                    const img = p.images?.[0] || p.imageUrl || p.image;
-                                    return img ? (
-                                        <img src={img} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt="" />
-                                    ) : (
-                                        <div className="w-full h-full flex items-center justify-center text-zinc-200">
-                                            <ShoppingBag size={32} strokeWidth={1} />
-                                        </div>
+            {/* Tabla Plana de Publicaciones */}
+            <div className="bg-white border border-zinc-200 rounded-xl overflow-hidden">
+                <div className="overflow-x-auto">
+                    <table className="table-clean">
+                        <thead>
+                            <tr>
+                                <th>Publicación</th>
+                                <th>Categoría</th>
+                                <th>Precio</th>
+                                <th>Estado</th>
+                                <th>Fecha</th>
+                                <th className="text-right">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {loading ? (
+                                <tr>
+                                    <td colSpan={6} className="text-center py-8 text-zinc-400">
+                                        Cargando publicaciones reales de Firebase...
+                                    </td>
+                                </tr>
+                            ) : filteredPosts.length === 0 ? (
+                                <tr>
+                                    <td colSpan={6} className="text-center py-8 text-zinc-400">
+                                        No se encontraron publicaciones con los filtros aplicados.
+                                    </td>
+                                </tr>
+                            ) : (
+                                filteredPosts.map((post) => {
+                                    const img = getImage(post);
+                                    return (
+                                        <tr key={post.id}>
+                                            <td>
+                                                <div className="flex items-center gap-3">
+                                                    {img ? (
+                                                        <img src={img} alt="" className="w-10 h-10 rounded-lg object-cover border border-zinc-200 flex-shrink-0" />
+                                                    ) : (
+                                                        <div className="w-10 h-10 rounded-lg bg-zinc-100 text-zinc-400 flex items-center justify-center flex-shrink-0 border border-zinc-200">
+                                                            <ShoppingBag size={16} />
+                                                        </div>
+                                                    )}
+                                                    <div className="overflow-hidden">
+                                                        <p className="font-semibold text-zinc-900 truncate max-w-xs">
+                                                            {post.title || 'Sin título'}
+                                                        </p>
+                                                        <p className="text-[11px] text-zinc-500 truncate max-w-xs">
+                                                            {post.userName || post.userEmail || post.userId || 'Autor anónimo'}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <span className="text-[11px] font-medium text-zinc-700 bg-zinc-100 px-2 py-0.5 rounded">
+                                                    {post.category || 'General'}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <span className="font-semibold text-zinc-900">
+                                                    {post.price !== undefined && post.price !== null ? `$${post.price.toLocaleString()}` : 'Gratis'}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold ${
+                                                    post.status === 'active'
+                                                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                                        : post.status === 'sold'
+                                                        ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                                                        : 'bg-zinc-100 text-zinc-600 border border-zinc-200'
+                                                }`}>
+                                                    <span className={`w-1.5 h-1.5 rounded-full ${post.status === 'active' ? 'bg-emerald-500' : 'bg-zinc-400'}`} />
+                                                    <span>{post.status === 'active' ? 'Activo' : post.status === 'sold' ? 'Vendido' : 'Borrador'}</span>
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <span className="text-[11px] text-zinc-500">
+                                                    {formatDate(post.createdAt)}
+                                                </span>
+                                            </td>
+                                            <td className="text-right">
+                                                <div className="inline-flex items-center gap-1.5">
+                                                    <button
+                                                        onClick={() => setSelectedPost(post)}
+                                                        className="btn-outline px-2 py-1"
+                                                        title="Ver detalles"
+                                                    >
+                                                        <Eye size={12} />
+                                                        <span>Detalles</span>
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleToggleStatus(post)}
+                                                        className={`px-2 py-1 rounded-lg text-xs font-semibold transition-colors ${
+                                                            post.status === 'active'
+                                                                ? 'bg-zinc-100 hover:bg-zinc-200 text-zinc-700'
+                                                                : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200'
+                                                        }`}
+                                                    >
+                                                        {post.status === 'active' ? 'Pausar' : 'Activar'}
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleDelete(post.id, post.title)}
+                                                        className="btn-danger px-2 py-1"
+                                                        title="Eliminar publicación"
+                                                    >
+                                                        <Trash2 size={12} />
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
                                     );
-                                })()}
-                                <div className="absolute top-2 right-2 flex gap-1">
-                                    <div className={`px-2 py-1 rounded-full text-[7px] font-black uppercase tracking-tighter shadow-xl ${post.status === 'active' ? 'glass-panel-dark text-white' : 'bg-zinc-200 text-zinc-600'}`}>
-                                        {post.status === 'active' ? 'LIVE' : 'WAIT'}
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="px-1 space-y-1">
-                                <h4 className="font-black text-[11px] leading-tight line-clamp-1 uppercase tracking-tighter">{post.title}</h4>
-                                <div className="flex items-center gap-1.5 text-zinc-400">
-                                    {getCategoryIcon(post.category)}
-                                    <span className="text-[9px] font-bold uppercase truncate">{post.category || 'Varios'}</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Details List (Right Side) */}
-                        <div className="flex-grow space-y-4 py-2">
-                            <div className="grid grid-cols-2 gap-x-12 gap-y-4">
-                                <div className="space-y-1">
-                                    <p className="text-[8px] font-black uppercase text-zinc-300 tracking-widest">Valor de Mercado</p>
-                                    <p className="font-black text-lg tracking-tight text-black">
-                                        {(() => {
-                                            if (post.price == null) return post.type === 'want' ? 'N/A' : '$0';
-                                            const priceStr = String(post.price).replace(/[^0-9]/g, '');
-                                            const priceNum = parseInt(priceStr, 10);
-                                            return isNaN(priceNum) ? '$0' : `$${priceNum.toLocaleString()}`;
-                                        })()}
-                                    </p>
-                                </div>
-                                <div className="space-y-1 text-right">
-                                    <p className="text-[8px] font-black uppercase text-zinc-300 tracking-widest">Fecha Ingreso</p>
-                                    <p className="font-black text-[10px] text-zinc-400 tracking-widest uppercase">
-                                        {post.createdAt ? new Date(post.createdAt.seconds * 1000).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase() : 'N/A'}
-                                    </p>
-                                </div>
-                                <div className="space-y-1 truncate">
-                                    <p className="text-[8px] font-black uppercase text-zinc-300 tracking-widest">Propietario / Autor</p>
-                                    <div className="flex items-center gap-2">
-                                        <div className="w-4 h-4 rounded glass-button border border-zinc-200" />
-                                        <p className="font-bold text-[10px] text-zinc-500 tracking-tight truncate">{(post as any).userId || 'Anónimo'}</p>
-                                    </div>
-                                </div>
-                                <div className="space-y-1 text-right">
-                                    <p className="text-[8px] font-black uppercase text-zinc-300 tracking-widest">Estatus Sistema</p>
-                                    <div className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest ${post.status === 'active' ? 'glass-button text-black' : 'bg-red-50 text-red-500'}`}>
-                                        {post.status === 'active' ? 'Validado' : 'Pendiente'}
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="pt-4 border-t border-zinc-50 flex justify-between items-center">
-                                <button className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-300 hover:text-black transition-colors flex items-center gap-2 underline decoration-zinc-100 decoration-2 underline-offset-4">
-                                    Ver Documentación <ArrowUpRight size={10} />
-                                </button>
-                                <div className="flex gap-2">
-                                    <button className="h-10 w-10 flex items-center justify-center glass-button text-zinc-300 hover:text-black hover:glass-button rounded-xl transition-all">
-                                        <Zap size={16} />
-                                    </button>
-                                    <button onClick={() => handleDelete(post.id)} className="h-10 w-10 flex items-center justify-center glass-button text-zinc-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all">
-                                        <Trash2 size={16} />
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                ))}
+                                })
+                            )}
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
-            {!loading && filteredPosts.length === 0 && (
-                <div className="py-40 text-center space-y-4">
-                    <div className="w-16 h-16 glass-button rounded-full flex items-center justify-center mx-auto text-zinc-200">
-                        <LayoutGrid size={32} />
+            {/* Modal de Detalle de Publicación */}
+            {selectedPost && (
+                <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-xl border border-zinc-200 max-w-lg w-full p-5 space-y-4 shadow-xl">
+                        <div className="flex items-center justify-between pb-3 border-b border-zinc-200">
+                            <h3 className="font-bold text-sm text-zinc-900">Detalles de Publicación</h3>
+                            <button onClick={() => setSelectedPost(null)} className="text-zinc-400 hover:text-zinc-700">
+                                <X size={16} />
+                            </button>
+                        </div>
+
+                        <div className="space-y-3 text-xs">
+                            {getImage(selectedPost) && (
+                                <img
+                                    src={getImage(selectedPost)}
+                                    alt=""
+                                    className="w-full h-44 rounded-lg object-cover border border-zinc-200"
+                                />
+                            )}
+                            <div>
+                                <h4 className="font-bold text-sm text-zinc-900">{selectedPost.title || 'Sin título'}</h4>
+                                <p className="text-zinc-600 mt-1 leading-relaxed">{selectedPost.description || 'Sin descripción detallada.'}</p>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2 pt-2 border-t border-zinc-100">
+                                <div>
+                                    <span className="text-zinc-400 block text-[10px] uppercase font-bold">Precio</span>
+                                    <span className="font-bold text-zinc-900">
+                                        {selectedPost.price !== undefined ? `$${selectedPost.price.toLocaleString()}` : 'Gratis'}
+                                    </span>
+                                </div>
+                                <div>
+                                    <span className="text-zinc-400 block text-[10px] uppercase font-bold">Categoría</span>
+                                    <span className="text-zinc-700">{selectedPost.category || 'General'}</span>
+                                </div>
+                                <div>
+                                    <span className="text-zinc-400 block text-[10px] uppercase font-bold">ID del Documento</span>
+                                    <span className="font-mono text-zinc-700 select-all">{selectedPost.id}</span>
+                                </div>
+                                <div>
+                                    <span className="text-zinc-400 block text-[10px] uppercase font-bold">Fecha</span>
+                                    <span className="text-zinc-700">{formatDate(selectedPost.createdAt)}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="flex items-center justify-between pt-3 border-t border-zinc-200">
+                            <button
+                                onClick={() => handleDelete(selectedPost.id, selectedPost.title)}
+                                className="btn-danger"
+                            >
+                                <Trash2 size={12} />
+                                <span>Eliminar Publicación</span>
+                            </button>
+
+                            <button onClick={() => setSelectedPost(null)} className="btn-outline">
+                                Cerrar
+                            </button>
+                        </div>
                     </div>
-                    <p className="text-zinc-300 text-xs font-black uppercase tracking-[0.2em]">Catalogo Vacío o sin coincidencias</p>
                 </div>
             )}
         </div>

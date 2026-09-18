@@ -31,7 +31,7 @@ class InstagramAudioTrimmerSheet extends StatefulWidget {
     this.audioUrl,
   });
 
-  static Future<Map<String, int>?> show({
+  static Future<Map<String, dynamic>?> show({
     required BuildContext context,
     required String musicId,
     required String title,
@@ -42,7 +42,7 @@ class InstagramAudioTrimmerSheet extends StatefulWidget {
     int initialDuration = 30,
     String? audioUrl,
   }) {
-    return showModalBottomSheet<Map<String, int>>(
+    return showModalBottomSheet<Map<String, dynamic>>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -74,6 +74,7 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
   double _totalTrackDurationSec = 30.0;
   bool _isAutoHighlight = true;
   double _currentPlaybackSec = 0.0;
+  String? _resolvedAudioUrl;
 
   // Controladores de animación
   late AnimationController _waveAnimController;
@@ -128,6 +129,11 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
   Future<void> _initAudio() async {
     _stateSub = _player.playerStateStream.listen((state) {
       if (mounted) {
+        if (state.processingState == ProcessingState.completed) {
+          _player.seek(Duration(seconds: _startSeconds));
+          _player.play();
+          return;
+        }
         final playing = state.playing &&
             state.processingState != ProcessingState.completed;
         setState(() {
@@ -158,29 +164,41 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
         });
 
         // Bucle perfecto dentro del rango recortado [start, start + duration]
-        if (_isPlaying && (sec >= end || sec >= _totalTrackDurationSec)) {
+        if (_isPlaying && (sec >= end || sec >= _totalTrackDurationSec - 0.15)) {
           _player.seek(Duration(seconds: _startSeconds));
         }
       }
     });
 
     try {
-      String? streamUrl = widget.audioUrl;
-      if (streamUrl == null || !streamUrl.startsWith('http')) {
-        if (widget.musicId.startsWith('http')) {
+      String? streamUrl;
+
+      // 1. Extraer pista COMPLETA desde YouTube para que el usuario pueda recortar cualquier minuto
+      final streamData = await MusicService.getFullAudioStream(
+        title: widget.title,
+        artist: widget.artist,
+        fallbackPreviewUrl: widget.audioUrl,
+        expectedDurationSec: widget.totalTrackSeconds,
+      );
+
+      if (streamData != null && streamData['url'] != null) {
+        streamUrl = streamData['url'].toString();
+        if (streamData['durationSeconds'] is int && streamData['durationSeconds'] > 0) {
+          _totalTrackDurationSec = (streamData['durationSeconds'] as int).toDouble();
+        }
+      }
+
+      // 2. Si no resolvió YouTube, usar fallback previo
+      if (streamUrl == null || streamUrl.isEmpty) {
+        if (widget.audioUrl != null && widget.audioUrl!.startsWith('http')) {
+          streamUrl = widget.audioUrl;
+        } else if (widget.musicId.startsWith('http')) {
           streamUrl = widget.musicId;
         }
       }
 
-      if (streamUrl == null || !streamUrl.startsWith('http')) {
-        streamUrl = await MusicService.getAudioStreamUrl(
-          widget.musicId,
-          title: widget.title,
-          artist: widget.artist,
-        );
-      }
-
       if (streamUrl != null && streamUrl.isNotEmpty && mounted) {
+        _resolvedAudioUrl = streamUrl;
         final audioSource = await MusicService.createAudioSource(
           streamUrl,
           cacheKey: '${widget.title}_${widget.artist}'.trim(),
@@ -188,9 +206,7 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
         final loadedDuration = await _player.setAudioSource(audioSource);
 
         if (loadedDuration != null && loadedDuration.inSeconds > 0) {
-          if (widget.totalTrackSeconds <= 30 && loadedDuration.inSeconds > 30) {
-            _totalTrackDurationSec = loadedDuration.inSeconds.toDouble();
-          }
+          _totalTrackDurationSec = loadedDuration.inSeconds.toDouble();
         }
 
         _duration = _duration.clamp(5, _totalTrackDurationSec.toInt());
@@ -468,6 +484,7 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
                   Navigator.pop(context, {
                     'startSeconds': _startSeconds,
                     'duration': _duration,
+                    'resolvedAudioUrl': _resolvedAudioUrl,
                   });
                 },
                 child: Container(
