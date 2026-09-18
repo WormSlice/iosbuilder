@@ -15,7 +15,7 @@ import {
     CheckCircle2,
     ExternalLink
 } from 'lucide-react';
-import { sendEmail } from '../services/mailersend';
+import { sendEmail } from '../services/connectMail';
 import {
     saveMail,
     subscribeToMail,
@@ -457,7 +457,7 @@ export const Mail: React.FC = () => {
                                     ⚠️ Aviso de Servidor de Correo (Fallo de Entrega)
                                 </span>
                                 <p className="leading-relaxed">
-                                    Este mensaje se registró en la bandeja de salida, pero el proveedor de correo rebotó la entrega externa hacia el usuario porque su correo no es una dirección de prueba verificada en Cloudflare / MailerSend. Para enviar correos a cualquier buzón público se requiere completar la configuración DNS (SPF/DKIM) o activar una API Key de producción.
+                                    Este mensaje se registró en la bandeja de salida, pero Cloudflare Email rebotó la entrega externa porque el destinatario no es una dirección verificada en Cloudflare Email Routing.
                                 </p>
                             </div>
                         )}

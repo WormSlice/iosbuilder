@@ -1,12 +1,14 @@
+import { EmailMessage } from "cloudflare:email";
+import { createMimeMessage } from "mimetext";
+
 /**
- * Cloudflare Email Worker para CONNECT APP.
- * Recibe correos entrantes enviados a contacto@connectapp.com.co, limpia los límites MIME
- * y los guarda automáticamente en Firebase Firestore para su lectura limpia en el Panel Admin.
+ * Cloudflare Email Worker para CONNECT APP (Nativo).
+ * - Maneja recepción de correos entrantes (@connectapp.com.co) y los registra en Firestore (CONNECT Mail).
+ * - Maneja envío saliente de correos vía Cloudflare Email Routing binding (env.SEB).
  */
 export default {
   /**
-   * Manejador HTTP para envío de correos desde la Web (Panel Admin)
-   * Supera las restricciones CORS llamando a la API de MailerSend desde el Worker.
+   * Manejador HTTP para envío de correos desde CONNECT (Panel Admin y App Móvil)
    */
   async fetch(request, env, ctx) {
     const corsHeaders = {
@@ -22,37 +24,54 @@ export default {
     if (request.method === "POST") {
       try {
         const body = await request.json();
-        const apiKey = env.MAILERSEND_API_KEY || "mlsn.34131d2c738f0026306ef479f2e4dc85df9ef47633f4cdd32506dc35f33b9a1b";
+        const to = (body.to || "").trim();
+        const from = body.fromEmail || "contacto@connectapp.com.co";
+        const subject = body.subject || "(Sin Asunto)";
+        const text = body.text || "";
+        const html = body.html || "";
 
-        const response = await fetch("https://api.mailersend.com/v1/email", {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${apiKey}`,
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify(body)
-        });
+        if (!to) {
+          return new Response(JSON.stringify({ error: "Falta el destinatario (to)" }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" }
+          });
+        }
 
-        const data = await response.text();
-        return new Response(data, {
-          status: response.status,
-          headers: {
-            ...corsHeaders,
-            "Content-Type": "application/json"
-          }
+        const msg = createMimeMessage();
+        msg.setSender({ name: body.fromName || "CONNECT", addr: from });
+        msg.setRecipient(to);
+        msg.setSubject(subject);
+        if (text) msg.addMessage({ contentType: "text/plain", data: text });
+        if (html) msg.addMessage({ contentType: "text/html", data: html });
+
+        const emailMessage = new EmailMessage(
+          from,
+          to,
+          msg.asRaw()
+        );
+
+        if (!env.SEB) {
+          throw new Error("El binding de envío de Cloudflare (SEB / send_email) no está configurado en este Worker.");
+        }
+
+        await env.SEB.send(emailMessage);
+
+        return new Response(JSON.stringify({ 
+          success: true, 
+          message: "Correo enviado exitosamente vía Cloudflare Email" 
+        }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
         });
       } catch (error) {
         return new Response(JSON.stringify({ error: error.message }), {
           status: 500,
-          headers: {
-            ...corsHeaders,
-            "Content-Type": "application/json"
-          }
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
         });
       }
     }
 
-    return new Response(JSON.stringify({ status: "CONNECT Mail Worker Activo" }), {
+    return new Response(JSON.stringify({ status: "CONNECT Mail Worker Activo (Cloudflare Nativo)" }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" }
     });
   },

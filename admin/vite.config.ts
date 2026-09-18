@@ -15,35 +15,7 @@ export default defineConfig({
         port: 3000,
         open: true,
         proxy: {
-            '/api/mailgun': {
-                target: 'https://api.mailgun.net/v3',
-                changeOrigin: true,
-                rewrite: (path) => path.replace(/^\/api\/mailgun/, ''),
-                onProxyRes: (proxyRes) => {
-                    delete proxyRes.headers['www-authenticate'];
-                }
-            },
-            '/api/mailersend': {
-                target: 'https://api.mailersend.com/v1',
-                changeOrigin: true,
-                rewrite: (path) => path.replace(/^\/api\/mailersend/, '')
-            },
-            '/api/mailgun-storage': {
-                target: 'https://storage.mailgun.net/v3',
-                changeOrigin: true,
-                rewrite: (path) => path.replace(/^\/api\/mailgun-storage/, ''),
-                onProxyRes: (proxyRes) => {
-                    delete proxyRes.headers['www-authenticate'];
-                }
-            },
-            '/api/mailgun-storage-eu': {
-                target: 'https://storage.de.mailgun.net/v3',
-                changeOrigin: true,
-                rewrite: (path) => path.replace(/^\/api\/mailgun-storage-eu/, ''),
-                onProxyRes: (proxyRes) => {
-                    delete proxyRes.headers['www-authenticate'];
-                }
-            },
+
             '/api/yt-search': {
                 target: 'https://invidious.f5.si/api/v1',
                 changeOrigin: true,

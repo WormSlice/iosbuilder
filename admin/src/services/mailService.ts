@@ -13,7 +13,7 @@ import {
     QueryDocumentSnapshot
 } from 'firebase/firestore';
 import { db } from './firebase';
-import { fetchMailEvents, fetchMessageContent } from "./mailersend";
+import { fetchMailEvents, fetchMessageContent } from "./connectMail";
 
 export interface MailLog {
     id: string;

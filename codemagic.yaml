@@ -16,8 +16,7 @@ workflows:
     scripts:
       - name: Set up .env
         script: |
-          echo "MAILERSEND_API_KEY=${MAILERSEND_API_KEY:-mlsn.34131d2c738f0026306ef479f2e4dc85df9ef47633f4cdd32506dc35f33b9a1b}" > .env
-          echo "YOUTUBE_API_KEY=${YOUTUBE_API_KEY:-AIzaSyB_u-JtPpqJLiWiId2JW74ETNwqdgVCbRQ}" >> .env
+          echo "YOUTUBE_API_KEY=${YOUTUBE_API_KEY:-AIzaSyB_u-JtPpqJLiWiId2JW74ETNwqdgVCbRQ}" > .env
           mkdir -p assets
           cp .env assets/.env
       - name: Clean and install CocoaPods dependencies

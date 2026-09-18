@@ -37,7 +37,7 @@ import {
     getDocs,
     Timestamp
 } from 'firebase/firestore';
-import { sendEmail } from '../services/mailersend';
+import { sendEmail } from '../services/connectMail';
 import { saveMail } from '../services/mailService';
 import toast from 'react-hot-toast';
 
@@ -286,7 +286,7 @@ export const Reports: React.FC = () => {
             } else if (notifSent && sendAsEmail && !emailSent) {
                 toast.success('¡Notificación enviada con éxito a la app del usuario!');
                 if (emailNotice.includes('destination address is not a verified address')) {
-                    toast('Aviso de correo: MailerSend requiere verificar el dominio DNS externo para despachar a direcciones de prueba.', { icon: 'ℹ️', duration: 7000 });
+                    toast('Aviso de correo: Cloudflare Email requiere que la dirección de destino esté verificada o habilitada para envíos salientes.', { icon: 'ℹ️', duration: 7000 });
                 } else {
                     toast(`Aviso de correo: ${emailNotice}`, { icon: '⚠️' });
                 }
