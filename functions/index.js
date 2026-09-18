@@ -250,3 +250,88 @@ exports.sendPushOnNewChatMessage = functions.firestore
     }
   });
 
+/**
+ * Trigger en broadcasts/{broadcastId}
+ * Envía notificación push global a todos los dispositivos registrados cuando se emite un broadcast desde el Admin
+ */
+exports.sendPushOnBroadcast = functions.firestore
+  .document("broadcasts/{broadcastId}")
+  .onCreate(async (snap, context) => {
+    const data = snap.data();
+    if (!data) return null;
+
+    const title = data.title || "CONNECT • Oficial";
+    const body = data.body || data.message || "Nueva notificación del sistema";
+
+    try {
+      // 1. Obtener tokens FCM de usuarios registrados
+      const usersSnap = await admin
+        .firestore()
+        .collection("users")
+        .where("fcmToken", "!=", null)
+        .limit(500)
+        .get();
+
+      const tokens = [];
+      usersSnap.forEach((doc) => {
+        const tok = doc.data()?.fcmToken;
+        if (tok && typeof tok === "string" && tok.trim().length > 10) {
+          tokens.push(tok.trim());
+        }
+      });
+
+      if (tokens.length === 0) {
+        console.log("[Broadcast Push] No hay tokens FCM registrados.");
+        return null;
+      }
+
+      // 2. Enviar a todos los dispositivos con sendEachForMulticast
+      const multicastPayload = {
+        tokens: tokens,
+        notification: {
+          title: title,
+          body: body,
+        },
+        data: {
+          type: "broadcast",
+          isBroadcast: "true",
+          click_action: "FLUTTER_NOTIFICATION_CLICK",
+        },
+        android: {
+          priority: "high",
+          notification: {
+            channelId: "high_importance_channel",
+            sound: "default",
+            priority: "high",
+            defaultSound: true,
+            defaultVibrateTimings: true,
+            visibility: "public",
+          },
+        },
+        apns: {
+          headers: {
+            "apns-priority": "10",
+            "apns-push-type": "alert",
+            "apns-topic": "com.connectapp.co",
+          },
+          payload: {
+            aps: {
+              alert: {
+                title: title,
+                body: body,
+              },
+              sound: "default",
+              badge: 1,
+            },
+          },
+        },
+      };
+
+      const resp = await admin.messaging().sendEachForMulticast(multicastPayload);
+      console.log(`[Broadcast Push] Enviado con éxito a ${resp.successCount} de ${tokens.length} dispositivos.`);
+      return resp;
+    } catch (err) {
+      console.error("[Broadcast Push] Error enviando push global:", err);
+      return null;
+    }
+  });

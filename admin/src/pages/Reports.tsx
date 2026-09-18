@@ -31,8 +31,14 @@ import {
     getDoc,
     setDoc,
     addDoc,
-    limit
+    limit,
+    serverTimestamp,
+    where,
+    getDocs,
+    Timestamp
 } from 'firebase/firestore';
+import { sendEmail } from '../services/mailersend';
+import { saveMail } from '../services/mailService';
 import toast from 'react-hot-toast';
 
 interface Report {
@@ -43,6 +49,7 @@ interface Report {
     description?: string;
     images?: string[];
     userId?: string;
+    reporterId?: string;
     userEmail?: string;
     status?: 'pending' | 'resolved';
     resolutionNotes?: string;
@@ -77,6 +84,7 @@ export const Reports: React.FC = () => {
     const [contactModalOpen, setContactModalOpen] = useState(false);
     const [contactRecipientEmail, setContactRecipientEmail] = useState('');
     const [contactRecipientId, setContactRecipientId] = useState('');
+    const [contactRecipientName, setContactRecipientName] = useState('');
     const [contactSubject, setContactSubject] = useState('');
     const [contactMessage, setContactMessage] = useState('');
     const [sendAsEmail, setSendAsEmail] = useState(true);
@@ -135,14 +143,48 @@ export const Reports: React.FC = () => {
         }
     };
 
-    // Abrir modal de contacto hacia el usuario
-    const handleOpenContact = (rep: Report) => {
-        setContactRecipientEmail(rep.userEmail || '');
-        setContactRecipientId(rep.userId || '');
+    // Abrir modal de contacto hacia el usuario con resolución de perfil
+    const handleOpenContact = async (rep: Report) => {
+        let resolvedUid = rep.userId || (rep as any).reporterId || '';
+        let resolvedEmail = rep.userEmail || '';
+        let resolvedName = '';
+
+        // Si tenemos UID pero falta email o nombre, consultar documento en colección 'users'
+        if (resolvedUid) {
+            try {
+                const uDoc = await getDoc(doc(db, 'users', resolvedUid));
+                if (uDoc.exists()) {
+                    const uData = uDoc.data();
+                    if (!resolvedEmail && uData.email) resolvedEmail = uData.email;
+                    resolvedName = uData.displayName || uData.name || uData.username || '';
+                }
+            } catch (err) {
+                console.warn('Error fetching reporter profile:', err);
+            }
+        } else if (resolvedEmail) {
+            // Si tenemos correo pero no UID, buscar por email en colección 'users'
+            try {
+                const qByEmail = query(collection(db, 'users'), where('email', '==', resolvedEmail.trim()), limit(1));
+                const uSnap = await getDocs(qByEmail);
+                if (!uSnap.empty) {
+                    resolvedUid = uSnap.docs[0].id;
+                    const uData = uSnap.docs[0].data();
+                    resolvedName = uData.displayName || uData.name || uData.username || '';
+                }
+            } catch (err) {
+                console.warn('Error fetching UID by email:', err);
+            }
+        }
+
+        setContactRecipientEmail(resolvedEmail);
+        setContactRecipientId(resolvedUid);
+        setContactRecipientName(resolvedName);
         setContactSubject(`Atención a tu reporte en CONNECT: ${rep.reason || 'Soporte Técnico'}`);
         setContactMessage(
-            `Hola,\n\nHemos recibido y revisado tu reporte sobre "${rep.reason || 'el funcionamiento de la plataforma'}".\n\nQueremos informarte que...`
+            `Hola${resolvedName ? ` ${resolvedName}` : ''},\n\nHemos recibido y revisado detalladamente tu reporte sobre "${rep.reason || rep.description || 'la plataforma'}".\n\nRespuesta de nuestro equipo:\n`
         );
+        setSendAsNotification(true);
+        setSendAsEmail(Boolean(resolvedEmail));
         setContactModalOpen(true);
     };
 
@@ -154,43 +196,108 @@ export const Reports: React.FC = () => {
             return;
         }
 
+        if (!sendAsNotification && !sendAsEmail) {
+            toast.error('Por favor selecciona al menos un canal de entrega (Notificación o Correo).');
+            return;
+        }
+
+        let finalUid = contactRecipientId.trim();
+        let finalEmail = contactRecipientEmail.trim();
+
+        // Si no tenemos UID pero tenemos correo, intentar resolverlo
+        if (!finalUid && finalEmail) {
+            try {
+                const q = query(collection(db, 'users'), where('email', '==', finalEmail), limit(1));
+                const s = await getDocs(q);
+                if (!s.empty) finalUid = s.docs[0].id;
+            } catch (e) {}
+        }
+
         setIsSendingContact(true);
+        let notifSent = false;
+        let emailSent = false;
+        let emailNotice = '';
+
         try {
-            // 1. Enviar correo si se activó y hay email
-            if (sendAsEmail && contactRecipientEmail) {
-                await addDoc(collection(db, 'mail'), {
-                    to: contactRecipientEmail,
-                    message: {
+            // 1. Enviar notificación interna a la app móvil en users/{uid}/notifications
+            // Esto llega a la app en vivo y dispara la Cloud Function sendPushNotificationOnNewDoc
+            if (sendAsNotification) {
+                if (finalUid) {
+                    await addDoc(collection(db, `users/${finalUid}/notifications`), {
+                        title: contactSubject.trim() || 'Respuesta de Soporte CONNECT',
+                        body: contactMessage.trim(),
+                        type: 'support_reply',
+                        read: false,
+                        senderId: 'admin',
+                        senderName: 'Soporte CONNECT',
+                        reportId: selectedReport?.id || null,
+                        createdAt: serverTimestamp()
+                    });
+                    notifSent = true;
+                } else {
+                    toast.error('No se pudo determinar el UID del usuario para la notificación en la app.');
+                }
+            }
+
+            // 2. Enviar correo electrónico oficial si está activado y hay correo
+            if (sendAsEmail && finalEmail) {
+                try {
+                    await sendEmail({
+                        to: finalEmail,
                         subject: contactSubject.trim(),
+                        text: contactMessage.trim(),
                         html: `
-                            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 10px;">
-                                <h2 style="color: #0094FF; margin-top: 0;">Soporte Oficial CONNECT</h2>
-                                <p style="font-size: 14px; line-height: 1.6; color: #333333; white-space: pre-line;">${contactMessage}</p>
-                                <hr style="border: 0; border-top: 1px solid #eeeeee; margin: 20px 0;" />
-                                <p style="font-size: 11px; color: #888888;">Este correo es una respuesta directa de la administración de CONNECT para atender tu reporte.</p>
+                            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #eaeaea; border-radius: 12px; background-color: #ffffff;">
+                                <div style="text-align: center; margin-bottom: 20px;">
+                                    <h2 style="color: #0094FF; margin: 0; font-size: 22px; font-weight: 800;">Soporte Oficial CONNECT</h2>
+                                    <p style="color: #888888; font-size: 12px; margin-top: 4px;">Atención a Reporte de Usuario</p>
+                                </div>
+                                <div style="font-size: 14px; line-height: 1.6; color: #222222; background: #f8fafc; padding: 16px; border-radius: 8px; border: 1px solid #e2e8f0; white-space: pre-line;">${contactMessage}</div>
+                                <hr style="border: 0; border-top: 1px solid #eeeeee; margin: 24px 0;" />
+                                <p style="font-size: 11px; color: #888888; text-align: center; margin: 0;">
+                                    Este correo es una respuesta oficial de la administración de CONNECT para atender tu reporte. CONNECT © 2026.
+                                </p>
                             </div>
-                        `
-                    },
-                    createdAt: new Date()
+                        `,
+                        from: 'Soporte CONNECT <contacto@connectapp.com.co>'
+                    });
+                    emailSent = true;
+                } catch (emailErr: any) {
+                    console.warn('Aviso de envío de correo:', emailErr);
+                    emailNotice = emailErr.message || 'Fallo de entrega de correo';
+                }
+
+                // Guardar registro en historial de correos
+                await saveMail({
+                    from: 'contacto@connectapp.com.co',
+                    to: finalEmail,
+                    subject: contactSubject.trim(),
+                    message: contactMessage.trim(),
+                    status: emailSent ? 'sent' : 'error',
+                    category: 'sent',
+                    timestamp: Timestamp.now()
                 });
             }
 
-            // 2. Enviar notificación interna a la app si se activó y hay userId
-            if (sendAsNotification && contactRecipientId) {
-                await addDoc(collection(db, 'notifications'), {
-                    userId: contactRecipientId,
-                    title: contactSubject.trim() || 'Respuesta de Soporte CONNECT',
-                    body: contactMessage.trim(),
-                    type: 'support_reply',
-                    read: false,
-                    createdAt: new Date()
-                });
+            if (notifSent && emailSent) {
+                toast.success('¡Respuesta entregada con éxito a la App móvil y por Correo!');
+            } else if (notifSent && !sendAsEmail) {
+                toast.success('¡Notificación enviada con éxito a la app móvil del usuario!');
+            } else if (notifSent && sendAsEmail && !emailSent) {
+                toast.success('¡Notificación enviada con éxito a la app del usuario!');
+                if (emailNotice.includes('destination address is not a verified address')) {
+                    toast('Aviso de correo: MailerSend requiere verificar el dominio DNS externo para despachar a direcciones de prueba.', { icon: 'ℹ️', duration: 7000 });
+                } else {
+                    toast(`Aviso de correo: ${emailNotice}`, { icon: '⚠️' });
+                }
+            } else if (!notifSent && emailSent) {
+                toast.success('Correo electrónico enviado con éxito');
             }
 
-            toast.success('¡Respuesta enviada satisfactoriamente al usuario!');
             setContactModalOpen(false);
         } catch (e: any) {
-            toast.error(`Error al contactar al usuario: ${e.message}`);
+            console.error('Error al contactar al usuario:', e);
+            toast.error(`Error al contactar: ${e.message}`);
         } finally {
             setIsSendingContact(false);
         }
@@ -345,7 +452,7 @@ export const Reports: React.FC = () => {
                                                     {report.reason || 'Sin motivo especificado'}
                                                 </span>
                                                 <p className="text-[11px] text-zinc-500 truncate max-w-xs font-mono">
-                                                    De: {report.userEmail || report.userId || 'Usuario'}
+                                                    De: {report.userEmail || report.userId || report.reporterId || 'Usuario'}
                                                 </p>
                                             </div>
                                         </td>
@@ -618,26 +725,36 @@ export const Reports: React.FC = () => {
                         <form onSubmit={handleSendContact} className="space-y-3.5 text-xs">
                             <div>
                                 <label className="block font-bold text-zinc-700 mb-1">Destinatario:</label>
-                                <div className="flex items-center gap-2">
-                                    <input
-                                        type="text"
-                                        readOnly
-                                        value={contactRecipientEmail || contactRecipientId || 'Usuario'}
-                                        className="input-clean w-full bg-zinc-100 text-zinc-700 font-mono text-xs"
-                                    />
-                                    {contactRecipientEmail && (
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                navigator.clipboard.writeText(contactRecipientEmail);
-                                                toast.success('Correo copiado al portapapeles');
-                                            }}
-                                            className="btn-outline py-2 px-2.5 flex-shrink-0"
-                                            title="Copiar correo"
-                                        >
-                                            <Copy size={13} />
-                                        </button>
-                                    )}
+                                <div className="space-y-1.5">
+                                    <div className="flex items-center gap-2">
+                                        <input
+                                            type="text"
+                                            readOnly
+                                            value={contactRecipientEmail || contactRecipientId || 'Usuario'}
+                                            className="input-clean w-full bg-zinc-100 text-zinc-700 font-mono text-xs"
+                                        />
+                                        {contactRecipientEmail && (
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    navigator.clipboard.writeText(contactRecipientEmail);
+                                                    toast.success('Correo copiado al portapapeles');
+                                                }}
+                                                className="btn-outline py-2 px-2.5 flex-shrink-0"
+                                                title="Copiar correo"
+                                            >
+                                                <Copy size={13} />
+                                            </button>
+                                        )}
+                                    </div>
+                                    <div className="flex flex-wrap items-center gap-3 text-[11px] text-zinc-500">
+                                        {contactRecipientName && (
+                                            <span>Usuario: <strong className="text-zinc-800">{contactRecipientName}</strong></span>
+                                        )}
+                                        {contactRecipientId && (
+                                            <span className="font-mono text-[10px] text-zinc-400">UID: {contactRecipientId}</span>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
 
@@ -666,26 +783,34 @@ export const Reports: React.FC = () => {
                             </div>
 
                             {/* Canales de Envío */}
-                            <div className="bg-zinc-50 p-3 rounded-xl border border-zinc-200 space-y-2">
-                                <span className="font-bold text-zinc-700 block text-[11px]">Canales de entrega simultánea:</span>
-                                <div className="flex items-center gap-4">
-                                    <label className="flex items-center gap-1.5 cursor-pointer">
-                                        <input
-                                            type="checkbox"
-                                            checked={sendAsEmail}
-                                            onChange={(e) => setSendAsEmail(e.target.checked)}
-                                            className="rounded text-[#0094FF]"
-                                        />
-                                        <span className="text-zinc-700 font-medium">Correo Electrónico Oficial</span>
-                                    </label>
-                                    <label className="flex items-center gap-1.5 cursor-pointer">
+                            <div className="bg-zinc-50 p-3.5 rounded-xl border border-zinc-200 space-y-2">
+                                <span className="font-bold text-zinc-800 block text-[11px] uppercase tracking-wider">
+                                    Canales de entrega simultánea:
+                                </span>
+                                <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                                    <label className="flex items-center gap-2 cursor-pointer bg-white p-2 rounded-lg border border-zinc-200 flex-1">
                                         <input
                                             type="checkbox"
                                             checked={sendAsNotification}
                                             onChange={(e) => setSendAsNotification(e.target.checked)}
-                                            className="rounded text-[#0094FF]"
+                                            className="rounded text-[#0094FF] w-4 h-4"
                                         />
-                                        <span className="text-zinc-700 font-medium">Notificación Interna en App</span>
+                                        <div className="text-xs">
+                                            <span className="text-zinc-900 font-bold block">Notificación en la App (Push)</span>
+                                            <span className="text-[10px] text-zinc-500 block">Llega a su bandeja y teléfono</span>
+                                        </div>
+                                    </label>
+                                    <label className="flex items-center gap-2 cursor-pointer bg-white p-2 rounded-lg border border-zinc-200 flex-1">
+                                        <input
+                                            type="checkbox"
+                                            checked={sendAsEmail}
+                                            onChange={(e) => setSendAsEmail(e.target.checked)}
+                                            className="rounded text-[#0094FF] w-4 h-4"
+                                        />
+                                        <div className="text-xs">
+                                            <span className="text-zinc-900 font-bold block">Correo Electrónico Oficial</span>
+                                            <span className="text-[10px] text-zinc-500 block">contacto@connectapp.com.co</span>
+                                        </div>
                                     </label>
                                 </div>
                             </div>

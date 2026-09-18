@@ -53,6 +53,7 @@ class MessagingService {
   static String? activeChatId;
 
   StreamSubscription<QuerySnapshot>? _firestoreNotificationSub;
+  StreamSubscription<QuerySnapshot>? _broadcastSub;
   final Set<String> _seenNotificationIds = {};
   DateTime _sessionStartTime = DateTime.now();
 
@@ -128,6 +129,7 @@ class MessagingService {
         await saveTokenToDatabase();
         _listenToUserNotifications(currentUser.uid);
       }
+      _listenToBroadcasts();
 
       // 8. Listen to token refresh
       _fm.onTokenRefresh.listen((newToken) {
@@ -140,9 +142,12 @@ class MessagingService {
         if (user != null) {
           saveTokenToDatabase();
           _listenToUserNotifications(user.uid);
+          _listenToBroadcasts();
         } else {
           _firestoreNotificationSub?.cancel();
           _firestoreNotificationSub = null;
+          _broadcastSub?.cancel();
+          _broadcastSub = null;
         }
       });
     } catch (e) {
@@ -213,6 +218,58 @@ class MessagingService {
       });
     } catch (e) {
       debugPrint('Exception setting up notifications stream: $e');
+    }
+  }
+
+  /// Listens to real-time global broadcasts in Firestore
+  void _listenToBroadcasts() {
+    _broadcastSub?.cancel();
+
+    try {
+      _broadcastSub = FirebaseFirestore.instance
+          .collection('broadcasts')
+          .orderBy('createdAt', descending: true)
+          .limit(10)
+          .snapshots()
+          .listen((snapshot) {
+        for (var change in snapshot.docChanges) {
+          if (change.type == DocumentChangeType.added) {
+            final doc = change.doc;
+            final docId = doc.id;
+            final data = doc.data();
+            if (data == null) continue;
+
+            if (_seenNotificationIds.contains(docId)) continue;
+            _seenNotificationIds.add(docId);
+
+            final createdAt = (data['createdAt'] as Timestamp?)?.toDate();
+            // Don't show banner for old notifications from before the session
+            if (createdAt != null &&
+                createdAt.isBefore(_sessionStartTime.subtract(const Duration(seconds: 10)))) {
+              continue;
+            }
+
+            final title = data['title']?.toString() ?? 'CONNECT • Oficial';
+            final body = data['body']?.toString() ?? data['message']?.toString() ?? '';
+
+            if (title.isNotEmpty || body.isNotEmpty) {
+              LocalNotificationService.showNotification(
+                title: title,
+                body: body,
+                payload: jsonEncode({
+                  'type': 'broadcast',
+                  'isBroadcast': true,
+                  ...data,
+                }),
+              );
+            }
+          }
+        }
+      }, onError: (e) {
+        debugPrint('Error listening to broadcasts: $e');
+      });
+    } catch (e) {
+      debugPrint('Exception setting up broadcasts stream: $e');
     }
   }
 
