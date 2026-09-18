@@ -44,11 +44,6 @@ export default defineConfig({
                     delete proxyRes.headers['www-authenticate'];
                 }
             },
-            '/api/spotify-token': {
-                target: 'https://accounts.spotify.com',
-                changeOrigin: true,
-                rewrite: (path) => path.replace(/^\/api\/spotify-token/, '')
-            },
             '/api/yt-search': {
                 target: 'https://invidious.f5.si/api/v1',
                 changeOrigin: true,

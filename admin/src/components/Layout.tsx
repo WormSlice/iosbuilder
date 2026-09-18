@@ -31,7 +31,7 @@ const menuItems = [
     { path: '/admin/support', label: 'Soporte', icon: Headphones },
     { path: '/admin/notifications', label: 'Notificaciones', icon: Bell },
     { path: '/admin/mail', label: 'Correo', icon: Mail },
-    { path: '/admin/tools', label: 'Herramientas (Spotify)', icon: Sliders },
+    { path: '/admin/tools', label: 'Herramientas', icon: Sliders },
 ];
 
 export const Layout: React.FC = () => {

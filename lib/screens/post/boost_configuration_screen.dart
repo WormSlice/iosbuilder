@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class BoostConfigurationScreen extends StatefulWidget {
   final String imageUrl;
@@ -30,6 +32,75 @@ class _BoostConfigurationScreenState extends State<BoostConfigurationScreen> {
   // Estimación ficticia basada en el presupuesto (para la UI)
   int get _minReach => (_totalBudget * 0.5).toInt();
   int get _maxReach => (_totalBudget * 1.2).toInt();
+  bool _isSaving = false;
+
+  Future<void> _handleConfirmBoost() async {
+    if (_isSaving) return;
+    setState(() => _isSaving = true);
+
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      final boostRef = FirebaseFirestore.instance.collection('boosts').doc();
+      final now = DateTime.now();
+      final expiresAt = now.add(Duration(days: _durationDays));
+
+      final boostData = {
+        'id': boostRef.id,
+        'postId': widget.postId,
+        'imageUrl': widget.imageUrl,
+        'userId': user?.uid,
+        'userEmail': user?.email,
+        'dailyBudget': _dailyBudget,
+        'durationDays': _durationDays,
+        'totalBudget': _totalBudget,
+        'targetGender': _selectedGender,
+        'targetAgeMin': _ageRange.start.toInt(),
+        'targetAgeMax': _ageRange.end.toInt(),
+        'targetRadiusKm': _radius,
+        'status': 'active',
+        'createdAt': FieldValue.serverTimestamp(),
+        'expiresAt': Timestamp.fromDate(expiresAt),
+      };
+
+      await boostRef.set(boostData);
+
+      try {
+        await FirebaseFirestore.instance.collection('posts').doc(widget.postId).set({
+          'is_boosted': true,
+          'boost_id': boostRef.id,
+          'boost_expires_at': Timestamp.fromDate(expiresAt),
+        }, SetOptions(merge: true));
+      } catch (e) {
+        debugPrint('Error updating post document: $e');
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            backgroundColor: Color(0xFF0094FF),
+            content: Text(
+              '¡Publicación impulsada con éxito!',
+              style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+            ),
+          ),
+        );
+        Navigator.pop(context, true);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: Colors.red,
+            content: Text('Error al procesar el impulso: $e'),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -287,32 +358,46 @@ class _BoostConfigurationScreenState extends State<BoostConfigurationScreen> {
               width: double.infinity,
               height: 60,
               child: ElevatedButton(
-                onPressed: () {
-                  // TODO: Integrar con Firebase en la siguiente fase
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'Configuración guardada satisfactoriamente',
-                      ),
-                    ),
-                  );
-                  Navigator.pop(context);
-                },
+                onPressed: _isSaving ? null : _handleConfirmBoost,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF0094FF),
+                  disabledBackgroundColor: const Color(0xFF0094FF).withOpacity(0.6),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
                   ),
                   elevation: 0,
                 ),
-                child: Text(
-                  'CONFIRMAR IMPULSO (\$${_totalBudget.toInt()} COP)',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontFamily: 'Poppins',
-                  ),
-                ),
+                child: _isSaving
+                    ? const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.5,
+                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          ),
+                          SizedBox(width: 12),
+                          Text(
+                            'ACTIVANDO IMPULSO...',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontFamily: 'Poppins',
+                            ),
+                          ),
+                        ],
+                      )
+                    : Text(
+                        'CONFIRMAR IMPULSO (\$${_totalBudget.toInt()} COP)',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontFamily: 'Poppins',
+                        ),
+                      ),
               ),
             ),
             const SizedBox(height: 20),
