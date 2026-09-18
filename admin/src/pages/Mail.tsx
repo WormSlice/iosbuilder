@@ -101,6 +101,18 @@ export const Mail: React.FC = () => {
         return `https://ui-avatars.com/api/?name=${encodeURIComponent(name || 'User')}&background=0F172A&color=fff&bold=true`;
     };
 
+    const formatMailDate = (ts: any) => {
+        if (!ts) return 'Recién';
+        if (typeof ts === 'string') return ts;
+        try {
+            if (ts.toDate) return ts.toDate().toLocaleDateString('es-CO', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+            if (ts.seconds) return new Date(ts.seconds * 1000).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+            return new Date(ts).toLocaleDateString('es-CO', { day: '2-digit', month: 'short' });
+        } catch {
+            return String(ts);
+        }
+    };
+
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files) {
             const newFiles = Array.from(e.target.files);
@@ -375,8 +387,19 @@ export const Mail: React.FC = () => {
                                         ) : null}
 
                                         <div className="text-right shrink-0 flex items-center gap-2">
+                                            {activeCategory === 'sent' && (
+                                                log.status === 'error' ? (
+                                                    <span className="text-[9px] font-bold text-rose-600 bg-rose-50 border border-rose-200 px-1.5 py-0.5 rounded" title="Error de entrega externa: Destino no verificado en servidor">
+                                                        Fallo Entrega
+                                                    </span>
+                                                ) : (
+                                                    <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">
+                                                        Enviado
+                                                    </span>
+                                                )
+                                            )}
                                             <span className="text-[10px] text-slate-400 font-mono">
-                                                {log.timestamp ? new Date(log.timestamp.toDate?.() || log.timestamp).toLocaleDateString('es-CO') : ''}
+                                                {formatMailDate(log.timestamp)}
                                             </span>
                                             <button
                                                 onClick={(e) => {
@@ -413,7 +436,7 @@ export const Mail: React.FC = () => {
                             </button>
                         </div>
 
-                        <div className="flex items-center gap-3 mb-4 bg-slate-50 p-3 rounded-lg border border-slate-200 text-xs">
+                        <div className="flex items-center gap-3 mb-3 bg-slate-50 p-3 rounded-lg border border-slate-200 text-xs">
                             <img
                                 src={getAvatarUrl(selectedMail.from)}
                                 alt="Avatar"
@@ -424,9 +447,20 @@ export const Mail: React.FC = () => {
                                 <p className="text-slate-500">Para: {selectedMail.to}</p>
                             </div>
                             <span className="text-[10px] text-slate-400 font-mono">
-                                {selectedMail.timestamp ? new Date(selectedMail.timestamp.toDate?.() || selectedMail.timestamp).toLocaleString('es-CO') : ''}
+                                {formatMailDate(selectedMail.timestamp)}
                             </span>
                         </div>
+
+                        {selectedMail.category === 'sent' && selectedMail.status === 'error' && (
+                            <div className="bg-rose-50 border border-rose-200 p-3 rounded-lg mb-3 text-[11px] text-rose-900 space-y-1">
+                                <span className="font-bold flex items-center gap-1 text-rose-700">
+                                    ⚠️ Aviso de Servidor de Correo (Fallo de Entrega)
+                                </span>
+                                <p className="leading-relaxed">
+                                    Este mensaje se registró en la bandeja de salida, pero el proveedor de correo rebotó la entrega externa hacia el usuario porque su correo no es una dirección de prueba verificada en Cloudflare / MailerSend. Para enviar correos a cualquier buzón público se requiere completar la configuración DNS (SPF/DKIM) o activar una API Key de producción.
+                                </p>
+                            </div>
+                        )}
 
                         <div className="flex-1 overflow-y-auto p-3 text-xs text-slate-800 whitespace-pre-wrap leading-relaxed border border-slate-100 rounded-lg bg-white">
                             {selectedMail.message || 'Sin contenido de texto.'}
