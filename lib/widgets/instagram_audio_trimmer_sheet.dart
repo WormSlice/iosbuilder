@@ -177,6 +177,7 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
       final streamData = await MusicService.getFullAudioStream(
         title: widget.title,
         artist: widget.artist,
+        videoId: (widget.musicId.length == 11 && !widget.musicId.contains(' ')) ? widget.musicId : null,
         fallbackPreviewUrl: widget.audioUrl,
         expectedDurationSec: widget.totalTrackSeconds,
       );

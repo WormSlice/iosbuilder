@@ -5,7 +5,6 @@ import 'package:http/http.dart' as http;
 import 'package:just_audio/just_audio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
-import 'music_auth_service.dart';
 
 class CachedAudioStream {
   final String url;
@@ -255,87 +254,36 @@ class MusicService {
     return List<Map<String, dynamic>>.from(_curatedSongs);
   }
 
-  /// Obtiene canciones oficiales para la pantalla inicial ("Para ti")
-  /// Prioriza éxitos reales con portadas oficiales de alta resolución y reproducción inmediata.
-  static Future<List<Map<String, dynamic>>> getSpotifyTopCharts() async {
-    // 1. Si el usuario conectó Spotify, buscar primero sus top tracks reales
-    if (MusicAuthService.instance.isSpotifyConnected) {
-      try {
-        final userTracks = await _fetchSpotifyTopTracks();
-        if (userTracks.isNotEmpty) {
-          _cachedTopCharts = userTracks;
-          _topChartsCacheTime = DateTime.now();
-          return userTracks;
-        }
-      } catch (e) {
-        if (kDebugMode) print('Error obteniendo top tracks de usuario Spotify: $e');
-      }
-    }
+  static final List<String> _invidiousHosts = [
+    'https://invidious.f5.si',
+    'https://inv.nadeko.net',
+    'https://invidious.nerdvpn.de',
+    'https://yewtu.be',
+  ];
 
-    // 2. Si ya tenemos caché reciente en memoria (< 10 min), devolverla al instante
+  /// Obtiene canciones en tendencia para la pantalla inicial ("Para ti")
+  /// 100% desde YouTube Engine
+  static Future<List<Map<String, dynamic>>> getSpotifyTopCharts() async {
+    // 1. Si ya tenemos caché reciente en memoria (< 10 min), devolverla al instante
     if (_cachedTopCharts.isNotEmpty &&
         _topChartsCacheTime != null &&
         DateTime.now().difference(_topChartsCacheTime!).inMinutes < 10) {
       return _cachedTopCharts;
     }
 
-    // 3. Consultar éxitos globales y latinos en iTunes Search API (100% público, veloz y oficial)
+    // 2. Consultar canciones en tendencia en YouTube
     try {
-      final itUrl = Uri.parse(
-        'https://itunes.apple.com/search?term=top+latin+hits+2025&entity=song&limit=30',
-      );
-      final response = await http.get(itUrl).timeout(const Duration(seconds: 4));
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final results = data['results'] as List? ?? [];
-        final mapped = _mapItunesItems(results);
-        if (mapped.isNotEmpty) {
-          _cachedTopCharts = mapped;
-          _topChartsCacheTime = DateTime.now();
-          return mapped;
-        }
+      final results = await _searchYouTube('tendencias musica 2025');
+      if (results.isNotEmpty) {
+        _cachedTopCharts = results;
+        _topChartsCacheTime = DateTime.now();
+        return results;
       }
     } catch (e) {
-      if (kDebugMode) print('Error consultando top charts de iTunes: $e');
+      if (kDebugMode) print('Error consultando tendencias de YouTube: $e');
     }
 
     return getCuratedSongs();
-  }
-
-  /// Consulta las canciones más escuchadas del usuario en Spotify si está vinculado
-  static Future<List<Map<String, dynamic>>> _fetchSpotifyTopTracks() async {
-    final headers = await MusicAuthService.instance.getSpotifyHeaders();
-    if (headers == null) return [];
-
-    try {
-      var uri = Uri.parse(
-        'https://api.spotify.com/v1/me/top/tracks?limit=30&time_range=short_term',
-      );
-      var response =
-          await http.get(uri, headers: headers).timeout(const Duration(seconds: 4));
-
-      if (response.statusCode == 401) {
-        await MusicAuthService.instance.refreshSpotifyToken();
-        final refreshedHeaders =
-            await MusicAuthService.instance.getSpotifyHeaders();
-        if (refreshedHeaders != null) {
-          response = await http
-              .get(uri, headers: refreshedHeaders)
-              .timeout(const Duration(seconds: 4));
-        }
-      }
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final items = data['items'] as List? ?? [];
-        if (items.isNotEmpty) {
-          return _mapSpotifyItems(items);
-        }
-      }
-    } catch (e) {
-      if (kDebugMode) print('Error en _fetchSpotifyTopTracks: $e');
-    }
-    return [];
   }
 
   static void prefetchTopStreams(List<Map<String, dynamic>> songs) {}
@@ -345,51 +293,65 @@ class MusicService {
     return searchTracks(query);
   }
 
-  /// Busca canciones en el catálogo global (iTunes + Invidious YouTube + Curated)
-  /// Garantiza resultados reales para cualquier búsqueda (Bad Bunny, Feid, Karol G, etc.)
+  /// Busca canciones EXCLUSIVAMENTE en YouTube
+  /// Búsqueda directa con soporte para cualquier canción, artista o título mundial
   static Future<List<Map<String, dynamic>>> searchTracks(String query) async {
     final trimmedQuery = query.trim();
     if (trimmedQuery.isEmpty) {
       return getSpotifyTopCharts();
     }
+    return _searchYouTube(trimmedQuery);
+  }
 
-    // 1. Búsqueda principal: iTunes Search API (catálogo mundial con previews AAC y carátulas HD)
-    try {
-      final itUrl = Uri.parse(
-        'https://itunes.apple.com/search?term=${Uri.encodeComponent(trimmedQuery)}&entity=song&limit=30',
-      );
-      final response = await http.get(itUrl).timeout(const Duration(seconds: 5));
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final results = data['results'] as List? ?? [];
-        final mapped = _mapItunesItems(results);
-        if (mapped.isNotEmpty) {
-          return mapped;
+  /// Realiza la búsqueda 100% en YouTube (Invidious API + YoutubeExplode)
+  static Future<List<Map<String, dynamic>>> _searchYouTube(String query) async {
+    final encoded = Uri.encodeComponent(query);
+
+    // 1. Probar instancias de Invidious YouTube Engine (las mismas del admin panel)
+    for (final host in _invidiousHosts) {
+      try {
+        final uri = Uri.parse('$host/api/v1/search?q=$encoded&type=video');
+        final res = await http.get(uri).timeout(const Duration(seconds: 4));
+        if (res.statusCode == 200) {
+          final items = json.decode(res.body) as List? ?? [];
+          final mapped = _mapInvidiousItems(items);
+          if (mapped.isNotEmpty) {
+            return mapped;
+          }
         }
+      } catch (_) {
+        // Probar siguiente instancia si una falla
       }
-    } catch (e) {
-      if (kDebugMode) print('Error en búsqueda iTunes: $e');
     }
 
-    // 2. Búsqueda secundaria: Invidious YouTube API
+    // 2. Respaldo directo vía YoutubeExplode scraper
     try {
-      final q = Uri.encodeComponent(trimmedQuery);
-      final invRes = await http
-          .get(Uri.parse('https://invidious.f5.si/api/v1/search?q=$q'))
-          .timeout(const Duration(seconds: 4));
-      if (invRes.statusCode == 200) {
-        final items = json.decode(invRes.body) as List? ?? [];
-        final mapped = _mapInvidiousItems(items);
-        if (mapped.isNotEmpty) {
-          return mapped;
-        }
+      final yt = YoutubeExplode();
+      final results = await yt.search.search(query).timeout(const Duration(seconds: 5));
+      yt.close();
+      if (results.isNotEmpty) {
+        return results.map((v) {
+          final videoId = v.id.value;
+          final thumb = v.thumbnails.mediumResUrl.isNotEmpty
+              ? v.thumbnails.mediumResUrl
+              : 'https://i.ytimg.com/vi/$videoId/hqdefault.jpg';
+          return {
+            'id': videoId,
+            'spotifyId': videoId,
+            'title': v.title,
+            'artist': v.author,
+            'thumbnail': thumb,
+            'duration': v.duration?.inSeconds ?? 180,
+            'audioUrl': '',
+            'spotifyUri': '',
+            'isSpotify': false,
+          };
+        }).toList();
       }
-    } catch (e) {
-      if (kDebugMode) print('Error en búsqueda Invidious: $e');
-    }
+    } catch (_) {}
 
-    // 3. Fallback a canciones curadas si no hay conexión
-    final q = trimmedQuery.toLowerCase();
+    // 3. Fallback a canciones curadas si no hay red
+    final q = query.toLowerCase();
     return _curatedSongs.where((s) {
       final title = s['title'].toString().toLowerCase();
       final artist = s['artist'].toString().toLowerCase();
@@ -397,47 +359,23 @@ class MusicService {
     }).toList();
   }
 
-  /// Mapea los resultados de iTunes con metadata completa, carátulas HD y preview AAC
-  static List<Map<String, dynamic>> _mapItunesItems(List items) {
-    final results = <Map<String, dynamic>>[];
-    for (var item in items) {
-      final id = item['trackId']?.toString() ?? '';
-      final title = item['trackName']?.toString() ?? '';
-      final artist = item['artistName']?.toString() ?? 'Artista';
-      final rawThumb = item['artworkUrl100']?.toString() ?? '';
-      final thumbnail = rawThumb.replaceAll('100x100bb', '600x600bb');
-      final durationMs = item['trackTimeMillis'] as int? ?? 180000;
-      final durationSec = durationMs ~/ 1000;
-      final previewUrl = item['previewUrl']?.toString() ?? '';
-
-      if (id.isNotEmpty && title.isNotEmpty) {
-        results.add({
-          'id': id,
-          'spotifyId': id,
-          'title': title,
-          'artist': artist,
-          'thumbnail': thumbnail,
-          'duration': durationSec > 0 ? durationSec : 180,
-          'audioUrl': previewUrl,
-          'spotifyUri': '',
-          'isSpotify': false,
-        });
-      }
-    }
-    return results;
-  }
-
-  /// Mapea resultados de Invidious / YouTube
+  /// Mapea resultados válidos de YouTube (filtrando canales, listas o elementos sin videoId)
   static List<Map<String, dynamic>> _mapInvidiousItems(List items) {
     final results = <Map<String, dynamic>>[];
     for (var item in items) {
       final videoId = item['videoId']?.toString() ?? '';
       final title = item['title']?.toString() ?? '';
-      final author = item['author']?.toString() ?? 'YouTube Audio';
+      final author = item['author']?.toString() ?? 'YouTube';
       final duration = item['lengthSeconds'] as int? ?? 180;
-      final thumb = item['videoThumbnails']?[0]?['url']?.toString() ??
-          'https://i.ytimg.com/vi/$videoId/hqdefault.jpg';
 
+      // Obtener mejor miniatura de YouTube
+      String thumb = 'https://i.ytimg.com/vi/$videoId/hqdefault.jpg';
+      if (item['videoThumbnails'] is List && (item['videoThumbnails'] as List).isNotEmpty) {
+        final thumbs = item['videoThumbnails'] as List;
+        thumb = thumbs.first['url']?.toString() ?? thumb;
+      }
+
+      // Solo agregar si es un video real con videoId y título
       if (videoId.isNotEmpty && title.isNotEmpty) {
         results.add({
           'id': videoId,
@@ -445,7 +383,7 @@ class MusicService {
           'title': title,
           'artist': author,
           'thumbnail': thumb,
-          'duration': duration,
+          'duration': duration > 0 ? duration : 180,
           'audioUrl': '',
           'spotifyUri': '',
           'isSpotify': false,
@@ -455,58 +393,31 @@ class MusicService {
     return results;
   }
 
-  /// Mapea las pistas de la API de Spotify con su metadata
-  static List<Map<String, dynamic>> _mapSpotifyItems(List items) {
-    final results = <Map<String, dynamic>>[];
-    for (var item in items) {
-      final id = item['id']?.toString() ?? '';
-      final title = item['name']?.toString() ?? '';
-      final artistsList = item['artists'] as List? ?? [];
-      final artists = artistsList
-          .map((a) => a['name']?.toString() ?? '')
-          .where((name) => name.isNotEmpty)
-          .join(', ');
-
-      final album = item['album'];
-      final images = album?['images'] as List? ?? [];
-      String thumbnail = '';
-      if (images.isNotEmpty) {
-        thumbnail = images.first['url']?.toString() ?? '';
-      }
-
-      final durationMs = item['duration_ms'] as int? ?? 180000;
-      final durationSec = durationMs ~/ 1000;
-      final previewUrl = item['preview_url']?.toString();
-
-      if (id.isNotEmpty && title.isNotEmpty) {
-        results.add({
-          'id': id,
-          'spotifyId': id,
-          'title': title,
-          'artist': artists.isNotEmpty ? artists : 'Artista desconocido',
-          'thumbnail': thumbnail,
-          'duration': durationSec > 0 ? durationSec : 180,
-          'audioUrl': (previewUrl != null && previewUrl.isNotEmpty) ? previewUrl : '',
-          'spotifyUri': item['uri']?.toString() ?? 'spotify:track:$id',
-          'isSpotify': true,
-        });
-      }
-    }
-    return results;
-  }
-
-  /// Obtiene el enlace de audio streaming directo y confiable de la canción
-  /// CRÍTICO PARA iOS Y ANDROID: Selecciona streams en formato MP4 (AAC / itag 140/139)
-  /// para compatibilidad nativa con AVPlayer de Apple (evita errores con WebM/Opus).
+  /// Obtiene el enlace de audio streaming directo y confiable de la canción desde YouTube
+  /// CRÍTICO PARA iOS Y ANDROID: Selecciona streams en formato MP4 (AAC / itag 140 o 139)
+  /// para compatibilidad nativa absoluta con AVPlayer de Apple (evita errores con WebM/Opus).
   static Future<Map<String, dynamic>?> getFullAudioStream({
     required String title,
     required String artist,
+    String? videoId,
     String? fallbackPreviewUrl,
     int? expectedDurationSec,
   }) async {
     final searchTitle = title.trim();
     final searchArtist = artist.trim();
-    final cacheKey = 'stream_${searchTitle}_$searchArtist'.toLowerCase();
+
+    // Determinar si ya tenemos un videoId directo de YouTube (11 caracteres alfanuméricos)
+    String? targetVideoId = videoId;
+    if (targetVideoId == null || targetVideoId.isEmpty) {
+      final cleanTitle = searchTitle.replaceAll(RegExp(r'[^a-zA-Z0-9_\-]'), '');
+      if (cleanTitle.length == 11 && !searchTitle.contains(' ')) {
+        targetVideoId = searchTitle;
+      }
+    }
+
+    final cacheKey = targetVideoId != null
+        ? 'stream_yt_$targetVideoId'
+        : 'stream_${searchTitle}_$searchArtist'.toLowerCase();
 
     // 1. Revisar caché en memoria
     final cached = _streamCache[cacheKey];
@@ -518,125 +429,99 @@ class MusicService {
     }
 
     // 2. Extraer PISTA COMPLETA (3-5 minutos) vía YouTube Explode seleccionando MP4/AAC
-    if (searchTitle.isNotEmpty) {
-      final yt = YoutubeExplode();
-      try {
-        String? targetVideoId;
-        int? targetDuration;
+    final yt = YoutubeExplode();
+    try {
+      int? targetDuration;
 
-        // Intentar primero con Invidious para obtener el videoId exacto de manera instantánea
+      // Si no tenemos videoId directo, buscarlo en YouTube Engine
+      if (targetVideoId == null || targetVideoId.isEmpty) {
+        // 2.1 Intentar con Invidious
         try {
           final q = Uri.encodeComponent('$searchTitle $searchArtist audio'.trim());
-          final invRes = await http
-              .get(Uri.parse('https://invidious.f5.si/api/v1/search?q=$q'))
-              .timeout(const Duration(seconds: 4));
-          if (invRes.statusCode == 200) {
-            final items = json.decode(invRes.body) as List? ?? [];
-            final first = items.firstWhere(
-              (it) => it['videoId'] != null && (it['type'] == 'video' || it['type'] == null),
-              orElse: () => items.isNotEmpty ? items.first : null,
-            );
-            if (first != null && first['videoId'] != null) {
-              targetVideoId = first['videoId'].toString();
-              targetDuration = first['lengthSeconds'] as int?;
-            }
+          for (final host in _invidiousHosts) {
+            try {
+              final invRes = await http
+                  .get(Uri.parse('$host/api/v1/search?q=$q&type=video'))
+                  .timeout(const Duration(seconds: 3));
+              if (invRes.statusCode == 200) {
+                final items = json.decode(invRes.body) as List? ?? [];
+                final first = items.firstWhere(
+                  (it) => it['videoId'] != null && it['title'] != null,
+                  orElse: () => null,
+                );
+                if (first != null && first['videoId'] != null) {
+                  targetVideoId = first['videoId'].toString();
+                  targetDuration = first['lengthSeconds'] as int?;
+                  break;
+                }
+              }
+            } catch (_) {}
           }
         } catch (_) {}
 
-        // Si Invidious no respondió, buscar con yt.search
+        // 2.2 Si Invidious no respondió, buscar con yt.search
         if (targetVideoId == null) {
           final query = '$searchTitle $searchArtist audio'.trim();
-          var searchResults = await yt.search.search(query).timeout(const Duration(seconds: 5));
+          var searchResults = await yt.search.search(query).timeout(const Duration(seconds: 4));
           if (searchResults.isEmpty) {
             searchResults = await yt.search
                 .search('$searchTitle $searchArtist'.trim())
-                .timeout(const Duration(seconds: 4));
+                .timeout(const Duration(seconds: 3));
           }
           if (searchResults.isNotEmpty) {
             targetVideoId = searchResults.first.id.value;
             targetDuration = searchResults.first.duration?.inSeconds;
           }
         }
-
-        // Si obtuvimos videoId, extraer el manifest de audio
-        if (targetVideoId != null) {
-          final manifest = await yt.videos.streamsClient
-              .getManifest(targetVideoId)
-              .timeout(const Duration(seconds: 6));
-
-          // FILTRO CRÍTICO iOS: Seleccionar MP4 / AAC (itag 140 / 139) para soporte nativo en AVPlayer
-          final mp4Streams = manifest.audioOnly.where(
-            (s) =>
-                s.container == StreamContainer.mp4 ||
-                s.codec.mimeType.contains('mp4') ||
-                s.tag == 140 ||
-                s.tag == 139,
-          ).toList();
-
-          final audioStream = mp4Streams.isNotEmpty
-              ? mp4Streams.withHighestBitrate()
-              : manifest.audioOnly.withHighestBitrate();
-
-          final durSec = targetDuration ?? expectedDurationSec ?? 180;
-          final streamUrl = audioStream.url.toString();
-
-          _streamCache[cacheKey] = CachedAudioStream(
-            url: streamUrl,
-            durationSeconds: durSec,
-            expiresAt: DateTime.now().add(const Duration(hours: 4)),
-          );
-
-          if (kDebugMode) {
-            print('[MusicService] Stream MP4 COMPLETO de YouTube resuelto: tag=${audioStream.tag}, dur=$durSec s');
-          }
-          return {
-            'url': streamUrl,
-            'durationSeconds': durSec,
-          };
-        }
-      } catch (e) {
-        if (kDebugMode) print('[MusicService] Error extrayendo stream de YouTube: $e');
-      } finally {
-        yt.close();
       }
-    }
 
-    // 3. Respaldo oficial vía Apple Music / iTunes preview (AAC .m4a 30s) si YouTube no resolvió
-    if (searchTitle.isNotEmpty) {
-      try {
-        final query = '$searchTitle $searchArtist'.trim();
-        final itUrl = Uri.parse(
-          'https://itunes.apple.com/search?term=${Uri.encodeComponent(query)}&entity=song&limit=1',
+      // Si obtuvimos videoId, extraer el manifest de audio de YouTube
+      if (targetVideoId != null && targetVideoId.isNotEmpty) {
+        final manifest = await yt.videos.streamsClient
+            .getManifest(targetVideoId)
+            .timeout(const Duration(seconds: 6));
+
+        // FILTRO CRÍTICO iOS: Seleccionar MP4 / AAC (itag 140 / 139) para soporte nativo en AVPlayer
+        final mp4Streams = manifest.audioOnly.where(
+          (s) =>
+              s.container == StreamContainer.mp4 ||
+              s.codec.mimeType.contains('mp4') ||
+              s.tag == 140 ||
+              s.tag == 139,
+        ).toList();
+
+        final audioStream = mp4Streams.isNotEmpty
+            ? mp4Streams.withHighestBitrate()
+            : manifest.audioOnly.withHighestBitrate();
+
+        final durSec = targetDuration ?? expectedDurationSec ?? 180;
+        final streamUrl = audioStream.url.toString();
+
+        _streamCache[cacheKey] = CachedAudioStream(
+          url: streamUrl,
+          durationSeconds: durSec,
+          expiresAt: DateTime.now().add(const Duration(hours: 4)),
         );
-        final res = await http.get(itUrl).timeout(const Duration(seconds: 3));
-        if (res.statusCode == 200) {
-          final data = json.decode(res.body);
-          final items = data['results'] as List? ?? [];
-          if (items.isNotEmpty) {
-            final preview = items.first['previewUrl']?.toString();
-            if (preview != null && preview.isNotEmpty) {
-              _streamCache[cacheKey] = CachedAudioStream(
-                url: preview,
-                durationSeconds: 30,
-                expiresAt: DateTime.now().add(const Duration(hours: 4)),
-              );
-              return {
-                'url': preview,
-                'durationSeconds': 30,
-              };
-            }
-          }
+
+        if (kDebugMode) {
+          print('[MusicService] Stream MP4 YouTube resuelto: tag=${audioStream.tag}, dur=$durSec s');
         }
-      } catch (e) {
-        if (kDebugMode) print('Error en fallback iTunes: $e');
+        return {
+          'url': streamUrl,
+          'durationSeconds': durSec,
+        };
       }
+    } catch (e) {
+      if (kDebugMode) print('[MusicService] Error extrayendo stream de YouTube: $e');
+    } finally {
+      yt.close();
     }
 
-    // 4. Si viene fallback previo directo
+    // 3. Si viene fallback previo directo
     if (fallbackPreviewUrl != null && fallbackPreviewUrl.startsWith('http')) {
       return {
         'url': fallbackPreviewUrl,
-        'durationSeconds': 30,
+        'durationSeconds': expectedDurationSec ?? 30,
       };
     }
 
@@ -662,10 +547,12 @@ class MusicService {
         ? title
         : audioIdOrUrl.replaceAll('_', ' ');
     final searchArtist = (artist != null && artist.isNotEmpty) ? artist : '';
+    final isYtId = audioIdOrUrl.length == 11 && !audioIdOrUrl.contains(' ');
 
     final streamData = await getFullAudioStream(
       title: searchTitle,
       artist: searchArtist,
+      videoId: isYtId ? audioIdOrUrl : null,
       fallbackPreviewUrl: audioIdOrUrl.startsWith('http') ? audioIdOrUrl : null,
     );
 
