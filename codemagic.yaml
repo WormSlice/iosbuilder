@@ -44,25 +44,30 @@ workflows:
           if [[ "$LATEST_BUILD" =~ ^[0-9]+$ ]] && [ "$LATEST_BUILD" -ge "$NEXT_BUILD" ]; then
             NEXT_BUILD=$((LATEST_BUILD + 1))
           fi
-          if [ "$NEXT_BUILD" -lt "$PUBSPEC_BUILD" ]; then
-            NEXT_BUILD=$PUBSPEC_BUILD
+          # Safety floor: Apple TestFlight already has build 76
+          if [ "$NEXT_BUILD" -le 76 ]; then
+            NEXT_BUILD=78
           fi
           echo "Building iOS Release version $VERSION_NAME (Build $NEXT_BUILD)"
           
           # Update Xcode project build settings
           cd ios
-          agvtool new-version -all "$NEXT_BUILD"
-          agvtool new-marketing-version "$VERSION_NAME"
+          agvtool new-version -all "$NEXT_BUILD" || true
+          agvtool new-marketing-version "$VERSION_NAME" || true
           cd ..
           
           # Force update Info.plist
           /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION_NAME" ios/Runner/Info.plist || true
           /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $NEXT_BUILD" ios/Runner/Info.plist || true
           
-          # Ensure Flutter xcconfigs have the exact build name & number
+          # Ensure Flutter xcconfigs have the exact build name & number without duplicates
           mkdir -p ios/Flutter
+          sed -i '' '/FLUTTER_BUILD_NAME/d' ios/Flutter/Generated.xcconfig 2>/dev/null || true
+          sed -i '' '/FLUTTER_BUILD_NUMBER/d' ios/Flutter/Generated.xcconfig 2>/dev/null || true
           echo "FLUTTER_BUILD_NAME=$VERSION_NAME" >> ios/Flutter/Generated.xcconfig
           echo "FLUTTER_BUILD_NUMBER=$NEXT_BUILD" >> ios/Flutter/Generated.xcconfig
+          sed -i '' '/FLUTTER_BUILD_NAME/d' ios/Flutter/Release.xcconfig 2>/dev/null || true
+          sed -i '' '/FLUTTER_BUILD_NUMBER/d' ios/Flutter/Release.xcconfig 2>/dev/null || true
           echo "FLUTTER_BUILD_NAME=$VERSION_NAME" >> ios/Flutter/Release.xcconfig
           echo "FLUTTER_BUILD_NUMBER=$NEXT_BUILD" >> ios/Flutter/Release.xcconfig
           
