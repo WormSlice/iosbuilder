@@ -2,56 +2,65 @@ import React from 'react';
 
 export const PrivacyPolicy: React.FC = () => {
     return (
-        <div className="gradient-bg min-h-screen py-16 animate-in fade-in duration-700">
-            <div className="container-custom max-w-3xl">
-                <header className="mb-12 border-b border-white/[0.04] pb-8">
-                    <h1 className="text-3xl md:text-5xl font-black tracking-tighter font-archivo mb-3 text-gradient uppercase">Privacidad</h1>
-                    <p className="text-zinc-600 text-[9px] font-black uppercase tracking-[0.3em]">Última actualización: 1 de marzo de 2026</p>
-                </header>
+        <div className="pb-32 bg-[#07080A] text-white">
+            <section className="relative pt-16 sm:pt-24 pb-16 sm:pb-24 border-b border-white/[0.05]">
+                <div className="container-custom max-w-4xl space-y-4">
+                    <h1 className="text-4xl sm:text-6xl md:text-7xl font-extrabold text-white tracking-tight font-archivo leading-tight">
+                        Política de <br />
+                        <span className="text-gradient-silver">Privacidad.</span>
+                    </h1>
+                    <p className="text-xs font-mono text-zinc-500 uppercase tracking-widest">Última actualización: 1 de marzo de 2026</p>
+                </div>
+            </section>
 
-                <div className="space-y-12 leading-relaxed text-zinc-400">
-                    <section className="space-y-3">
-                        <p className="text-xs font-medium">
+            <section className="py-20 sm:py-28">
+                <div className="container-custom max-w-4xl space-y-12 leading-relaxed text-zinc-400">
+                    <div className="space-y-3">
+                        <p className="text-base text-zinc-300 font-medium">
                             En <strong className="text-white">CONNECT</strong>, la soberanía de los datos es un pilar fundamental. Esta arquitectura garantiza que su información sea procesada bajo los estándares más estrictos de seguridad.
                         </p>
-                    </section>
+                    </div>
 
-                    <section className="space-y-6">
-                        <h2 className="text-sm font-black text-white uppercase tracking-widest flex items-center gap-2">
-                            <span className="text-primary">/</span> Recopilación de Datos
+                    <div className="space-y-4 pt-8 border-t border-white/[0.06]">
+                        <h2 className="text-xl font-bold text-white font-archivo">
+                            Recopilación y Uso de Datos
                         </h2>
-                        <ul className="space-y-4">
-                            <li className="flex gap-4">
-                                <span className="w-1 h-1 bg-primary mt-1.5 shrink-0"></span>
-                                <p className="text-[11px]"><strong className="text-white">Identidad Digital:</strong> Datos derivados de la vinculación con Google, Apple o credenciales directas.</p>
+                        <ul className="space-y-3 text-sm text-zinc-400">
+                            <li className="flex items-start gap-3">
+                                <span className="w-1.5 h-1.5 rounded-full bg-[#0094FF] mt-2 shrink-0" />
+                                <span><strong className="text-white">Identidad Digital:</strong> Datos derivados de la vinculación con Google, Apple o número telefónico.</span>
                             </li>
-                            <li className="flex gap-4">
-                                <span className="w-1 h-1 bg-primary mt-1.5 shrink-0"></span>
-                                <p className="text-[11px]"><strong className="text-white">Geoprocesamiento:</strong> Datos de ubicación precisa utilizados exclusivamente para la funcionalidad del mapa y búsqueda local.</p>
+                            <li className="flex items-start gap-3">
+                                <span className="w-1.5 h-1.5 rounded-full bg-[#0094FF] mt-2 shrink-0" />
+                                <span><strong className="text-white">Geoprocesamiento:</strong> Ubicación precisa utilizada exclusivamente para calcular la distancia en el marketplace y filtrar anuncios cercanos.</span>
                             </li>
                         </ul>
-                    </section>
+                    </div>
 
-                    <section className="border-l border-primary/20 pl-8 space-y-4">
-                        <h2 className="text-sm font-black text-white uppercase tracking-widest flex items-center gap-2">
-                            <span className="text-primary">/</span> Multimedia y Sensores
+                    <div className="space-y-4 pt-8 border-t border-white/[0.06]">
+                        <h2 className="text-xl font-bold text-white font-archivo">
+                            Cámara y Almacenamiento
                         </h2>
-                        <p className="text-[11px]">Solicitamos acceso a la <strong className="text-white">Cámara</strong> para personalización de perfil y escaneo de códigos. No procesamos información biométrica ni accedemos a sensores en segundo plano.</p>
-                    </section>
+                        <p className="text-sm text-zinc-400">
+                            Solicitamos acceso a la cámara y galería exclusivamente cuando decides subir fotos de artículos para publicaciones o personalizar tu perfil. No recolectamos información biométrica.
+                        </p>
+                    </div>
 
-                    <section className="space-y-6">
-                        <h2 className="text-sm font-black text-white uppercase tracking-widest flex items-center gap-2">
-                            <span className="text-primary">/</span> Google Cloud (Firebase)
+                    <div className="space-y-4 pt-8 border-t border-white/[0.06]">
+                        <h2 className="text-xl font-bold text-white font-archivo">
+                            Seguridad e Infraestructura
                         </h2>
-                        <p className="text-[11px]">Toda la infraestructura de datos reside en servidores encriptados de alta disponibilidad, garantizando integridad y recuperación ante desastres en tiempo real.</p>
-                    </section>
+                        <p className="text-sm text-zinc-400">
+                            Toda la base de datos y la mensajería se alojan bajo protocolos cifrados y entornos cloud certificados de alta seguridad. Tus datos personales jamás se comercializan a terceros ni redes publicitarias.
+                        </p>
+                    </div>
 
-                    <div className="pt-12 border-t border-white/[0.04]">
-                        <p className="text-[9px] font-black uppercase tracking-widest text-zinc-700">Dudas o Solicitudes de Datos:</p>
-                        <p className="text-xs font-bold text-white mt-1">soporte@connectapp.com.co</p>
+                    <div className="pt-8 border-t border-white/[0.06]">
+                        <p className="text-xs font-mono text-zinc-500 uppercase tracking-widest">Contacto para Dudas o Solicitudes de Datos:</p>
+                        <p className="text-sm font-bold text-white mt-1">soporte@connectapp.com.co</p>
                     </div>
                 </div>
-            </div>
+            </section>
         </div>
     );
 };

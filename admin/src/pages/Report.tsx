@@ -2,55 +2,66 @@ import React from 'react';
 
 export const Report: React.FC = () => {
     return (
-        <div className="animate-in fade-in duration-700 pb-24">
-            <section className="py-24 glass-panel border-b border-border">
-                <div className="container-custom">
-                    <h1 className="text-5xl md:text-7xl font-black tracking-tighter font-archivo mb-10">REPORTAR <span className="text-primary">PROBLEMA</span></h1>
-                    <p className="text-xl text-secondary max-w-2xl leading-relaxed">
-                        Tu reporte nos ayuda a mantener CONNECT seguro y eficiente. Por favor, sé lo más descriptivo posible.
+        <div className="pb-32 bg-[#07080A] text-white">
+            <section className="relative pt-16 sm:pt-24 pb-16 sm:pb-24 border-b border-white/[0.05]">
+                <div className="container-custom max-w-4xl space-y-6">
+                    <h1 className="text-4xl sm:text-6xl md:text-7xl font-extrabold text-white tracking-tight font-archivo leading-tight">
+                        Canal de <br />
+                        <span className="text-gradient-silver">Denuncias y Reportes.</span>
+                    </h1>
+                    <p className="text-base sm:text-xl text-zinc-400 font-normal leading-relaxed max-w-2xl">
+                        Tu colaboración preserva la integridad de la comunidad. Describe cualquier irregularidad detectada en publicaciones, perfiles o chats.
                     </p>
                 </div>
             </section>
 
-            <section className="py-24">
-                <div className="container-custom max-w-2xl">
-                    <form className="space-y-8 bg-muted p-10 md:p-16 rounded-[2.5rem] border border-border">
+            <section className="py-20 sm:py-28">
+                <div className="container-custom max-w-3xl">
+                    <form className="space-y-8" onSubmit={(e) => e.preventDefault()}>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div className="space-y-2">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-secondary">Tipo de Problema</label>
-                                <select className="w-full glass-panel border border-border px-4 py-3 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/20">
-                                    <option>Error Técnico (Bug)</option>
-                                    <option>Usuario Sospechoso</option>
-                                    <option>Problema de Pago</option>
-                                    <option>Sugerencia</option>
-                                    <option>Otro</option>
+                                <label className="text-xs font-bold text-zinc-300">Tipo de Incidencia</label>
+                                <select className="w-full bg-[#0E1017] border border-white/[0.12] rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-[#0094FF] transition-colors">
+                                    <option value="fake">Perfil o Publicación Sospechosa</option>
+                                    <option value="scam">Sospecha de Fraude o Estafa</option>
+                                    <option value="abuse">Comportamiento Ofensivo en Chat</option>
+                                    <option value="bug">Error Técnico en la App</option>
+                                    <option value="other">Otro Motivo</option>
                                 </select>
                             </div>
                             <div className="space-y-2">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-secondary">ID de Usuario (Opcional)</label>
-                                <input type="text" placeholder="@usuario123" className="w-full glass-panel border border-border px-4 py-3 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/20" />
+                                <label className="text-xs font-bold text-zinc-300">ID o Teléfono del Usuario (Opcional)</label>
+                                <input
+                                    type="text"
+                                    placeholder="@usuario o número"
+                                    className="w-full bg-white/[0.03] border border-white/[0.12] rounded-xl px-4 py-3 text-sm text-white placeholder:text-zinc-500 focus:outline-none focus:border-[#0094FF] transition-colors"
+                                />
                             </div>
                         </div>
 
                         <div className="space-y-2">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-secondary">Descripción Detallada</label>
-                            <textarea placeholder="Explica qué sucedió..." rows={5} className="w-full glass-panel border border-border px-4 py-3 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/20"></textarea>
+                            <label className="text-xs font-bold text-zinc-300">Descripción de los Hechos</label>
+                            <textarea
+                                rows={5}
+                                placeholder="Proporciona el mayor detalle posible sobre lo sucedido..."
+                                className="w-full bg-white/[0.03] border border-white/[0.12] rounded-xl px-4 py-3 text-sm text-white placeholder:text-zinc-500 focus:outline-none focus:border-[#0094FF] transition-colors resize-none"
+                            />
                         </div>
 
                         <div className="space-y-2">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-secondary">Correo Electrónico de Contacto</label>
-                            <input type="email" placeholder="email@ejemplo.com" className="w-full glass-panel border border-border px-4 py-3 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/20" />
+                            <label className="text-xs font-bold text-zinc-300">Tu Correo Electrónico</label>
+                            <input
+                                type="email"
+                                placeholder="tu@email.com"
+                                className="w-full bg-white/[0.03] border border-white/[0.12] rounded-xl px-4 py-3 text-sm text-white placeholder:text-zinc-500 focus:outline-none focus:border-[#0094FF] transition-colors"
+                            />
                         </div>
 
-                        <div className="space-y-4">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-secondary">Evidencia (Opcional)</label>
-                            <div className="border-2 border-dashed border-border rounded-2xl p-8 text-center text-xs text-secondary hover:border-primary transition-colors cursor-pointer">
-                                Haz clic o arrastra una imagen aquí
-                            </div>
-                        </div>
-
-                        <button type="submit" className="w-full bg-foreground text-white py-4 rounded-xl font-black text-sm uppercase tracking-widest hover:glass-panel-dark transition-all shadow-lg">
-                            Enviar Reporte
+                        <button
+                            type="submit"
+                            className="bg-[#0094FF] hover:bg-[#0080DF] text-white text-xs font-bold px-8 py-3 rounded-full transition-colors cursor-pointer shadow-none active:scale-95"
+                        >
+                            Enviar Denuncia
                         </button>
                     </form>
                 </div>

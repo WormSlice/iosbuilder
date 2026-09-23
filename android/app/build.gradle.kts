@@ -61,6 +61,15 @@ android {
             signingConfig = signingConfigs.getByName("release")
         }
     }
+
+    packaging {
+        resources {
+            excludes += "/META-INF/{AL2.0,LGPL2.1}"
+        }
+        jniLibs {
+            useLegacyPackaging = true
+        }
+    }
 }
 
 flutter {
@@ -68,13 +77,24 @@ flutter {
 }
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+    implementation("com.google.android.play:integrity:1.4.0")
 }
 
-tasks.matching { it.name.startsWith("cleanMerge") && it.name.endsWith("Assets") }.configureEach {
+tasks.matching { it.name.startsWith("cleanMerge") }.configureEach {
     enabled = false
 }
 
 tasks.matching { it.name.contains("NativeSymbolTables") || it.name.contains("NativeDebugMetadata") }.configureEach {
     enabled = false
 }
+
+tasks.matching { it.name.contains("ArtProfile") }.configureEach {
+    enabled = false
+}
+
+tasks.matching { it.name.contains("CMake") }.configureEach {
+    enabled = false
+}
+
+
 

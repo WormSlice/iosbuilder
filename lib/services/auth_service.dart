@@ -111,14 +111,12 @@ class AuthService {
 
   Future<void> send2FACode({required String userId, required String method, String? targetEmail}) async {
     String? email = targetEmail;
-    String? phone;
 
     try {
       final userDoc = await FirebaseFirestore.instance.collection('users').doc(userId).get();
       if (userDoc.exists && userDoc.data() != null) {
         final data = userDoc.data()!;
         email ??= data['email'] as String?;
-        phone = data['phone'] as String?;
       }
     } catch (e) {
       print('DEBUG: Error al obtener datos de usuario para 2FA: $e');
@@ -160,8 +158,69 @@ class AuthService {
       } catch (e) {
         print('Error enviando correo 2FA: $e');
       }
-    } else if (method == 'sms') {
-      print('DEBUG: 2FA Code sent to SMS ($phone): $code');
+    }
+  }
+
+  Future<String?> getUserPhone(String userId) async {
+    try {
+      final userDoc = await FirebaseFirestore.instance.collection('users').doc(userId).get();
+      if (userDoc.exists && userDoc.data() != null) {
+        final phone = userDoc.data()!['phone'] as String?;
+        if (phone != null && phone.trim().isNotEmpty) return phone.trim();
+      }
+    } catch (e) {
+      print('DEBUG: Error al obtener teléfono del usuario: $e');
+    }
+    return _auth.currentUser?.phoneNumber;
+  }
+
+  Future<void> send2FASms({
+    required String phoneNumber,
+    required Function(String verificationId, int? resendToken) onCodeSent,
+    required Function(FirebaseAuthException e) onVerificationFailed,
+    Function(PhoneAuthCredential credential)? onVerificationCompleted,
+    int? forceResendingToken,
+  }) async {
+    final cleanPhone = sanitizePhoneNumber(phoneNumber);
+    await _auth.verifyPhoneNumber(
+      phoneNumber: cleanPhone,
+      timeout: const Duration(seconds: 60),
+      forceResendingToken: forceResendingToken,
+      verificationCompleted: (PhoneAuthCredential credential) {
+        if (onVerificationCompleted != null) {
+          onVerificationCompleted(credential);
+        }
+      },
+      verificationFailed: onVerificationFailed,
+      codeSent: (String verificationId, int? resendToken) {
+        onCodeSent(verificationId, resendToken);
+      },
+      codeAutoRetrievalTimeout: (String verificationId) {},
+    );
+  }
+
+  Future<bool> verify2FASms({
+    required String verificationId,
+    required String smsCode,
+  }) async {
+    final user = _auth.currentUser;
+    if (user == null) throw Exception('Usuario no autenticado');
+
+    final credential = PhoneAuthProvider.credential(
+      verificationId: verificationId,
+      smsCode: smsCode.trim(),
+    );
+
+    try {
+      await user.updatePhoneNumber(credential);
+      return true;
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'provider-already-linked') {
+        return true;
+      } else if (e.code == 'credential-already-in-use') {
+        return true;
+      }
+      rethrow;
     }
   }
 
@@ -355,49 +414,96 @@ class AuthService {
     return await _auth.currentUser!.linkWithCredential(credential);
   }
 
+  static String sanitizePhoneNumber(String rawPhone, {String defaultCountryCode = '+57'}) {
+    String clean = rawPhone.trim().replaceAll(RegExp(r'[\s\-\.\(\)]'), '');
+    if (!clean.startsWith('+')) {
+      if (clean.startsWith('57') && clean.length > 10) {
+        clean = '+$clean';
+      } else {
+        clean = '$defaultCountryCode$clean';
+      }
+    }
+    return clean;
+  }
+
   Future<void> verifyPhone({
     required String phoneNumber,
-    required Function(String verificationId) onCodeSent,
+    required Function(String verificationId, int? resendToken) onCodeSent,
     required Function(FirebaseAuthException e) onVerificationFailed,
+    Function(PhoneAuthCredential credential)? onVerificationCompleted,
+    int? forceResendingToken,
   }) async {
+    final cleanPhone = sanitizePhoneNumber(phoneNumber);
     await _auth.verifyPhoneNumber(
-      phoneNumber: phoneNumber,
+      phoneNumber: cleanPhone,
+      timeout: const Duration(seconds: 60),
+      forceResendingToken: forceResendingToken,
       verificationCompleted: (PhoneAuthCredential credential) async {
-        await _auth.currentUser?.linkWithCredential(credential);
+        if (onVerificationCompleted != null) {
+          onVerificationCompleted(credential);
+        } else {
+          await linkPhoneCredential(credential);
+        }
       },
       verificationFailed: onVerificationFailed,
       codeSent: (String verificationId, int? resendToken) {
-        onCodeSent(verificationId);
+        onCodeSent(verificationId, resendToken);
       },
       codeAutoRetrievalTimeout: (String verificationId) {},
     );
   }
 
+  Future<void> linkPhoneCredential(PhoneAuthCredential credential) async {
+    final user = _auth.currentUser;
+    if (user == null) throw Exception('Usuario no autenticado');
+
+    try {
+      await user.linkWithCredential(credential);
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'provider-already-linked') {
+        // Si el usuario ya tenía un teléfono vinculado, se actualiza al nuevo número
+        await user.updatePhoneNumber(credential);
+      } else if (e.code == 'credential-already-in-use') {
+        throw Exception('Este número de teléfono ya está vinculado a otra cuenta');
+      } else {
+        rethrow;
+      }
+    }
+
+    // Recargamos el usuario para obtener el estado más reciente
+    await user.reload();
+    final updatedUser = _auth.currentUser;
+    final verifiedNumber = updatedUser?.phoneNumber;
+
+    // Actualizar documento de Firestore
+    await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+      'phone': verifiedNumber,
+      'phoneVerified': true,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
   Future<void> linkPhone(String verificationId, String smsCode) async {
     final credential = PhoneAuthProvider.credential(
       verificationId: verificationId,
-      smsCode: smsCode,
+      smsCode: smsCode.trim(),
     );
-    final user = _auth.currentUser;
-    if (user != null) {
-      await user.linkWithCredential(credential);
-      // Also update Firestore
-      await FirebaseFirestore.instance.collection('users').doc(user.uid).update(
-        {'phone': user.phoneNumber, 'phoneVerified': true},
-      );
-    }
+    await linkPhoneCredential(credential);
   }
 
   Future<void> unlinkPhone() async {
     final user = _auth.currentUser;
     if (user != null) {
-      // Unlink from Firebase Auth
-      await user.unlink('phone');
-      // Update Firestore
-      await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
+      try {
+        await user.unlink('phone');
+      } catch (e) {
+        print('Nota: desvinculación auth opcional: $e');
+      }
+      // Actualizar Firestore
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
         'phone': FieldValue.delete(),
         'phoneVerified': false,
-      });
+      }, SetOptions(merge: true));
     }
   }
 

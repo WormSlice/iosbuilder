@@ -251,12 +251,13 @@ class _LoginScreenState extends State<LoginScreen> {
                           // but usually it's if they enabled it. Let's assume the prompt wants it forced or at least checked.
                           final data = userDoc.data();
                           if (data?['twoFactorEnabled'] == true) {
-                             Navigator.push(
+                            final method = data?['twoFactorMethod'] ?? 'sms';
+                            Navigator.push(
                               context,
                               MaterialPageRoute(
                                 builder: (_) => TwoFactorScreen(
                                   email: user.email ?? '',
-                                  method: 'sms',
+                                  method: method,
                                 ),
                               ),
                             );

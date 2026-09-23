@@ -69,7 +69,17 @@ class _PhoneCodeScreenState extends State<PhoneCodeScreen> {
     } catch (e) {
       setState(() {
         _isLoading = false;
-        _errorMessage = 'Código incorrecto. Intenta de nuevo.';
+        if (e is FirebaseAuthException) {
+          if (e.code == 'invalid-verification-code') {
+            _errorMessage = 'Código incorrecto. Intenta de nuevo.';
+          } else if (e.code == 'session-expired') {
+            _errorMessage = 'El código ha expirado. Solicita uno nuevo.';
+          } else {
+            _errorMessage = e.message ?? 'Error al verificar el código.';
+          }
+        } else {
+          _errorMessage = e.toString().replaceAll('Exception: ', '');
+        }
       });
     }
   }

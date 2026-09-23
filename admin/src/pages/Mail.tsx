@@ -13,7 +13,15 @@ import {
     Zap,
     ChevronDown,
     CheckCircle2,
-    ExternalLink
+    ExternalLink,
+    Eye,
+    FileText,
+    Copy,
+    Check,
+    Download,
+    AlertTriangle,
+    Image as ImageIcon,
+    ArrowLeft
 } from 'lucide-react';
 import { sendEmail } from '../services/connectMail';
 import {
@@ -26,6 +34,7 @@ import {
 import { Timestamp } from 'firebase/firestore';
 import logo from '../assets/logo.jpeg';
 import toast from 'react-hot-toast';
+import { getFriendlySender, decodeMimeWords } from '../utils/emailParser';
 
 export const Mail: React.FC = () => {
     const [isComposing, setIsComposing] = useState(false);
@@ -40,6 +49,8 @@ export const Mail: React.FC = () => {
     const [activeCategory, setActiveCategory] = useState<'principal' | 'sent' | 'automations' | 'spam' | 'trash'>('principal');
     const [selectedAccount, setSelectedAccount] = useState('contacto@connectapp.com.co');
     const [selectedMail, setSelectedMail] = useState<MailLog | null>(null);
+    const [mailViewMode, setMailViewMode] = useState<'html' | 'text'>('html');
+    const [copiedContent, setCopiedContent] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
 
     const accounts = [
@@ -73,32 +84,16 @@ export const Mail: React.FC = () => {
     }, []);
 
     const decodeMimeHeader = (str: string) => {
-        if (!str) return '(Sin asunto)';
-        let s = str;
-        s = s.replace(/=\?[uU][tT][fF]-8\?[qQ]\?(.*?)\?=/gi, (_, content) => {
-            try {
-                return decodeURIComponent(content.replace(/=/g, '%'));
-            } catch {
-                return content;
-            }
-        });
-        s = s.replace(/=\?[uU][tT][fF]-8\?[bB]\?(.*?)\?=/gi, (_, content) => {
-            try {
-                return atob(content);
-            } catch {
-                return content;
-            }
-        });
-        return s;
+        return decodeMimeWords(str);
     };
 
-    const getAvatarUrl = (emailStr: string) => {
+    const getAvatarUrl = (emailStr: string, friendlyName?: string) => {
         const clean = (emailStr || '').toLowerCase().trim();
         const isConnect = accounts.some(acc => clean.includes(acc.toLowerCase()));
         if (isConnect) return logo;
         const nameMatch = clean.match(/^([^<]+)/);
-        const name = nameMatch ? nameMatch[1].trim() : clean.split('@')[0];
-        return `https://ui-avatars.com/api/?name=${encodeURIComponent(name || 'User')}&background=0F172A&color=fff&bold=true`;
+        const name = friendlyName || (nameMatch ? nameMatch[1].trim() : clean.split('@')[0]) || 'User';
+        return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=0F172A&color=fff&bold=true`;
     };
 
     const formatMailDate = (ts: any) => {
@@ -227,10 +222,14 @@ export const Mail: React.FC = () => {
 
         if (!searchTerm) return true;
         const q = searchTerm.toLowerCase();
+        const friendly = getFriendlySender(log.from, log.subject, log.text || log.snippet);
         return (
             (log.subject || '').toLowerCase().includes(q) ||
             (log.from || '').toLowerCase().includes(q) ||
+            friendly.name.toLowerCase().includes(q) ||
             (log.to || '').toLowerCase().includes(q) ||
+            (log.text || '').toLowerCase().includes(q) ||
+            (log.snippet || '').toLowerCase().includes(q) ||
             (log.message || '').toLowerCase().includes(q)
         );
     });
@@ -322,168 +321,302 @@ export const Mail: React.FC = () => {
                     })}
                 </div>
 
-                {/* Email List & Details Area */}
-                <div className="md:col-span-4 bg-white border border-slate-200 rounded-lg overflow-hidden flex flex-col min-h-[500px]">
-                    {/* Search & Filter sub-bar */}
-                    <div className="p-3 border-b border-slate-200 flex items-center justify-between gap-3 bg-slate-50/50">
-                        <div className="relative flex-1 max-w-sm">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={13} />
-                            <input
-                                type="text"
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                placeholder="Buscar en esta bandeja..."
-                                className="input-clean pl-8 py-1 text-xs w-full"
-                            />
-                        </div>
+                {/* Email List & Details Area (In-page view like Gmail) */}
+                <div className="md:col-span-4 bg-white border border-slate-200 rounded-lg overflow-hidden flex flex-col min-h-[550px]">
+                    {selectedMail ? (
+                        // Vista Completa del Correo (Estilo Gmail)
+                        (() => {
+                            const friendlySender = getFriendlySender(selectedMail.from, selectedMail.subject, selectedMail.text || selectedMail.snippet);
+                            const hasHtml = !!(selectedMail.isHtml && selectedMail.html);
 
-                        <span className="text-[11px] text-slate-400 font-medium">
-                            {filteredLogs.length} mensaje(s)
-                        </span>
-                    </div>
+                            const handleCopy = () => {
+                                const textToCopy = selectedMail.text || selectedMail.message || '';
+                                navigator.clipboard.writeText(textToCopy);
+                                setCopiedContent(true);
+                                toast.success('Texto copiado al portapapeles');
+                                setTimeout(() => setCopiedContent(false), 2000);
+                            };
 
-                    {/* Email List */}
-                    <div className="divide-y divide-slate-100 flex-1 overflow-y-auto max-h-[600px]">
-                        {filteredLogs.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center py-20 text-slate-400">
-                                <Inbox size={36} className="text-slate-300 mb-2 stroke-1" />
-                                <p className="text-xs font-semibold text-slate-600">No hay correos en esta bandeja</p>
-                                <p className="text-[11px] text-slate-400 mt-0.5">
-                                    Los mensajes enviados o recibidos aparecerán aquí automáticamente.
-                                </p>
-                            </div>
-                        ) : (
-                            filteredLogs.map(log => {
-                                const senderDisplay = activeCategory === 'sent' ? `Para: ${log.to}` : (log.from || 'Remitente');
-                                return (
-                                    <div
-                                        key={log.id}
-                                        onClick={() => setSelectedMail(log)}
-                                        className="flex items-center gap-3 p-3 hover:bg-slate-50 cursor-pointer transition-colors group"
-                                    >
-                                        <img
-                                            src={getAvatarUrl(activeCategory === 'sent' ? log.to : log.from)}
-                                            alt="Avatar"
-                                            className="w-7 h-7 rounded-full object-cover border border-slate-200 shrink-0"
-                                        />
-
-                                        <div className="w-36 shrink-0 truncate">
-                                            <span className="text-xs font-semibold text-slate-900 truncate block">
-                                                {senderDisplay}
-                                            </span>
-                                        </div>
-
-                                        <div className="flex-1 min-w-0">
-                                            <span className="text-xs font-bold text-slate-800 mr-2">
-                                                {decodeMimeHeader(log.subject)}
-                                            </span>
-                                            <span className="text-xs text-slate-400 truncate">
-                                                - {(log.message || '').substring(0, 70)}...
-                                            </span>
-                                        </div>
-
-                                        {log.attachmentsCount ? (
-                                            <Paperclip size={12} className="text-slate-400 shrink-0" />
-                                        ) : null}
-
-                                        <div className="text-right shrink-0 flex items-center gap-2">
-                                            {activeCategory === 'sent' && (
-                                                log.status === 'error' ? (
-                                                    <span className="text-[9px] font-bold text-rose-600 bg-rose-50 border border-rose-200 px-1.5 py-0.5 rounded" title="Error de entrega externa: Destino no verificado en servidor">
-                                                        Fallo Entrega
-                                                    </span>
-                                                ) : (
-                                                    <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">
-                                                        Enviado
-                                                    </span>
-                                                )
-                                            )}
-                                            <span className="text-[10px] text-slate-400 font-mono">
-                                                {formatMailDate(log.timestamp)}
-                                            </span>
+                            return (
+                                <div className="flex flex-col flex-1 bg-white">
+                                    {/* Barra Superior de Navegación y Acciones (Estilo Gmail) */}
+                                    <div className="p-3 border-b border-slate-200 flex items-center justify-between gap-3 bg-slate-50/60">
+                                        <div className="flex items-center gap-2">
                                             <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    handleMoveToTrash(log.id, log.category);
-                                                }}
-                                                className="opacity-0 group-hover:opacity-100 p-1 text-slate-400 hover:text-red-500 rounded transition-opacity"
+                                                onClick={() => setSelectedMail(null)}
+                                                className="btn-secondary text-xs flex items-center gap-1.5"
+                                                title="Volver a la bandeja"
+                                            >
+                                                <ArrowLeft size={14} />
+                                                <span>Volver</span>
+                                            </button>
+
+                                            <div className="h-4 w-px bg-slate-200 mx-1" />
+
+                                            <button
+                                                onClick={() => handleMoveToTrash(selectedMail.id, selectedMail.category)}
+                                                className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-slate-100 rounded-lg transition-colors"
                                                 title="Mover a papelera"
                                             >
-                                                <Trash2 size={13} />
+                                                <Trash2 size={15} />
+                                            </button>
+
+                                            <button
+                                                onClick={handleCopy}
+                                                className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+                                                title="Copiar texto del mensaje"
+                                            >
+                                                {copiedContent ? <Check size={15} className="text-emerald-600" /> : <Copy size={15} />}
                                             </button>
                                         </div>
+
+                                        <div className="flex items-center gap-2">
+                                            {hasHtml && (
+                                                <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200 text-xs">
+                                                    <button
+                                                        onClick={() => setMailViewMode('html')}
+                                                        className={`flex items-center gap-1 px-2.5 py-1 rounded-md font-medium text-xs transition-colors ${
+                                                            mailViewMode === 'html'
+                                                                ? 'bg-white text-slate-900 shadow-sm font-semibold'
+                                                                : 'text-slate-500 hover:text-slate-900'
+                                                        }`}
+                                                    >
+                                                        <Eye size={13} />
+                                                        <span>Con Formato</span>
+                                                    </button>
+                                                    <button
+                                                        onClick={() => setMailViewMode('text')}
+                                                        className={`flex items-center gap-1 px-2.5 py-1 rounded-md font-medium text-xs transition-colors ${
+                                                            mailViewMode === 'text'
+                                                                ? 'bg-white text-slate-900 shadow-sm font-semibold'
+                                                                : 'text-slate-500 hover:text-slate-900'
+                                                        }`}
+                                                    >
+                                                        <FileText size={13} />
+                                                        <span>Texto Plano</span>
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
-                                );
-                            })
-                        )}
-                    </div>
+
+                                    {/* Cabecera del Correo: Asunto */}
+                                    <div className="px-6 pt-5 pb-3">
+                                        <h2 className="text-lg font-bold text-slate-900 leading-snug break-words">
+                                            {decodeMimeWords(selectedMail.subject)}
+                                        </h2>
+                                    </div>
+
+                                    {/* Barra de Información del Remitente */}
+                                    <div className="px-6 pb-4 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3 text-xs">
+                                        <div className="flex items-center gap-3 min-w-0">
+                                            <img
+                                                src={getAvatarUrl(selectedMail.from, friendlySender.name)}
+                                                alt="Avatar"
+                                                className="w-10 h-10 rounded-full object-cover border border-slate-200 shadow-sm shrink-0"
+                                            />
+                                            <div className="min-w-0">
+                                                <div className="flex items-center gap-1.5 flex-wrap">
+                                                    <span className="font-bold text-slate-900 text-sm">
+                                                        {friendlySender.name}
+                                                    </span>
+                                                    <span className="text-slate-400 font-mono text-[11px] truncate max-w-xs" title={friendlySender.email}>
+                                                        &lt;{friendlySender.email}&gt;
+                                                    </span>
+                                                </div>
+                                                <p className="text-slate-500 text-[11px] mt-0.5">
+                                                    Para: <span className="font-medium text-slate-700">{selectedMail.to}</span>
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        <span className="text-xs text-slate-400 font-medium font-mono">
+                                            {formatMailDate(selectedMail.timestamp)}
+                                        </span>
+                                    </div>
+
+                                    {/* Barra de Adjuntos */}
+                                    {selectedMail.attachments && selectedMail.attachments.length > 0 && (
+                                        <div className="px-6 py-2.5 bg-slate-50 border-b border-slate-100 flex flex-wrap items-center gap-2 text-xs">
+                                            <span className="text-[11px] font-semibold text-slate-500 flex items-center gap-1 mr-1">
+                                                <Paperclip size={13} />
+                                                <span>Adjuntos ({selectedMail.attachments.length}):</span>
+                                            </span>
+                                            {selectedMail.attachments.map((att, idx) => {
+                                                const isImage = att.contentType?.startsWith('image/');
+                                                const isDownloadable = !!att.data;
+
+                                                if (isDownloadable) {
+                                                    return (
+                                                        <a
+                                                            key={idx}
+                                                            href={att.data}
+                                                            download={att.filename}
+                                                            className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg text-xs font-medium text-slate-700 shadow-sm transition-colors cursor-pointer"
+                                                            title={`Descargar ${att.filename}`}
+                                                        >
+                                                            {isImage ? <ImageIcon size={12} className="text-blue-500" /> : <Paperclip size={12} className="text-slate-400" />}
+                                                            <span className="max-w-[160px] truncate">{att.filename}</span>
+                                                            {att.size > 0 && (
+                                                                <span className="text-[10px] text-slate-400 font-mono">
+                                                                    ({att.size > 1024 * 1024 ? `${(att.size / (1024 * 1024)).toFixed(1)} MB` : `${Math.round(att.size / 1024)} KB`})
+                                                                </span>
+                                                            )}
+                                                            <Download size={11} className="text-[#0094FF] hover:text-blue-700" />
+                                                        </a>
+                                                    );
+                                                }
+
+                                                return (
+                                                    <button
+                                                        key={idx}
+                                                        type="button"
+                                                        onClick={() => toast('Archivo completo en alta resolución enviado a tu correo principal (irenzulsierra@gmail.com)', { icon: '📬' })}
+                                                        className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-700 shadow-sm transition-colors cursor-pointer"
+                                                        title="Archivo disponible en tu correo principal (irenzulsierra@gmail.com)"
+                                                    >
+                                                        {isImage ? <ImageIcon size={12} className="text-blue-500" /> : <Paperclip size={12} className="text-slate-400" />}
+                                                        <span className="max-w-[160px] truncate">{att.filename}</span>
+                                                        {att.size > 0 && (
+                                                            <span className="text-[10px] text-slate-400 font-mono">
+                                                                ({att.size > 1024 * 1024 ? `${(att.size / (1024 * 1024)).toFixed(1)} MB` : `${Math.round(att.size / 1024)} KB`})
+                                                            </span>
+                                                        )}
+                                                        <ExternalLink size={11} className="text-slate-400" />
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+
+                                    {/* Contenedor del Mensaje */}
+                                    <div className="flex-1 p-6 bg-slate-50/30 flex flex-col min-h-[500px]">
+                                        {mailViewMode === 'html' && hasHtml ? (
+                                            <div className="flex-1 w-full bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col min-h-[520px]">
+                                                <iframe
+                                                    srcDoc={selectedMail.html}
+                                                    title={selectedMail.subject}
+                                                    className="w-full flex-1 border-0 min-h-[520px]"
+                                                    sandbox="allow-popups allow-popups-to-escape-sandbox"
+                                                />
+                                            </div>
+                                        ) : (
+                                            <div className="flex-1 w-full bg-white rounded-xl border border-slate-200 p-6 shadow-sm overflow-y-auto">
+                                                <div className="text-xs text-slate-800 whitespace-pre-wrap leading-relaxed font-sans select-text">
+                                                    {selectedMail.text || selectedMail.message || 'Sin contenido de texto.'}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            );
+                        })()
+                    ) : (
+                        // Lista de Correos
+                        <>
+                            {/* Search & Filter sub-bar */}
+                            <div className="p-3 border-b border-slate-200 flex items-center justify-between gap-3 bg-slate-50/50">
+                                <div className="relative flex-1 max-w-sm">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={13} />
+                                    <input
+                                        type="text"
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                        placeholder="Buscar en esta bandeja..."
+                                        className="input-clean pl-8 py-1 text-xs w-full"
+                                    />
+                                </div>
+
+                                <span className="text-[11px] text-slate-400 font-medium">
+                                    {filteredLogs.length} mensaje(s)
+                                </span>
+                            </div>
+
+                            {/* Email List */}
+                            <div className="divide-y divide-slate-100 flex-1 overflow-y-auto max-h-[600px]">
+                                {filteredLogs.length === 0 ? (
+                                    <div className="flex flex-col items-center justify-center py-20 text-slate-400">
+                                        <Inbox size={36} className="text-slate-300 mb-2 stroke-1" />
+                                        <p className="text-xs font-semibold text-slate-600">No hay correos en esta bandeja</p>
+                                        <p className="text-[11px] text-slate-400 mt-0.5">
+                                            Los mensajes enviados o recibidos aparecerán aquí automáticamente.
+                                        </p>
+                                    </div>
+                                ) : (
+                                    filteredLogs.map(log => {
+                                        const friendly = getFriendlySender(log.from, log.subject, log.text || log.snippet);
+                                        const senderDisplay = activeCategory === 'sent' ? `Para: ${log.to}` : friendly.name;
+                                        const previewText = log.snippet || log.text?.substring(0, 80) || '(Sin texto adicional)';
+
+                                        return (
+                                            <div
+                                                key={log.id}
+                                                onClick={() => {
+                                                    setSelectedMail(log);
+                                                    setMailViewMode(log.isHtml && log.html ? 'html' : 'text');
+                                                }}
+                                                className="flex items-center gap-3 p-3 hover:bg-slate-50 cursor-pointer transition-colors group"
+                                            >
+                                                <img
+                                                    src={getAvatarUrl(activeCategory === 'sent' ? log.to : log.from, friendly.name)}
+                                                    alt="Avatar"
+                                                    className="w-7 h-7 rounded-full object-cover border border-slate-200 shrink-0"
+                                                />
+
+                                                <div className="w-40 shrink-0 truncate">
+                                                    <span className="text-xs font-semibold text-slate-900 truncate block">
+                                                        {senderDisplay}
+                                                    </span>
+                                                </div>
+
+                                                <div className="flex-1 min-w-0">
+                                                    <span className="text-xs font-bold text-slate-800 mr-2">
+                                                        {decodeMimeWords(log.subject)}
+                                                    </span>
+                                                    <span className="text-xs text-slate-400 truncate">
+                                                        - {previewText}
+                                                    </span>
+                                                </div>
+
+                                                {log.attachmentsCount ? (
+                                                    <Paperclip size={12} className="text-slate-400 shrink-0" />
+                                                ) : null}
+
+                                                <div className="text-right shrink-0 flex items-center gap-2">
+                                                    {activeCategory === 'sent' && (
+                                                        log.status === 'error' ? (
+                                                            <span className="text-[9px] font-bold text-rose-600 bg-rose-50 border border-rose-200 px-1.5 py-0.5 rounded" title="Error de entrega externa: Destino no verificado en servidor">
+                                                                Fallo Entrega
+                                                            </span>
+                                                        ) : (
+                                                            <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">
+                                                                Enviado
+                                                            </span>
+                                                        )
+                                                    )}
+                                                    <span className="text-[10px] text-slate-400 font-mono">
+                                                        {formatMailDate(log.timestamp)}
+                                                    </span>
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleMoveToTrash(log.id, log.category);
+                                                        }}
+                                                        className="opacity-0 group-hover:opacity-100 p-1 text-slate-400 hover:text-red-500 rounded transition-opacity"
+                                                        title="Mover a papelera"
+                                                    >
+                                                        <Trash2 size={13} />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        );
+                                    })
+                                )}
+                            </div>
+                        </>
+                    )}
                 </div>
             </div>
-
-            {/* Mail Viewer Modal */}
-            {selectedMail && (
-                <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-                    <div className="bg-white border border-slate-200 rounded-xl max-w-2xl w-full p-5 shadow-xl max-h-[85vh] flex flex-col">
-                        <div className="flex items-center justify-between border-b border-slate-200 pb-3 mb-4">
-                            <h3 className="font-bold text-slate-900 text-sm truncate flex-1 pr-4">
-                                {decodeMimeHeader(selectedMail.subject)}
-                            </h3>
-                            <button
-                                onClick={() => setSelectedMail(null)}
-                                className="text-slate-400 hover:text-slate-600 p-1"
-                            >
-                                <X size={16} />
-                            </button>
-                        </div>
-
-                        <div className="flex items-center gap-3 mb-3 bg-slate-50 p-3 rounded-lg border border-slate-200 text-xs">
-                            <img
-                                src={getAvatarUrl(selectedMail.from)}
-                                alt="Avatar"
-                                className="w-8 h-8 rounded-full object-cover border border-slate-200"
-                            />
-                            <div className="flex-1 min-w-0">
-                                <p className="font-bold text-slate-900">De: {selectedMail.from}</p>
-                                <p className="text-slate-500">Para: {selectedMail.to}</p>
-                            </div>
-                            <span className="text-[10px] text-slate-400 font-mono">
-                                {formatMailDate(selectedMail.timestamp)}
-                            </span>
-                        </div>
-
-                        {selectedMail.category === 'sent' && selectedMail.status === 'error' && (
-                            <div className="bg-rose-50 border border-rose-200 p-3 rounded-lg mb-3 text-[11px] text-rose-900 space-y-1">
-                                <span className="font-bold flex items-center gap-1 text-rose-700">
-                                    ⚠️ Aviso de Servidor de Correo (Fallo de Entrega)
-                                </span>
-                                <p className="leading-relaxed">
-                                    Este mensaje se registró en la bandeja de salida, pero Cloudflare Email rebotó la entrega externa porque el destinatario no es una dirección verificada en Cloudflare Email Routing.
-                                </p>
-                            </div>
-                        )}
-
-                        <div className="flex-1 overflow-y-auto p-3 text-xs text-slate-800 whitespace-pre-wrap leading-relaxed border border-slate-100 rounded-lg bg-white">
-                            {selectedMail.message || 'Sin contenido de texto.'}
-                        </div>
-
-                        <div className="flex items-center justify-end gap-2 pt-3 mt-4 border-t border-slate-200">
-                            <button
-                                onClick={() => handleMoveToTrash(selectedMail.id, selectedMail.category)}
-                                className="btn-danger text-xs flex items-center gap-1.5"
-                            >
-                                <Trash2 size={13} />
-                                <span>Mover a Papelera</span>
-                            </button>
-                            <button
-                                onClick={() => setSelectedMail(null)}
-                                className="btn-secondary text-xs"
-                            >
-                                Cerrar
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
 
             {/* Compose Mail Modal */}
             {isComposing && (

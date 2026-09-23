@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../services/auth_service.dart';
-import '../profile/phone_code_screen.dart';
+import '../profile/phone_verification_screen.dart';
 import '../../widgets/connect_app_bar.dart';
 class SecurityScreen extends StatefulWidget {
   const SecurityScreen({super.key});
@@ -108,101 +108,27 @@ class _SecurityScreenState extends State<SecurityScreen> {
   }
 
   Future<void> _handlePhoneVerification() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
-
-    final phoneController = TextEditingController(text: _phoneNumber ?? '+57');
-
-    final phone = await showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text(
-          'Vincular Teléfono Certificado',
-          style: TextStyle(fontFamily: 'Poppins', fontWeight: FontWeight.bold),
+    final verified = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => PhoneVerificationScreen(
+          initialPhone: _phoneNumber,
         ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'Ingresa tu número para recibir un código de verificación por SMS.',
-              style: TextStyle(fontFamily: 'Poppins', fontSize: 13),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: phoneController,
-              decoration: const InputDecoration(
-                labelText: 'Número de Teléfono',
-                hintText: '+57 3xx xxx xxxx',
-                border: OutlineInputBorder(),
-              ),
-              keyboardType: TextInputType.phone,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            onPressed: () =>
-                Navigator.pop(context, phoneController.text.trim()),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF0094FF),
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Enviar SMS'),
-          ),
-        ],
       ),
     );
 
-    if (phone == null || phone.isEmpty || phone == '+57') return;
-
-    try {
-      await AuthService().verifyPhone(
-        phoneNumber: phone,
-        onCodeSent: (verificationId) async {
-          final verified = await Navigator.push<bool>(
-            context,
-            MaterialPageRoute(
-              builder: (context) => PhoneCodeScreen(
-                verificationId: verificationId,
-                phoneNumber: phone,
-              ),
+    if (verified == true) {
+      setState(() => _isLoading = true);
+      await _checkMfaStatus();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Teléfono verificado y vinculado correctamente',
             ),
-          );
-
-          if (verified == true) {
-            setState(() => _isLoading = true);
-            await _checkMfaStatus();
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text(
-                    'Teléfono verificado y vinculado correctamente',
-                  ),
-                ),
-              );
-            }
-          }
-        },
-        onVerificationFailed: (e) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Error: ${e.message}'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        },
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-      );
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
+          ),
+        );
+      }
     }
   }
 

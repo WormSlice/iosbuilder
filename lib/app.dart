@@ -28,7 +28,6 @@ import 'services/call_manager.dart';
 import 'widgets/circular_reveal_animation.dart';
 import 'widgets/boost_prompt.dart';
 import 'dart:async';
-import 'services/local_notification_service.dart';
 import 'services/boost_service.dart';
 import 'services/deep_link_service.dart';
 import 'screens/post/boost_configuration_screen.dart';
@@ -214,9 +213,7 @@ class _AppShellState extends State<AppShell> {
   int index = 0;
   bool showPublishPanel = false;
   bool _isVerified = false;
-  StreamSubscription? _notificationSubscription;
   StreamSubscription? _userSubscription;
-  final DateTime _startTime = DateTime.now();
 
   final List<GlobalKey<NavigatorState>> _navKeys = [
     GlobalKey<NavigatorState>(),
@@ -231,7 +228,6 @@ class _AppShellState extends State<AppShell> {
   @override
   void initState() {
     super.initState();
-    _setupNotificationListener();
     _listenToUserVerification();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       CallManager().init(context);
@@ -266,34 +262,6 @@ class _AppShellState extends State<AppShell> {
     }
   }
 
-  void _setupNotificationListener() {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid != null) {
-      _notificationSubscription = FirebaseFirestore.instance
-          .collection('users')
-          .doc(uid)
-          .collection('notifications')
-          .orderBy('createdAt', descending: true)
-          .limit(10)
-          .snapshots()
-          .listen((snapshot) {
-            for (var change in snapshot.docChanges) {
-              if (change.type == DocumentChangeType.added) {
-                final data = change.doc.data() as Map<String, dynamic>;
-                final createdAt = data['createdAt'] as Timestamp?;
-                // Only notify for items created AFTER app start to avoid spam
-                if (createdAt != null &&
-                    createdAt.toDate().isAfter(_startTime)) {
-                  LocalNotificationService.showNotification(
-                    title: data['title'] ?? 'Nueva notificación',
-                    body: data['body'] ?? 'Tienes un nuevo mensaje',
-                  );
-                }
-              }
-            }
-          });
-    }
-  }
 
   void _showUnverifiedDialog() {
     showDialog(
@@ -340,7 +308,6 @@ class _AppShellState extends State<AppShell> {
 
   @override
   void dispose() {
-    _notificationSubscription?.cancel();
     _userSubscription?.cancel();
     CallManager().dispose();
     super.dispose();

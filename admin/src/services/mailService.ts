@@ -14,6 +14,7 @@ import {
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { fetchMailEvents, fetchMessageContent } from "./connectMail";
+import { parseEmailBody, decodeMimeWords, wrapHtmlDocument } from '../utils/emailParser';
 
 export interface MailLog {
     id: string;
@@ -25,6 +26,10 @@ export interface MailLog {
     status: 'sent' | 'received' | 'trash' | 'spam' | 'sending' | 'error';
     category: 'principal' | 'sent' | 'automations' | 'spam' | 'trash';
     attachmentsCount?: number;
+    html?: string;
+    text?: string;
+    snippet?: string;
+    isHtml?: boolean;
 }
 
 const MAIL_COLLECTION = 'mail';
@@ -72,24 +77,68 @@ export const subscribeToMail = (callback: (mail: MailLog[]) => void) => {
 
     return onSnapshot(q, (snapshot) => {
         const mailList = snapshot.docs.map((doc: any) => {
-            const data = doc.data();
-            let formattedTimestamp = 'Recién';
-            if (data.timestamp) {
-                if (typeof data.timestamp.toDate === 'function') {
-                    formattedTimestamp = data.timestamp.toDate().toLocaleString();
-                } else if (data.timestamp instanceof Date) {
-                    formattedTimestamp = data.timestamp.toLocaleString();
-                } else if (typeof data.timestamp === 'string' || typeof data.timestamp === 'number') {
-                    formattedTimestamp = new Date(data.timestamp).toLocaleString();
+            try {
+                const data = doc.data();
+                let formattedTimestamp = 'Recién';
+                if (data.timestamp) {
+                    if (typeof data.timestamp.toDate === 'function') {
+                        formattedTimestamp = data.timestamp.toDate().toLocaleString();
+                    } else if (data.timestamp instanceof Date) {
+                        formattedTimestamp = data.timestamp.toLocaleString();
+                    } else if (typeof data.timestamp === 'string' || typeof data.timestamp === 'number') {
+                        formattedTimestamp = new Date(data.timestamp).toLocaleString();
+                    }
                 }
+
+                let rawSubject = data.subject || '';
+                let rawMessage = data.message || '';
+                if (typeof data.message === 'object' && data.message !== null) {
+                    rawSubject = rawSubject || data.message.subject || '(Sin asunto)';
+                    rawMessage = data.message.html || data.message.text || data.message.message || '';
+                }
+
+                if (data.html && !rawMessage) {
+                    rawMessage = data.html;
+                }
+
+                const existingAtts = Array.isArray(data.attachments) ? data.attachments : [];
+                const parsed = parseEmailBody(data.html || rawMessage, existingAtts);
+                const cleanSubject = decodeMimeWords(rawSubject || '(Sin asunto)');
+
+                return {
+                    id: doc.id,
+                    ...data,
+                    from: data.from || 'Desconocido',
+                    to: data.to || 'contacto@connectapp.com.co',
+                    subject: cleanSubject,
+                    message: typeof rawMessage === 'string' ? rawMessage : '',
+                    html: parsed.html,
+                    text: parsed.text,
+                    snippet: parsed.snippet,
+                    isHtml: parsed.isHtml,
+                    isTruncatedOrEmptyHtml: parsed.isTruncatedOrEmptyHtml,
+                    attachments: parsed.attachments,
+                    attachmentsCount: parsed.attachments.length || data.attachmentsCount || 0,
+                    timestamp: formattedTimestamp
+                };
+            } catch (docErr) {
+                console.error("Error procesando correo:", doc.id, docErr);
+                return {
+                    id: doc.id,
+                    from: 'Desconocido',
+                    to: 'contacto@connectapp.com.co',
+                    subject: '(Sin asunto)',
+                    message: '',
+                    status: 'received',
+                    category: 'principal',
+                    timestamp: 'Recién',
+                    attachments: []
+                };
             }
-            return {
-                id: doc.id,
-                ...data,
-                timestamp: formattedTimestamp
-            };
         }) as MailLog[];
         callback(mailList);
+    }, (error) => {
+        console.error("Error en onSnapshot de mail:", error);
     });
 };
 

@@ -213,6 +213,7 @@ exports.sendPushOnNewChatMessage = functions.firestore
         },
         android: {
           priority: "high",
+          collapseKey: String(chatId),
           notification: {
             channelId: "high_importance_channel",
             sound: "default",
@@ -227,6 +228,7 @@ exports.sendPushOnNewChatMessage = functions.firestore
             "apns-priority": "10",
             "apns-push-type": "alert",
             "apns-topic": "com.connectapp.co",
+            "apns-collapse-id": String(chatId),
           },
           payload: {
             aps: {
@@ -243,6 +245,27 @@ exports.sendPushOnNewChatMessage = functions.firestore
 
       const resp = await admin.messaging().send(pushPayload);
       console.log(`[Push Chat] Notificación enviada a ${recipientId} por mensaje de ${senderName}:`, resp);
+
+      // Guardar registro idempotente en el buzón in-app del usuario sin provocar duplicados
+      const msgId = context.params.messageId;
+      if (msgId) {
+        await admin
+          .firestore()
+          .collection("users")
+          .doc(recipientId)
+          .collection("notifications")
+          .doc(`msg_${msgId}`)
+          .set({
+            title: senderName,
+            body: bodyText,
+            chatId: String(chatId),
+            senderId: String(senderId || ""),
+            type: "chat_message",
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            read: false,
+          }, { merge: true });
+      }
+
       return resp;
     } catch (err) {
       console.error("[Push Chat] Error:", err);

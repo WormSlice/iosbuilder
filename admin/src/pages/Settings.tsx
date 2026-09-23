@@ -214,7 +214,7 @@ export const Settings: React.FC = () => {
                         </div>
                         <p className="font-bold text-slate-900 text-sm">{name || 'Administrador CONNECT'}</p>
                         <p className="text-xs text-slate-500 font-mono mt-0.5">{email}</p>
-                        <span className="mt-3 px-2 py-0.5 bg-blue-50 text-[#0094FF] text-[10px] font-bold uppercase rounded-md border border-blue-200">
+                        <span className="mt-2 text-xs font-semibold text-zinc-500">
                             Super Administrador
                         </span>
                     </div>

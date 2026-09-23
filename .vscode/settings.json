@@ -1,4 +1,29 @@
 {
     "dart.showTodos": false,
-    "java.configuration.updateBuildConfiguration": "interactive"
+    "java.configuration.updateBuildConfiguration": "disabled",
+    "java.import.gradle.enabled": false,
+    "java.autobuild.enabled": false,
+    "java.server.launchMode": "off",
+    "java.project.resourceFilters": [
+        "node_modules",
+        ".git",
+        "build",
+        "android/app/build"
+    ],
+    "java.import.exclusions": [
+        "**/node_modules/**",
+        "**/.metadata/**",
+        "**/archetype/**",
+        "**/META-INF/maven/**",
+        "**/build/**"
+    ],
+    "files.watcherExclude": {
+        "**/build/**": true,
+        "**/.dart_tool/**": true,
+        "**/.gradle/**": true,
+        "**/android/.gradle/**": true
+    },
+    "files.exclude": {
+        "**/build/**": true
+    }
 }

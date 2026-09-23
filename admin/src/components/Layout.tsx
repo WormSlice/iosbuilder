@@ -32,6 +32,7 @@ const menuItems = [
     { path: '/admin/notifications', label: 'Notificaciones', icon: Bell },
     { path: '/admin/mail', label: 'Correo', icon: Mail },
     { path: '/admin/tools', label: 'Herramientas', icon: Sliders },
+    { path: '/admin/settings', label: 'Configuración', icon: Shield },
 ];
 
 export const Layout: React.FC = () => {
@@ -146,12 +147,6 @@ export const Layout: React.FC = () => {
                         <span className="font-semibold text-zinc-900">{currentTitle}</span>
                     </div>
 
-                    <div className="flex items-center gap-3">
-                        <div className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 border border-emerald-200 rounded-md text-[11px] font-semibold text-emerald-700">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                            <span>Conectado a Firebase</span>
-                        </div>
-                    </div>
                 </header>
 
                 {/* Área de Visualización */}

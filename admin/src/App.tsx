@@ -30,6 +30,7 @@ import { Notifications } from './pages/Notifications';
 import { Tools } from './pages/Tools';
 import { Mail } from './pages/Mail';
 import { Settings } from './pages/Settings';
+import { AccountSettings } from './pages/AccountSettings';
 import { SupportRequests } from './pages/SupportRequests';
 import { ErrorBoundary } from './components/ErrorBoundary';
 
@@ -46,7 +47,8 @@ const App: React.FC = () => {
                     <Route path="/report" element={<Report />} />
                     <Route path="/support" element={<Support />} />
                     <Route path="/privacy-policy" element={<PrivacyPolicy />} />
-                    <Route path="/settings" element={<AuthGuard adminOnly={false}><Settings /></AuthGuard>} />
+                    <Route path="/settings" element={<AuthGuard adminOnly={false}><AccountSettings /></AuthGuard>} />
+                    <Route path="/account" element={<AuthGuard adminOnly={false}><AccountSettings /></AuthGuard>} />
                 </Route>
 
                 {/* Auth Routes */}
@@ -68,6 +70,7 @@ const App: React.FC = () => {
                     <Route path="mail" element={<Mail />} />
                     <Route path="support" element={<SupportRequests />} />
                     <Route path="tools" element={<Tools />} />
+                    <Route path="settings" element={<Settings />} />
                 </Route>
 
                 {/* Catch All */}

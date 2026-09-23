@@ -376,42 +376,8 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
 
     _scrollToBottom();
 
-    // Dispatch push notification to peer
-    try {
-      String? peerId = widget.peerId;
-      if (peerId == null || peerId.isEmpty) {
-        final chatDoc = await chatRef.get();
-        if (chatDoc.exists) {
-          final participants = chatDoc.data()?['participants'] as List?;
-          if (participants != null) {
-            peerId = participants.firstWhere((p) => p != currentUid, orElse: () => null);
-          }
-        }
-      }
-
-      if (peerId != null && peerId.isNotEmpty && peerId != currentUid) {
-        final currentUser = FirebaseAuth.instance.currentUser;
-        String senderName = currentUser?.displayName ?? '';
-        if (senderName.isEmpty) {
-          final userDoc = await FirebaseFirestore.instance.collection('users').doc(currentUid).get();
-          senderName = userDoc.data()?['displayName'] ?? userDoc.data()?['name'] ?? userDoc.data()?['username'] ?? 'CONNECT';
-        }
-
-        MessagingService.sendNotificationToUser(
-          recipientUid: peerId,
-          title: senderName.isNotEmpty ? senderName : 'Nuevo mensaje',
-          body: lastMsg,
-          data: {
-            'chatId': widget.chatId,
-            'senderId': currentUid,
-            'collectionPath': widget.collectionPath,
-            'type': 'chat_message',
-          },
-        );
-      }
-    } catch (e) {
-      debugPrint('Error sending message push notification: $e');
-    }
+    // Note: Push notification is automatically and reliably dispatched by
+    // the Cloud Function `sendPushOnNewChatMessage` on message creation.
   }
 
   void _scrollToBottom() {
