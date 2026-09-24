@@ -194,14 +194,13 @@ class _MusicSelectorFieldState extends State<MusicSelectorField>
     );
 
     if (trimResult != null && mounted) {
-      final resolvedUrl = trimResult['resolvedAudioUrl']?.toString() ?? widget.musicId;
       widget.onMusicSelected(
-        resolvedUrl,
+        widget.musicId,
         widget.musicTitle,
         widget.musicArtist,
         widget.musicThumbnail,
-        trimResult['startSeconds'] ?? 0,
-        trimResult['duration'] ?? 30,
+        trimResult['startSeconds'] ?? widget.musicStartSeconds,
+        trimResult['duration'] ?? widget.musicDuration,
       );
     }
   }

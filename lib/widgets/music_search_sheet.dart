@@ -243,10 +243,7 @@ class _MusicSearchSheetState extends State<MusicSearchSheet>
 
     if (!mounted) return;
 
-    final audioKey =
-        (song['audioUrl'] != null && song['audioUrl'].toString().isNotEmpty)
-            ? song['audioUrl'].toString()
-            : song['id'].toString();
+    final cleanId = song['id'].toString();
 
     final workingAudioUrl = (song['audioUrl'] != null &&
             song['audioUrl'].toString().startsWith('http'))
@@ -261,7 +258,7 @@ class _MusicSearchSheetState extends State<MusicSearchSheet>
 
     final trimmed = await InstagramAudioTrimmerSheet.show(
       context: context,
-      musicId: audioKey,
+      musicId: cleanId,
       audioUrl: workingAudioUrl,
       title: song['title'].toString(),
       artist: song['artist'].toString(),
@@ -272,11 +269,9 @@ class _MusicSearchSheetState extends State<MusicSearchSheet>
     );
 
     if (trimmed != null && mounted) {
-      final resolvedUrl = trimmed['resolvedAudioUrl']?.toString() ??
-          workingAudioUrl ??
-          song['audioUrl']?.toString();
+      final resolvedUrl = workingAudioUrl ?? song['audioUrl']?.toString();
       Navigator.pop(context, {
-        'id': audioKey,
+        'id': cleanId,
         'title': song['title'].toString(),
         'artist': song['artist'].toString(),
         'thumbnail': song['thumbnail'].toString(),

@@ -77,7 +77,7 @@ class _MusicPlayerPillState extends State<MusicPlayerPill>
       _player.playerStateStream.listen((state) {
         if (mounted) {
           setState(() {
-            _isPlaying = state.playing;
+            _isPlaying = state.playing && state.processingState != ProcessingState.completed;
             if (_isPlaying && !_isMuted) {
               if (!_rotationController.isAnimating) {
                 _rotationController.repeat();
@@ -89,43 +89,39 @@ class _MusicPlayerPillState extends State<MusicPlayerPill>
         }
       });
 
-      final url = await MusicService.getAudioStreamUrl(
+      String? url = await MusicService.getAudioStreamUrl(
         widget.musicId,
         title: widget.musicTitle,
         artist: widget.musicArtist,
         forceFullTrack: true,
       );
 
+      // Si no resolvió URL inicial, intentar fallback inmediato
+      url ??= await MusicService.getFallbackPreviewUrl(
+        title: widget.musicTitle,
+        artist: widget.musicArtist,
+      );
+
       if (url != null && mounted) {
         await _player.setVolume(_calculateVolume());
-        final audioSource = await MusicService.createAudioSource(url,
-            cacheKey: widget.musicId);
-        final loadedDuration = await _player.setAudioSource(audioSource);
-        final totalSec =
-            (loadedDuration != null && loadedDuration.inSeconds > 0)
-                ? loadedDuration.inSeconds
-                : 180;
-
-        final safeDuration = widget.duration.clamp(5, totalSec);
-        final safeStartSec = widget.startSeconds.clamp(0, math.max(0, totalSec - safeDuration).toInt()).toInt();
-
-        _player.positionStream.listen((pos) {
-          final start = Duration(seconds: safeStartSec);
-          final end = Duration(
-              seconds: (safeStartSec + safeDuration).clamp(0, totalSec).toInt());
-          if (pos >= end || (loadedDuration != null && pos >= loadedDuration)) {
-            _player.seek(start);
+        try {
+          final audioSource = await MusicService.createAudioSource(url,
+              cacheKey: widget.musicId);
+          final loadedDuration = await _player.setAudioSource(audioSource);
+          _setupLoopAndPlay(loadedDuration);
+        } catch (srcErr) {
+          debugPrint('[MusicPlayerPill] Error cargando fuente principal, intentando fallback CDN: $srcErr');
+          final fallbackUrl = await MusicService.getFallbackPreviewUrl(
+            title: widget.musicTitle,
+            artist: widget.musicArtist,
+          );
+          if (fallbackUrl != null && mounted) {
+            final fbSource = await MusicService.createAudioSource(fallbackUrl);
+            final fbDur = await _player.setAudioSource(fbSource);
+            _setupLoopAndPlay(fbDur);
+          } else {
+            if (mounted) setState(() => _isLoading = false);
           }
-        });
-
-        await _player.seek(Duration(seconds: safeStartSec));
-        await _player.play();
-
-        if (mounted) {
-          setState(() {
-            _isLoading = false;
-            _isPlaying = true;
-          });
         }
       } else {
         if (mounted) {
@@ -133,9 +129,48 @@ class _MusicPlayerPillState extends State<MusicPlayerPill>
         }
       }
     } catch (e) {
+      debugPrint('[MusicPlayerPill] Error general en _initAudio: $e');
       if (mounted) {
         setState(() => _isLoading = false);
       }
+    }
+  }
+
+  void _setupLoopAndPlay(Duration? loadedDuration) async {
+    final totalSec = (loadedDuration != null && loadedDuration.inSeconds > 0)
+        ? loadedDuration.inSeconds
+        : 180;
+
+    final safeDuration = widget.duration.clamp(5, totalSec);
+    final safeStartSec = widget.startSeconds
+        .clamp(0, math.max(0, totalSec - safeDuration).toInt())
+        .toInt();
+
+    _player.positionStream.listen((pos) {
+      final start = Duration(seconds: safeStartSec);
+      final end = Duration(
+          seconds: (safeStartSec + safeDuration).clamp(0, totalSec).toInt());
+      if (pos >= end || (loadedDuration != null && pos >= loadedDuration)) {
+        _player.seek(start);
+      }
+    });
+
+    await _player.seek(Duration(seconds: safeStartSec));
+    await _player.play();
+
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+        _isPlaying = true;
+      });
+    }
+  }
+
+  void _togglePlayPause() async {
+    if (_player.playing) {
+      await _player.pause();
+    } else {
+      await _player.play();
     }
   }
 
@@ -354,86 +389,96 @@ class _MusicPlayerPillState extends State<MusicPlayerPill>
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // 1. Portada con micro-rotación o pulso suave
-            AnimatedBuilder(
-              animation: _rotationController,
-              builder: (context, child) {
-                return Transform.rotate(
-                  angle: activePlaying
-                      ? _rotationController.value * 2 * math.pi
-                      : 0.0,
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(activePlaying ? 14 : 5),
-                    child: CachedNetworkImage(
-                      imageUrl: widget.musicThumbnail,
-                      width: 28,
-                      height: 28,
-                      fit: BoxFit.cover,
-                      placeholder: (context, url) => Container(
-                        color: Colors.grey[200],
-                        child: const Icon(Icons.music_note,
-                            color: Colors.grey, size: 14),
-                      ),
-                      errorWidget: (context, url, error) => Container(
-                        color: Colors.grey[200],
-                        child: const Icon(Icons.music_note,
-                            color: Colors.grey, size: 14),
-                      ),
-                    ),
-                  ),
-                );
-              },
-            ),
-            const SizedBox(width: 6),
-
-            // 2. Título y Artista
-            Container(
-              constraints: const BoxConstraints(maxWidth: 85),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
+            // 1, 2 y 3: Tocar para pausar/reanudar
+            GestureDetector(
+              onTap: _togglePlayPause,
+              behavior: HitTestBehavior.opaque,
+              child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
-                    widget.musicTitle,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontFamily: 'CanvaSans',
-                      fontWeight: FontWeight.bold,
-                      fontSize: 9.0,
-                      color: Colors.black87,
+                  // 1. Portada con micro-rotación o pulso suave
+                  AnimatedBuilder(
+                    animation: _rotationController,
+                    builder: (context, child) {
+                      return Transform.rotate(
+                        angle: activePlaying
+                            ? _rotationController.value * 2 * math.pi
+                            : 0.0,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(activePlaying ? 14 : 5),
+                          child: CachedNetworkImage(
+                            imageUrl: widget.musicThumbnail,
+                            width: 28,
+                            height: 28,
+                            fit: BoxFit.cover,
+                            placeholder: (context, url) => Container(
+                              color: Colors.grey[200],
+                              child: const Icon(Icons.music_note,
+                                  color: Colors.grey, size: 14),
+                            ),
+                            errorWidget: (context, url, error) => Container(
+                              color: Colors.grey[200],
+                              child: const Icon(Icons.music_note,
+                                  color: Colors.grey, size: 14),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(width: 6),
+
+                  // 2. Título y Artista
+                  Container(
+                    constraints: const BoxConstraints(maxWidth: 85),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          widget.musicTitle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontFamily: 'CanvaSans',
+                            fontWeight: FontWeight.bold,
+                            fontSize: 9.0,
+                            color: Colors.black87,
+                          ),
+                        ),
+                        const SizedBox(height: 1),
+                        Text(
+                          widget.musicArtist,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontFamily: 'CanvaSans',
+                            fontSize: 7.5,
+                            color: Color(0xFF0094FF),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 1),
-                  Text(
-                    widget.musicArtist,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontFamily: 'CanvaSans',
-                      fontSize: 7.5,
-                      color: Color(0xFF0094FF),
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
+                  const SizedBox(width: 7),
+
+                  // 3. Ecualizador animado fluido
+                  if (_isLoading)
+                    const SizedBox(
+                      width: 10,
+                      height: 10,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 1.5,
+                        valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF0094FF)),
+                      ),
+                    )
+                  else
+                    AnimatedEqualizer(isPlaying: activePlaying),
                 ],
               ),
             ),
-            const SizedBox(width: 7),
-
-            // 3. Ecualizador animado fluido
-            if (_isLoading)
-              const SizedBox(
-                width: 10,
-                height: 10,
-                child: CircularProgressIndicator(
-                  strokeWidth: 1.5,
-                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF0094FF)),
-                ),
-              )
-            else
-              AnimatedEqualizer(isPlaying: activePlaying),
 
             const SizedBox(width: 6),
 

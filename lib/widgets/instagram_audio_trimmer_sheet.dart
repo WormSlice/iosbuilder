@@ -173,55 +173,60 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
     try {
       String? streamUrl;
 
-      // 1. Extraer pista COMPLETA desde YouTube para que el usuario pueda recortar cualquier minuto
-      final streamData = await MusicService.getFullAudioStream(
+      // 1. Si viene audioUrl directa y permanente (Apple / Deezer CDN), usarla como primera prioridad
+      if (widget.audioUrl != null &&
+          widget.audioUrl!.startsWith('http') &&
+          !widget.audioUrl!.contains('googlevideo.com')) {
+        streamUrl = widget.audioUrl;
+      }
+
+      // 2. Si no viene o no es directa, resolver stream completo
+      if (streamUrl == null || streamUrl.isEmpty) {
+        final streamData = await MusicService.getFullAudioStream(
+          title: widget.title,
+          artist: widget.artist,
+          videoId: (widget.musicId.length == 11 && !widget.musicId.contains(' ')) ? widget.musicId : null,
+          fallbackPreviewUrl: widget.audioUrl,
+          expectedDurationSec: widget.totalTrackSeconds,
+        );
+
+        if (streamData != null && streamData['url'] != null) {
+          streamUrl = streamData['url'].toString();
+          if (streamData['durationSeconds'] is int && streamData['durationSeconds'] > 0) {
+            _totalTrackDurationSec = (streamData['durationSeconds'] as int).toDouble();
+          }
+        }
+      }
+
+      // 3. Respaldo general
+      streamUrl ??= await MusicService.getFallbackPreviewUrl(
         title: widget.title,
         artist: widget.artist,
-        videoId: (widget.musicId.length == 11 && !widget.musicId.contains(' ')) ? widget.musicId : null,
-        fallbackPreviewUrl: widget.audioUrl,
-        expectedDurationSec: widget.totalTrackSeconds,
       );
-
-      if (streamData != null && streamData['url'] != null) {
-        streamUrl = streamData['url'].toString();
-        if (streamData['durationSeconds'] is int && streamData['durationSeconds'] > 0) {
-          _totalTrackDurationSec = (streamData['durationSeconds'] as int).toDouble();
-        }
-      }
-
-      // 2. Si no resolvió YouTube, usar fallback previo
-      if (streamUrl == null || streamUrl.isEmpty) {
-        if (widget.audioUrl != null && widget.audioUrl!.startsWith('http')) {
-          streamUrl = widget.audioUrl;
-        } else if (widget.musicId.startsWith('http')) {
-          streamUrl = widget.musicId;
-        }
-      }
 
       if (streamUrl != null && streamUrl.isNotEmpty && mounted) {
         _resolvedAudioUrl = streamUrl;
-        final audioSource = await MusicService.createAudioSource(
-          streamUrl,
-          cacheKey: '${widget.title}_${widget.artist}'.trim(),
-        );
-        final loadedDuration = await _player.setAudioSource(audioSource);
-
-        if (loadedDuration != null && loadedDuration.inSeconds > 0) {
-          _totalTrackDurationSec = loadedDuration.inSeconds.toDouble();
-        }
-
-        _duration = _duration.clamp(5, _totalTrackDurationSec.toInt());
-        final maxStart = math.max(0.0, _totalTrackDurationSec - _duration);
-        _startSeconds = _startSeconds.clamp(0, maxStart.toInt());
-
-        await _player.seek(Duration(seconds: _startSeconds));
-        await _player.play();
-
-        if (mounted) {
-          setState(() {
-            _isLoading = false;
-            _isPlaying = true;
-          });
+        try {
+          final audioSource = await MusicService.createAudioSource(
+            streamUrl,
+            cacheKey: '${widget.title}_${widget.artist}'.trim(),
+          );
+          final loadedDuration = await _player.setAudioSource(audioSource);
+          _finishTrimmerInit(loadedDuration);
+        } catch (err) {
+          debugPrint('[Trimmer] Fallo de reproducción inicial, cargando fallback CDN: $err');
+          final fallbackUrl = await MusicService.getFallbackPreviewUrl(
+            title: widget.title,
+            artist: widget.artist,
+          );
+          if (fallbackUrl != null && mounted) {
+            _resolvedAudioUrl = fallbackUrl;
+            final fbSource = await MusicService.createAudioSource(fallbackUrl);
+            final fbDur = await _player.setAudioSource(fbSource);
+            _finishTrimmerInit(fbDur);
+          } else {
+            if (mounted) setState(() => _isLoading = false);
+          }
         }
       } else {
         if (mounted) setState(() => _isLoading = false);
@@ -229,6 +234,26 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
     } catch (e) {
       if (kDebugMode) print('Error en trimmer audio: $e');
       if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  void _finishTrimmerInit(Duration? loadedDuration) async {
+    if (loadedDuration != null && loadedDuration.inSeconds > 0) {
+      _totalTrackDurationSec = loadedDuration.inSeconds.toDouble();
+    }
+
+    _duration = _duration.clamp(5, _totalTrackDurationSec.toInt());
+    final maxStart = math.max(0.0, _totalTrackDurationSec - _duration);
+    _startSeconds = _startSeconds.clamp(0, maxStart.toInt());
+
+    await _player.seek(Duration(seconds: _startSeconds));
+    await _player.play();
+
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+        _isPlaying = true;
+      });
     }
   }
 
@@ -485,6 +510,7 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
                   Navigator.pop(context, {
                     'startSeconds': _startSeconds,
                     'duration': _duration,
+                    'audioUrl': _resolvedAudioUrl,
                     'resolvedAudioUrl': _resolvedAudioUrl,
                   });
                 },
