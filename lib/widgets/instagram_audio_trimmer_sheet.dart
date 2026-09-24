@@ -25,9 +25,9 @@ class InstagramAudioTrimmerSheet extends StatefulWidget {
     required this.title,
     required this.artist,
     required this.thumbnail,
-    this.totalTrackSeconds = 30,
+    this.totalTrackSeconds = 240,
     this.initialStartSeconds = 0,
-    this.initialDuration = 30,
+    this.initialDuration = 240,
     this.audioUrl,
   });
 
@@ -37,9 +37,9 @@ class InstagramAudioTrimmerSheet extends StatefulWidget {
     required String title,
     required String artist,
     required String thumbnail,
-    int totalTrackSeconds = 30,
+    int totalTrackSeconds = 240,
     int initialStartSeconds = 0,
-    int initialDuration = 30,
+    int initialDuration = 240,
     String? audioUrl,
   }) {
     return showModalBottomSheet<Map<String, dynamic>>(
@@ -51,7 +51,7 @@ class InstagramAudioTrimmerSheet extends StatefulWidget {
         title: title,
         artist: artist,
         thumbnail: thumbnail,
-        totalTrackSeconds: totalTrackSeconds > 0 ? totalTrackSeconds : 30,
+        totalTrackSeconds: totalTrackSeconds > 0 ? totalTrackSeconds : 240,
         initialStartSeconds: initialStartSeconds,
         initialDuration: initialDuration,
         audioUrl: audioUrl,
@@ -91,14 +91,14 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
     super.initState();
     _totalTrackDurationSec = (widget.totalTrackSeconds > 0)
         ? widget.totalTrackSeconds.toDouble()
-        : 30.0;
-    _duration = widget.initialDuration.clamp(5, _totalTrackDurationSec.toInt());
+        : 240.0;
+    _duration = (widget.initialDuration > 0 && widget.initialDuration != 30)
+        ? widget.initialDuration.clamp(5, _totalTrackDurationSec.toInt())
+        : _totalTrackDurationSec.toInt();
 
     final maxStart = math.max(0.0, _totalTrackDurationSec - _duration);
     _startSeconds = widget.initialStartSeconds.clamp(0, maxStart.toInt());
-    _isAutoHighlight = (_startSeconds == 0 ||
-        _startSeconds ==
-            MusicService.calculateHighlightStart(_totalTrackDurationSec.toInt()));
+    _isAutoHighlight = false;
     _currentPlaybackSec = _startSeconds.toDouble();
 
     // 1. Animación suave de ondas al reproducir (60fps)
@@ -173,10 +173,13 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
     try {
       String? streamUrl;
 
-      // 1. Si viene audioUrl directa y permanente (Apple / Deezer CDN), usarla como primera prioridad
+      // 1. Si viene audioUrl directa y permanente (sin googlevideo ni snippets de 29s)
       if (widget.audioUrl != null &&
           widget.audioUrl!.startsWith('http') &&
-          !widget.audioUrl!.contains('googlevideo.com')) {
+          !widget.audioUrl!.contains('googlevideo.com') &&
+          !widget.audioUrl!.contains('mzstatic.com') &&
+          !widget.audioUrl!.contains('deezer.com') &&
+          !widget.audioUrl!.contains('preview')) {
         streamUrl = widget.audioUrl;
       }
 
@@ -198,12 +201,6 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
         }
       }
 
-      // 3. Respaldo general
-      streamUrl ??= await MusicService.getFallbackPreviewUrl(
-        title: widget.title,
-        artist: widget.artist,
-      );
-
       if (streamUrl != null && streamUrl.isNotEmpty && mounted) {
         _resolvedAudioUrl = streamUrl;
         try {
@@ -214,19 +211,8 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
           final loadedDuration = await _player.setAudioSource(audioSource);
           _finishTrimmerInit(loadedDuration);
         } catch (err) {
-          debugPrint('[Trimmer] Fallo de reproducción inicial, cargando fallback CDN: $err');
-          final fallbackUrl = await MusicService.getFallbackPreviewUrl(
-            title: widget.title,
-            artist: widget.artist,
-          );
-          if (fallbackUrl != null && mounted) {
-            _resolvedAudioUrl = fallbackUrl;
-            final fbSource = await MusicService.createAudioSource(fallbackUrl);
-            final fbDur = await _player.setAudioSource(fbSource);
-            _finishTrimmerInit(fbDur);
-          } else {
-            if (mounted) setState(() => _isLoading = false);
-          }
+          debugPrint('[Trimmer] Error cargando stream de audio: $err');
+          if (mounted) setState(() => _isLoading = false);
         }
       } else {
         if (mounted) setState(() => _isLoading = false);
@@ -242,7 +228,11 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
       _totalTrackDurationSec = loadedDuration.inSeconds.toDouble();
     }
 
-    _duration = _duration.clamp(5, _totalTrackDurationSec.toInt());
+    if (widget.initialDuration == 30 || widget.initialDuration <= 0 || widget.initialDuration >= _totalTrackDurationSec.toInt()) {
+      _duration = _totalTrackDurationSec.toInt();
+    } else {
+      _duration = _duration.clamp(5, _totalTrackDurationSec.toInt());
+    }
     final maxStart = math.max(0.0, _totalTrackDurationSec - _duration);
     _startSeconds = _startSeconds.clamp(0, maxStart.toInt());
 
@@ -335,16 +325,15 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
   }
 
   List<int> get _availableDurations {
-    if (_totalTrackDurationSec <= 15) {
-      return [_totalTrackDurationSec.toInt()];
-    } else if (_totalTrackDurationSec <= 30) {
-      return [15, _totalTrackDurationSec.toInt()];
-    } else if (_totalTrackDurationSec <= 60) {
-      return [15, 30, _totalTrackDurationSec.toInt()];
-    } else if (_totalTrackDurationSec <= 90) {
-      return [15, 30, 60, _totalTrackDurationSec.toInt()];
+    final total = _totalTrackDurationSec.toInt();
+    if (total <= 30) {
+      return [total];
+    } else if (total <= 60) {
+      return [30, total];
+    } else if (total <= 90) {
+      return [30, 60, total];
     } else {
-      return [15, 30, 60, 90];
+      return [30, 60, 90, total];
     }
   }
 
@@ -600,7 +589,9 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
                               : null,
                         ),
                         child: Text(
-                          '${dur}s',
+                          dur == _totalTrackDurationSec.toInt()
+                              ? 'Completa'
+                              : '${dur}s',
                           style: TextStyle(
                             fontFamily: 'CanvaSans',
                             fontSize: 12,

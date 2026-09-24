@@ -187,7 +187,7 @@ class _MusicSearchSheetState extends State<MusicSearchSheet>
               id,
               title: title,
               artist: artist,
-              forceFullTrack: false,
+              forceFullTrack: true,
             );
 
       if (url != null && url.isNotEmpty && mounted) {
@@ -246,15 +246,17 @@ class _MusicSearchSheetState extends State<MusicSearchSheet>
     final cleanId = song['id'].toString();
 
     final workingAudioUrl = (song['audioUrl'] != null &&
-            song['audioUrl'].toString().startsWith('http'))
+            song['audioUrl'].toString().startsWith('http') &&
+            !song['audioUrl'].toString().contains('googlevideo.com') &&
+            !song['audioUrl'].toString().contains('mzstatic.com') &&
+            !song['audioUrl'].toString().contains('deezer.com'))
         ? song['audioUrl'].toString()
         : null;
 
     final rawDur = song['duration'];
     final totalSec = (rawDur is int && rawDur > 0)
         ? rawDur
-        : (int.tryParse(rawDur?.toString() ?? '') ?? 180);
-    final autoHighlight = MusicService.calculateHighlightStart(totalSec);
+        : (int.tryParse(rawDur?.toString() ?? '') ?? 240);
 
     final trimmed = await InstagramAudioTrimmerSheet.show(
       context: context,
@@ -264,8 +266,8 @@ class _MusicSearchSheetState extends State<MusicSearchSheet>
       artist: song['artist'].toString(),
       thumbnail: song['thumbnail'].toString(),
       totalTrackSeconds: totalSec,
-      initialStartSeconds: autoHighlight,
-      initialDuration: 30,
+      initialStartSeconds: 0,
+      initialDuration: totalSec,
     );
 
     if (trimmed != null && mounted) {
@@ -275,8 +277,8 @@ class _MusicSearchSheetState extends State<MusicSearchSheet>
         'title': song['title'].toString(),
         'artist': song['artist'].toString(),
         'thumbnail': song['thumbnail'].toString(),
-        'startSeconds': trimmed['startSeconds'] ?? autoHighlight,
-        'duration': trimmed['duration'] ?? 30,
+        'startSeconds': trimmed['startSeconds'] ?? 0,
+        'duration': trimmed['duration'] ?? totalSec,
         'audioUrl': resolvedUrl,
       });
     }

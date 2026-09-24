@@ -21,7 +21,7 @@ class MusicPlayerPill extends StatefulWidget {
     required this.musicArtist,
     required this.musicThumbnail,
     required this.startSeconds,
-    this.duration = 30,
+    this.duration = 240,
   });
 
   @override
@@ -89,17 +89,11 @@ class _MusicPlayerPillState extends State<MusicPlayerPill>
         }
       });
 
-      String? url = await MusicService.getAudioStreamUrl(
+      final url = await MusicService.getAudioStreamUrl(
         widget.musicId,
         title: widget.musicTitle,
         artist: widget.musicArtist,
         forceFullTrack: true,
-      );
-
-      // Si no resolvió URL inicial, intentar fallback inmediato
-      url ??= await MusicService.getFallbackPreviewUrl(
-        title: widget.musicTitle,
-        artist: widget.musicArtist,
       );
 
       if (url != null && mounted) {
@@ -110,18 +104,8 @@ class _MusicPlayerPillState extends State<MusicPlayerPill>
           final loadedDuration = await _player.setAudioSource(audioSource);
           _setupLoopAndPlay(loadedDuration);
         } catch (srcErr) {
-          debugPrint('[MusicPlayerPill] Error cargando fuente principal, intentando fallback CDN: $srcErr');
-          final fallbackUrl = await MusicService.getFallbackPreviewUrl(
-            title: widget.musicTitle,
-            artist: widget.musicArtist,
-          );
-          if (fallbackUrl != null && mounted) {
-            final fbSource = await MusicService.createAudioSource(fallbackUrl);
-            final fbDur = await _player.setAudioSource(fbSource);
-            _setupLoopAndPlay(fbDur);
-          } else {
-            if (mounted) setState(() => _isLoading = false);
-          }
+          debugPrint('[MusicPlayerPill] Error cargando audio: $srcErr');
+          if (mounted) setState(() => _isLoading = false);
         }
       } else {
         if (mounted) {
@@ -139,17 +123,25 @@ class _MusicPlayerPillState extends State<MusicPlayerPill>
   void _setupLoopAndPlay(Duration? loadedDuration) async {
     final totalSec = (loadedDuration != null && loadedDuration.inSeconds > 0)
         ? loadedDuration.inSeconds
-        : 180;
+        : 240;
 
-    final safeDuration = widget.duration.clamp(5, totalSec);
     final safeStartSec = widget.startSeconds
-        .clamp(0, math.max(0, totalSec - safeDuration).toInt())
+        .clamp(0, math.max(0, totalSec - 5))
         .toInt();
+
+    // Las canciones se reproducen COMPLETAS (3 a 5 minutos) hasta el final de la pista.
+    // Si widget.duration viene en 30 (antiguo valor por defecto en Firestore) o <= 0,
+    // reproducimos la pista completa hasta el final sin cortes a los 29-30 segundos.
+    final bool isFullTrack = widget.duration <= 0 ||
+        widget.duration == 30 ||
+        widget.duration >= totalSec;
+
+    final playDuration = isFullTrack ? totalSec : widget.duration;
+    final endDurationSec = (safeStartSec + playDuration).clamp(5, totalSec);
 
     _player.positionStream.listen((pos) {
       final start = Duration(seconds: safeStartSec);
-      final end = Duration(
-          seconds: (safeStartSec + safeDuration).clamp(0, totalSec).toInt());
+      final end = Duration(seconds: endDurationSec);
       if (pos >= end || (loadedDuration != null && pos >= loadedDuration)) {
         _player.seek(start);
       }
