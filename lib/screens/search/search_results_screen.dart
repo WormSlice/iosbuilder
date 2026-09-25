@@ -413,24 +413,52 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
     }
 
     if (_results.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.search_off, size: 60, color: Colors.grey),
-            const SizedBox(height: 16),
-            const Text(
-              'Sin resultados',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, fontFamily: 'CanvaSans'),
+      return CustomScrollView(
+        slivers: [
+          SliverToBoxAdapter(
+            child: StreamBuilder<List<AdCampaign>>(
+              stream: FirestoreService().activeAdsStream(placement: 'search_top'),
+              builder: (context, snapshot) {
+                final ads = snapshot.data ?? [];
+                if (ads.isEmpty) return const SizedBox.shrink();
+                return Padding(
+                  padding: const EdgeInsets.only(top: 8, bottom: 4),
+                  child: ConnectAdCarousel(
+                    ads: ads,
+                    height: 110,
+                    margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  ),
+                );
+              },
             ),
-            const SizedBox(height: 8),
-            Text(
-              'No encontramos publicaciones para\n"${widget.query}"',
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.grey, fontFamily: 'CanvaSans'),
+          ),
+          SliverFillRemaining(
+            hasScrollBody: false,
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.search_off, size: 60, color: Colors.grey),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Sin resultados',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      fontFamily: 'CanvaSans',
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'No encontramos publicaciones para\n"${widget.query}"',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: Colors.grey, fontFamily: 'CanvaSans'),
+                  ),
+                ],
+              ),
             ),
-          ],
-        ),
+          ),
+        ],
       );
     }
 
@@ -445,9 +473,9 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
               if (ads.isEmpty) return const SizedBox.shrink();
               return Padding(
                 padding: const EdgeInsets.only(top: 8, bottom: 4),
-                child: ConnectAdBanner(
-                  ad: ads.first,
-                  compact: true,
+                child: ConnectAdCarousel(
+                  ads: ads,
+                  height: 110,
                   margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                 ),
               );

@@ -522,7 +522,10 @@ class FirestoreService {
       final list = snapshot.docs
           .map((doc) => AdCampaign.fromFirestore(doc))
           .where((ad) => ad.isActive)
-          .where((ad) => placement == null || ad.placement == placement)
+          .where((ad) {
+            if (placement == null || placement.isEmpty) return true;
+            return ad.placement == placement.toLowerCase().trim();
+          })
           .toList();
       return list;
     });

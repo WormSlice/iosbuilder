@@ -7,6 +7,9 @@ import '../../widgets/connect_title.dart';
 import 'search_results_screen.dart';
 import '../../services/location_service.dart';
 import '../../widgets/location_picker/location_bottom_sheet.dart';
+import '../../models/ad_campaign.dart';
+import '../../services/firestore_service.dart';
+import '../../widgets/connect_ad_banner.dart';
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
@@ -258,6 +261,23 @@ class _SearchScreenState extends State<SearchScreen> {
               ),
             ),
 
+            // Campaña o Anuncio Patrocinado Superior en Búsqueda (search_top)
+            StreamBuilder<List<AdCampaign>>(
+              stream: FirestoreService().activeAdsStream(placement: 'search_top'),
+              builder: (context, snapshot) {
+                final ads = snapshot.data ?? [];
+                if (ads.isEmpty) return const SizedBox.shrink();
+                return Padding(
+                  padding: const EdgeInsets.only(top: 2, bottom: 8),
+                  child: ConnectAdCarousel(
+                    ads: ads,
+                    height: 110,
+                    margin: EdgeInsets.zero,
+                  ),
+                );
+              },
+            ),
+
             // Recent searches
             if (_recentSearches.isNotEmpty) ...[
               Row(
@@ -385,56 +405,6 @@ class _SearchScreenState extends State<SearchScreen> {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildLocationIndicator() {
-    return GestureDetector(
-      onTap: _showLocationPicker,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          const Text(
-            'Ubicación actual',
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontWeight: FontWeight.w600,
-              fontSize: 16,
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: const Color(0xFF0094FF).withOpacity(0.1),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(
-                  Icons.location_on,
-                  size: 16,
-                  color: Color(0xFF0094FF),
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  _selectedLocation?.toLowerCase() == 'todo' ||
-                          _selectedLocation?.toLowerCase().contains('todo') ==
-                              true
-                      ? 'Todo'
-                      : '${_selectedLocation ?? 'Buscando...'} • ${LocationService().currentRadius.toInt()} KM',
-                  style: const TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF0094FF),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
       ),
     );
   }

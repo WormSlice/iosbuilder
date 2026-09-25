@@ -239,6 +239,20 @@ class _HomeScreenState extends State<HomeScreen> {
                       },
                     ),
                   ),
+                  if (isFiltered)
+                    SliverToBoxAdapter(
+                      child: StreamBuilder<List<AdCampaign>>(
+                        stream: _service.activeAdsStream(placement: 'explore_banner'),
+                        builder: (context, snapshot) {
+                          final ads = snapshot.data ?? [];
+                          if (ads.isEmpty) return const SizedBox.shrink();
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 4, bottom: 8),
+                            child: ConnectAdCarousel(ads: ads, height: 135),
+                          );
+                        },
+                      ),
+                    ),
                   if (!isFiltered) ...[
                     SliverToBoxAdapter(
                       child: _CategoryCarousel(
@@ -255,6 +269,20 @@ class _HomeScreenState extends State<HomeScreen> {
                         currentLocation: _selectedLocation,
                         onLocationTap: _showLocationPicker,
                         category: 'vehículos',
+                      ),
+                    ),
+                    // Intersticial entre secciones de categorías tempranas
+                    SliverToBoxAdapter(
+                      child: StreamBuilder<List<AdCampaign>>(
+                        stream: _service.activeAdsStream(placement: 'feed_interstitial'),
+                        builder: (context, snapshot) {
+                          final ads = snapshot.data ?? [];
+                          if (ads.isEmpty) return const SizedBox.shrink();
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            child: ConnectAdCarousel(ads: ads, height: 165),
+                          );
+                        },
                       ),
                     ),
                     SliverToBoxAdapter(
@@ -279,6 +307,20 @@ class _HomeScreenState extends State<HomeScreen> {
                         currentLocation: _selectedLocation,
                         onLocationTap: _showLocationPicker,
                         category: 'servicios',
+                      ),
+                    ),
+                    // Banner de Explorar entre categorías intermedias
+                    SliverToBoxAdapter(
+                      child: StreamBuilder<List<AdCampaign>>(
+                        stream: _service.activeAdsStream(placement: 'explore_banner'),
+                        builder: (context, snapshot) {
+                          final ads = snapshot.data ?? [];
+                          if (ads.isEmpty) return const SizedBox.shrink();
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            child: ConnectAdCarousel(ads: ads, height: 135),
+                          );
+                        },
                       ),
                     ),
                     SliverToBoxAdapter(
@@ -316,7 +358,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         if (ads.isEmpty) return const SizedBox.shrink();
                         return Padding(
                           padding: const EdgeInsets.symmetric(vertical: 4),
-                          child: ConnectAdBanner(ad: ads.first),
+                          child: ConnectAdCarousel(ads: ads, height: 165),
                         );
                       },
                     ),
@@ -387,66 +429,35 @@ class _HomeScreenState extends State<HomeScreen> {
                             icon: Icons.image_not_supported,
                           );
                         }
+                        if (docs.length <= 6) {
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 4),
+                            child: _buildPostGrid(docs, isFiltered),
+                          );
+                        }
+
+                        final firstBatch = docs.take(6).toList();
+                        final remainingBatch = docs.skip(6).toList();
+
                         return Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 4),
-                          child: GridView.builder(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            gridDelegate:
-                                const SliverGridDelegateWithFixedCrossAxisCount(
-                                  crossAxisCount: 2,
-                                  mainAxisSpacing: 4,
-                                  crossAxisSpacing: 4,
-                                  childAspectRatio: 0.8,
-                                ),
-                            itemCount: docs.length,
-                            itemBuilder: (context, i) {
-                              final d = docs[i].data();
-                              final String title =
-                                  (d['title'] ??
-                                          d['name'] ??
-                                          d['nombre'] ??
-                                          d['titulo'] ??
-                                          '')
-                                      .toString();
-                              final String price =
-                                  (d['price'] ?? d['precio'] ?? d['amount'] ?? '')
-                                      .toString();
-                              final String location =
-                                  (d['location'] ??
-                                          d['ubicacion'] ??
-                                          d['ubicación'] ??
-                                          d['city'] ??
-                                          d['address'] ??
-                                          '')
-                                      .toString();
-                              String? image =
-                                  (d['imageUrl'] ??
-                                          d['image'] ??
-                                          d['coverUrl'] ??
-                                          d['portada'] ??
-                                          d['foto'] ??
-                                          d['thumbnail'])
-                                      ?.toString();
-                              if (image == null) {
-                                final images = d['images'];
-                                if (images is List && images.isNotEmpty) {
-                                  final first = images.first;
-                                  if (first is String) image = first;
-                                }
-                              }
-                              return PostCard(
-                                imageUrl: image,
-                                title: title,
-                                price: price,
-                                location: location,
-                                postId: docs[i].id,
-                                userId: (d['userId'] ?? d['uid']).toString(),
-                                data: d,
-                                showCategoryIcons: !isFiltered,
-                                isLargeCard: true,
-                              );
-                            },
+                          child: Column(
+                            children: [
+                              _buildPostGrid(firstBatch, isFiltered),
+                              // Campaña Intersticial insertada en el flujo del feed
+                              StreamBuilder<List<AdCampaign>>(
+                                stream: _service.activeAdsStream(placement: 'feed_interstitial'),
+                                builder: (context, snapshot) {
+                                  final ads = snapshot.data ?? [];
+                                  if (ads.isEmpty) return const SizedBox.shrink();
+                                  return Padding(
+                                    padding: const EdgeInsets.symmetric(vertical: 8),
+                                    child: ConnectAdCarousel(ads: ads, height: 165),
+                                  );
+                                },
+                              ),
+                              _buildPostGrid(remainingBatch, isFiltered),
+                            ],
                           ),
                         );
                       },
@@ -462,6 +473,66 @@ class _HomeScreenState extends State<HomeScreen> {
     ),
   );
 }
+
+  Widget _buildPostGrid(
+    List<QueryDocumentSnapshot<Map<String, dynamic>>> postDocs,
+    bool isFiltered,
+  ) {
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        mainAxisSpacing: 4,
+        crossAxisSpacing: 4,
+        childAspectRatio: 0.8,
+      ),
+      itemCount: postDocs.length,
+      itemBuilder: (context, i) {
+        final d = postDocs[i].data();
+        final String title = (d['title'] ??
+                d['name'] ??
+                d['nombre'] ??
+                d['titulo'] ??
+                '')
+            .toString();
+        final String price =
+            (d['price'] ?? d['precio'] ?? d['amount'] ?? '').toString();
+        final String location = (d['location'] ??
+                d['ubicacion'] ??
+                d['ubicación'] ??
+                d['city'] ??
+                d['address'] ??
+                '')
+            .toString();
+        String? image = (d['imageUrl'] ??
+                d['image'] ??
+                d['coverUrl'] ??
+                d['portada'] ??
+                d['foto'] ??
+                d['thumbnail'])
+            ?.toString();
+        if (image == null) {
+          final images = d['images'];
+          if (images is List && images.isNotEmpty) {
+            final first = images.first;
+            if (first is String) image = first;
+          }
+        }
+        return PostCard(
+          imageUrl: image,
+          title: title,
+          price: price,
+          location: location,
+          postId: postDocs[i].id,
+          userId: (d['userId'] ?? d['uid']).toString(),
+          data: d,
+          showCategoryIcons: !isFiltered,
+          isLargeCard: true,
+        );
+      },
+    );
+  }
 }
 
 class _CategoryCarousel extends StatefulWidget {

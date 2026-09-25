@@ -12,6 +12,8 @@ import 'widgets/want_card.dart';
 import 'widgets/publish_want_panel.dart';
 import 'want_detail_screen.dart';
 import '../../widgets/location_picker/location_bottom_sheet.dart';
+import '../../models/ad_campaign.dart';
+import '../../widgets/connect_ad_banner.dart';
 
 class WantsScreen extends StatefulWidget {
   const WantsScreen({super.key});
@@ -447,6 +449,21 @@ class _WantsScreenState extends State<WantsScreen>
                             ),
                           );
                         }).toList(),
+                      ),
+                    );
+                  },
+                ),
+                // Banners y Campañas Publicitarias de Explorar (explore_banner)
+                StreamBuilder<List<AdCampaign>>(
+                  stream: _service.activeAdsStream(placement: 'explore_banner'),
+                  builder: (context, snapshot) {
+                    final ads = snapshot.data ?? [];
+                    if (ads.isEmpty) return const SizedBox.shrink();
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 6, bottom: 6),
+                      child: ConnectAdCarousel(
+                        ads: ads,
+                        height: 125,
                       ),
                     );
                   },

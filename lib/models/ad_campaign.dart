@@ -25,7 +25,11 @@ class AdCampaign {
     this.createdAt,
   });
 
-  bool get isActive => status == 'active';
+  bool get isActive =>
+      status == 'active' ||
+      status == 'activa' ||
+      status == 'enabled' ||
+      status == 'publicado';
 
   factory AdCampaign.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>? ?? {};
@@ -37,14 +41,54 @@ class AdCampaign {
       created = DateTime.tryParse(rawDate);
     }
 
+    final rawPlacement = (data['placement'] ??
+            data['ubicacion'] ??
+            data['location'] ??
+            data['position'] ??
+            'home_top')
+        .toString()
+        .toLowerCase()
+        .trim();
+
+    String placement = 'home_top';
+    if (rawPlacement == 'feed_interstitial' ||
+        rawPlacement.contains('feed') ||
+        rawPlacement.contains('interstitial') ||
+        rawPlacement.contains('intersticial')) {
+      placement = 'feed_interstitial';
+    } else if (rawPlacement == 'explore_banner' ||
+        rawPlacement.contains('explore') ||
+        rawPlacement.contains('explorar')) {
+      placement = 'explore_banner';
+    } else if (rawPlacement == 'search_top' ||
+        rawPlacement.contains('search') ||
+        rawPlacement.contains('busqueda') ||
+        rawPlacement.contains('búsqueda') ||
+        rawPlacement.contains('patrocinad')) {
+      placement = 'search_top';
+    } else if (rawPlacement == 'home_top' ||
+        rawPlacement.contains('home') ||
+        rawPlacement.contains('superior')) {
+      placement = 'home_top';
+    }
+
+    final rawStatus =
+        (data['status'] ?? 'active').toString().toLowerCase().trim();
+
     return AdCampaign(
       id: doc.id,
       title: data['title']?.toString() ?? '',
-      client: data['client']?.toString() ?? data['sponsor']?.toString() ?? 'Patrocinador',
-      imageUrl: data['imageUrl']?.toString() ?? data['image']?.toString() ?? '',
-      linkUrl: data['linkUrl']?.toString() ?? data['targetUrl']?.toString() ?? data['link']?.toString() ?? '',
-      placement: data['placement']?.toString() ?? 'home_top',
-      status: data['status']?.toString() ?? 'active',
+      client: data['client']?.toString() ??
+          data['sponsor']?.toString() ??
+          'Patrocinador',
+      imageUrl:
+          data['imageUrl']?.toString() ?? data['image']?.toString() ?? '',
+      linkUrl: data['linkUrl']?.toString() ??
+          data['targetUrl']?.toString() ??
+          data['link']?.toString() ??
+          '',
+      placement: placement,
+      status: rawStatus,
       clicks: (data['clicks'] as num?)?.toInt() ?? 0,
       impressions: (data['impressions'] as num?)?.toInt() ?? 0,
       createdAt: created,
