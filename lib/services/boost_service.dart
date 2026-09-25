@@ -106,6 +106,106 @@ class BoostService extends ChangeNotifier {
     return false;
   }
 
+  // Caché de sesión para evitar duplicar conteos en scrolls rápidos
+  final Set<String> _impressionTrackedPosts = {};
+  final Set<String> _detailViewTrackedPosts = {};
+
+  /// Registra 100% en tiempo real una impresión externa (el usuario vio la publicación en feed, explorar o búsquedas)
+  void trackPostImpression(String? pId, [String? bId]) async {
+    if (pId == null || pId.isEmpty) return;
+    if (_impressionTrackedPosts.contains(pId)) return;
+    _impressionTrackedPosts.add(pId);
+
+    try {
+      final isBoosted = isPostBoosted(pId, null);
+      if (!isBoosted) return;
+
+      // Incrementar estadísticas en la colección de impulsos
+      final boostQuery = await FirebaseFirestore.instance
+          .collection('boosts')
+          .where('postId', isEqualTo: pId)
+          .where('status', isEqualTo: 'active')
+          .limit(1)
+          .get();
+
+      if (boostQuery.docs.isNotEmpty) {
+        final bDoc = boostQuery.docs.first.reference;
+        await bDoc.update({
+          'impressions': FieldValue.increment(1),
+          'lastImpressionAt': FieldValue.serverTimestamp(),
+        }).catchError((_) {});
+      }
+
+      // También registrar en la publicación para redundancia analítica
+      await FirebaseFirestore.instance
+          .collection('publications')
+          .doc(pId)
+          .update({
+        'boost_impressions': FieldValue.increment(1),
+      }).catchError((_) {});
+    } catch (e) {
+      debugPrint('[BoostService] Error registrando impresión: $e');
+    }
+  }
+
+  /// Registra 100% en tiempo real una visita al detalle (el usuario entró a ver la publicación)
+  void trackPostDetailView(String? pId, [String? bId, String? ownerId]) async {
+    if (pId == null || pId.isEmpty) return;
+    if (_detailViewTrackedPosts.contains(pId)) return;
+    _detailViewTrackedPosts.add(pId);
+
+    try {
+      final isBoosted = isPostBoosted(pId, null);
+      if (!isBoosted) return;
+
+      // Incrementar estadísticas en la colección de impulsos
+      final boostQuery = await FirebaseFirestore.instance
+          .collection('boosts')
+          .where('postId', isEqualTo: pId)
+          .where('status', isEqualTo: 'active')
+          .limit(1)
+          .get();
+
+      if (boostQuery.docs.isNotEmpty) {
+        final bDoc = boostQuery.docs.first.reference;
+        await bDoc.update({
+          'detailViews': FieldValue.increment(1),
+          'lastDetailViewAt': FieldValue.serverTimestamp(),
+        }).catchError((_) {});
+      }
+
+      // También registrar en la publicación para redundancia analítica
+      await FirebaseFirestore.instance
+          .collection('publications')
+          .doc(pId)
+          .update({
+        'boost_detail_views': FieldValue.increment(1),
+      }).catchError((_) {});
+    } catch (e) {
+      debugPrint('[BoostService] Error registrando visita al detalle: $e');
+    }
+  }
+
+  /// Obtiene los datos del impulso activo para una publicación
+  Future<Map<String, dynamic>?> getActiveBoostData(String pId) async {
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('boosts')
+          .where('postId', isEqualTo: pId)
+          .where('status', isEqualTo: 'active')
+          .orderBy('createdAt', descending: true)
+          .limit(1)
+          .get();
+
+      if (snap.docs.isNotEmpty) {
+        return snap.docs.first.data();
+      }
+    } catch (e) {
+      debugPrint('[BoostService] Error obteniendo datos del impulso: $e');
+    }
+    return null;
+  }
+
   @override
   void dispose() {
     _subscription?.cancel();

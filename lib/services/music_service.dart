@@ -50,6 +50,37 @@ class MusicService {
     return AudioSource.uri(uri);
   }
 
+  /// Genera una URL de carátula directa, ultrarrápida y 100% libre de restricciones
+  /// utilizando el CDN oficial de YouTube (i.ytimg.com) para evitar fallos de CORS o proxies.
+  static String getCleanThumbnail(String? videoId, [String? rawThumbnail]) {
+    final cleanId = (videoId ?? '').trim();
+    if (cleanId.length == 11 && !cleanId.contains(' ') && !cleanId.contains('/') && !cleanId.contains('.')) {
+      return 'https://i.ytimg.com/vi/$cleanId/hqdefault.jpg';
+    }
+
+    final raw = (rawThumbnail ?? '').trim();
+    if (raw.isNotEmpty) {
+      final viMatch = RegExp(r'/vi/([a-zA-Z0-9_-]{11})/').firstMatch(raw);
+      if (viMatch != null) {
+        return 'https://i.ytimg.com/vi/${viMatch.group(1)}/hqdefault.jpg';
+      }
+      if (raw.startsWith('/vi/')) {
+        final parts = raw.split('/');
+        if (parts.length >= 3 && parts[2].length == 11) {
+          return 'https://i.ytimg.com/vi/${parts[2]}/hqdefault.jpg';
+        }
+      }
+      if (raw.startsWith('http')) {
+        if (raw.contains('img.youtube.com')) {
+          return raw.replaceAll('img.youtube.com', 'i.ytimg.com');
+        }
+        return raw;
+      }
+    }
+
+    return 'https://i.ytimg.com/vi/QCZZwZQ4qNs/hqdefault.jpg';
+  }
+
   /// Calcula automáticamente el punto donde empieza el fragmento más destacado (estribillo / coro)
   static int calculateHighlightStart(int durationSec) {
     if (durationSec <= 30) return 0;
@@ -291,13 +322,7 @@ class MusicService {
               final rawSeconds = item['lengthSeconds'] as num? ?? 210;
               final durSec = rawSeconds.toInt();
 
-              String thumb = 'https://img.youtube.com/vi/$videoId/hqdefault.jpg';
-              if (item['videoThumbnails'] is List && (item['videoThumbnails'] as List).isNotEmpty) {
-                final firstThumb = item['videoThumbnails'][0];
-                if (firstThumb is Map && firstThumb['url'] != null) {
-                  thumb = firstThumb['url'].toString();
-                }
-              }
+              final String thumb = getCleanThumbnail(videoId, item['thumbnail']?.toString());
 
               if (videoId.length == 11 && title.isNotEmpty) {
                 list.add({

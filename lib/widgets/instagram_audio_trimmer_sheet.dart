@@ -550,11 +550,10 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(26),
                               child: CachedNetworkImage(
-                                imageUrl: (widget.thumbnail.isNotEmpty && widget.thumbnail.startsWith('http'))
-                                    ? widget.thumbnail
-                                    : (widget.musicId.length == 11 && !widget.musicId.contains(' ')
-                                        ? 'https://img.youtube.com/vi/${widget.musicId}/hqdefault.jpg'
-                                        : 'https://img.youtube.com/vi/QCZZwZQ4qNs/hqdefault.jpg'),
+                                imageUrl: MusicService.getCleanThumbnail(
+                                  widget.musicId,
+                                  widget.thumbnail,
+                                ),
                                 width: 52,
                                 height: 52,
                                 fit: BoxFit.cover,
@@ -565,13 +564,32 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
                                   child: const Icon(Icons.music_note,
                                       color: Color(0xFF0094FF)),
                                 ),
-                                errorWidget: (_, _, _) => Container(
-                                  width: 52,
-                                  height: 52,
-                                  color: const Color(0xFF1E293B),
-                                  child: const Icon(Icons.music_note,
-                                      color: Color(0xFF0094FF)),
-                                ),
+                                errorWidget: (_, url, _) {
+                                  final cleanId = widget.musicId.trim();
+                                  final fallbackUrl = 'https://i.ytimg.com/vi/$cleanId/mqdefault.jpg';
+                                  if (url != fallbackUrl && cleanId.length == 11) {
+                                    return CachedNetworkImage(
+                                      imageUrl: fallbackUrl,
+                                      width: 52,
+                                      height: 52,
+                                      fit: BoxFit.cover,
+                                      errorWidget: (_, __, ___) => Container(
+                                        width: 52,
+                                        height: 52,
+                                        color: const Color(0xFF1E293B),
+                                        child: const Icon(Icons.music_note,
+                                            color: Color(0xFF0094FF)),
+                                      ),
+                                    );
+                                  }
+                                  return Container(
+                                    width: 52,
+                                    height: 52,
+                                    color: const Color(0xFF1E293B),
+                                    child: const Icon(Icons.music_note,
+                                        color: Color(0xFF0094FF)),
+                                  );
+                                },
                               ),
                             ),
                           ),

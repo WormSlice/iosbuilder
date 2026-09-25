@@ -57,6 +57,8 @@ class _BoostConfigurationScreenState extends State<BoostConfigurationScreen> {
         'targetAgeMin': _ageRange.start.toInt(),
         'targetAgeMax': _ageRange.end.toInt(),
         'targetRadiusKm': _radius,
+        'impressions': 0,
+        'detailViews': 0,
         'status': 'active',
         'createdAt': FieldValue.serverTimestamp(),
         'expiresAt': Timestamp.fromDate(expiresAt),
@@ -66,6 +68,12 @@ class _BoostConfigurationScreenState extends State<BoostConfigurationScreen> {
 
       try {
         await FirebaseFirestore.instance.collection('posts').doc(widget.postId).set({
+          'is_boosted': true,
+          'boost_id': boostRef.id,
+          'boost_expires_at': Timestamp.fromDate(expiresAt),
+        }, SetOptions(merge: true));
+
+        await FirebaseFirestore.instance.collection('publications').doc(widget.postId).set({
           'is_boosted': true,
           'boost_id': boostRef.id,
           'boost_expires_at': Timestamp.fromDate(expiresAt),

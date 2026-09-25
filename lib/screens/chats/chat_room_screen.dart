@@ -443,6 +443,29 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
           final List parts = chatData['participants'];
           peerId = parts.firstWhere((p) => p != currentUid, orElse: () => null);
         }
+        if (peerId == null && chatData['users'] is List) {
+          final List parts = chatData['users'];
+          peerId = parts.firstWhere((p) => p != currentUid, orElse: () => null);
+        }
+        if (peerId == null && chatData['members'] is List) {
+          final List parts = chatData['members'];
+          peerId = parts.firstWhere((p) => p != currentUid, orElse: () => null);
+        }
+        if (peerId == null) {
+          final sId = chatData['sellerId']?.toString();
+          final bId = chatData['buyerId']?.toString();
+          if (sId != null && sId != currentUid && sId.isNotEmpty) {
+            peerId = sId;
+          } else if (bId != null && bId != currentUid && bId.isNotEmpty) {
+            peerId = bId;
+          }
+        }
+        if (peerId == null && pubData != null) {
+          final pUid = (pubData['userId'] ?? pubData['ownerId'] ?? pubData['uid'])?.toString();
+          if (pUid != null && pUid != currentUid && pUid.isNotEmpty) {
+            peerId = pUid;
+          }
+        }
 
         return StreamBuilder<DocumentSnapshot>(
           stream: peerId != null
@@ -1409,13 +1432,52 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     required String? peerAvatar,
     required bool isVideoCall,
   }) async {
-    if (peerId == null) return;
+    if (peerId == null || peerId.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No se pudo identificar al usuario para la llamada.'),
+            backgroundColor: Colors.black87,
+          ),
+        );
+      }
+      return;
+    }
+
+    // Solicitar permiso de micrófono (y cámara si es videollamada) antes de proceder
+    final micStatus = await Permission.microphone.request();
+    if (!micStatus.isGranted) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Se requiere acceso al micrófono para realizar la llamada.'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+      return;
+    }
+
+    if (isVideoCall) {
+      final camStatus = await Permission.camera.request();
+      if (!camStatus.isGranted) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Se requiere acceso a la cámara para la videollamada.'),
+              backgroundColor: Colors.redAccent,
+            ),
+          );
+        }
+        return;
+      }
+    }
 
     // Check if there is an active call minimized
     if (SignalingService().isCallActive &&
         SignalingService().activeCallId != null) {
-      if (context.mounted) {
-        App.navigatorKey.currentState?.push(
+      if (mounted) {
+        Navigator.of(context).push(
           MaterialPageRoute(
             builder: (_) => CallScreen(
               channelId: widget.chatId,
@@ -1457,8 +1519,28 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
 
     final callId = docRef.id;
 
-    if (context.mounted) {
-      App.navigatorKey.currentState?.push(
+    // Disparar notificación push para que al receptor le timbre/avise incluso fuera de la app
+    try {
+      await MessagingService.sendNotificationToUser(
+        recipientUid: peerId,
+        title: '📞 Llamada entrante de $callerName',
+        body: isVideoCall ? 'Videollamada en CONNECT...' : 'Llamada de voz en CONNECT...',
+        data: {
+          'type': 'call',
+          'callId': callId,
+          'chatId': widget.chatId,
+          'callerId': callerId,
+          'callerName': callerName,
+          'callerAvatar': callerAvatar ?? '',
+          'isVideoCall': isVideoCall,
+        },
+      );
+    } catch (e) {
+      debugPrint('[ChatRoomScreen] Error enviando notificación de llamada: $e');
+    }
+
+    if (mounted) {
+      Navigator.of(context).push(
         MaterialPageRoute(
           builder: (_) => CallScreen(
             channelId: widget.chatId,

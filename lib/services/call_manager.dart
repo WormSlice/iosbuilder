@@ -15,6 +15,8 @@ class CallManager {
 
   StreamSubscription? _callSubscription;
   bool _isShowingNotification = false;
+  OverlaySupportEntry? _currentOverlayEntry;
+  Timer? _ringtoneLoopTimer;
 
   void init(BuildContext context) {
     final uid = FirebaseAuth.instance.currentUser?.uid;
@@ -24,16 +26,18 @@ class CallManager {
     _callSubscription = FirebaseFirestore.instance
         .collection('calls')
         .where('receiverId', isEqualTo: uid)
-        .where(
-          'status',
-          whereIn: ['calling', 'ringing', 'ended', 'declined'],
-        ) // Escuchar estados relevantes
         .snapshots()
         .listen((snapshot) {
           for (var change in snapshot.docChanges) {
-            final data = change.doc.data() as Map<String, dynamic>;
-            final status = data['status'];
+            final data = change.doc.data();
+            final status = data?['status']?.toString();
             final callId = change.doc.id;
+
+            if (change.type == DocumentChangeType.removed) {
+              print('DEBUG: [CallManager] Call document removed by caller: $callId');
+              _dismissNotification();
+              continue;
+            }
 
             if (change.type == DocumentChangeType.added ||
                 change.type == DocumentChangeType.modified) {
@@ -43,40 +47,62 @@ class CallManager {
                 FirebaseFirestore.instance
                     .collection('calls')
                     .doc(callId)
-                    .update({'status': 'ringing'});
+                    .update({'status': 'ringing'}).catchError((_) {});
 
                 _playRingtone();
-                _showIncomingCallNotification(context, callId, data);
+                if (data != null) {
+                  _showIncomingCallNotification(context, callId, data);
+                }
               } else if (status == 'ended' ||
                   status == 'declined' ||
+                  status == 'cancelled' ||
+                  status == 'rejected' ||
                   status == 'finished') {
-                print(
-                  'DEBUG: [CallManager] Call terminated, stopping ringtone',
-                );
-                _stopRingtone();
-                if (_isShowingNotification) {
-                  OverlaySupportEntry.of(context)?.dismiss();
-                  _isShowingNotification = false;
-                }
+                print('DEBUG: [CallManager] Call terminated with status $status, dismissing banner');
+                _dismissNotification();
               }
             }
+          }
+
+          // Si ya no existe ninguna llamada con estado calling o ringing en la colección, limpiar overlay
+          final activeCallingDocs = snapshot.docs.where((d) {
+            final st = (d.data())['status']?.toString();
+            return st == 'calling' || st == 'ringing';
+          });
+          if (activeCallingDocs.isEmpty && _isShowingNotification) {
+            print('DEBUG: [CallManager] No active calling documents, dismissing notification');
+            _dismissNotification();
           }
         });
   }
 
+  void _dismissNotification() {
+    _currentOverlayEntry?.dismiss();
+    _currentOverlayEntry = null;
+    _isShowingNotification = false;
+    _stopRingtone();
+  }
+
   void _playRingtone() {
-    print('DEBUG: [CallManager] Playing ringtone for receiver');
+    print('DEBUG: [CallManager] Playing looping ringtone for receiver');
+    _ringtoneLoopTimer?.cancel();
     FlutterRingtonePlayer().playRingtone(looping: true, asAlarm: true);
+    // Timer para asegurar repetición continua tanto en iOS como en Android
+    _ringtoneLoopTimer = Timer.periodic(const Duration(milliseconds: 2500), (_) {
+      FlutterRingtonePlayer().playRingtone(looping: true, asAlarm: true);
+    });
   }
 
   void _stopRingtone() {
     print('DEBUG: [CallManager] Stopping ringtone');
+    _ringtoneLoopTimer?.cancel();
+    _ringtoneLoopTimer = null;
     FlutterRingtonePlayer().stop();
   }
 
   void dispose() {
     _callSubscription?.cancel();
-    _stopRingtone();
+    _dismissNotification();
   }
 
   void _showIncomingCallNotification(
@@ -91,7 +117,7 @@ class CallManager {
     final String? callerAvatar = data['callerAvatar'];
     final String channelId = data['chatId'] ?? callId;
 
-    showOverlayNotification((context) {
+    _currentOverlayEntry = showOverlayNotification((overlayContext) {
       return Card(
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 40),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -135,33 +161,27 @@ class CallManager {
               IconButton(
                 icon: const Icon(Icons.call_end, color: Colors.red),
                 onPressed: () async {
-                  OverlaySupportEntry.of(context)?.dismiss();
-                  _isShowingNotification = false;
-                  _stopRingtone();
+                  _dismissNotification();
                   await FirebaseFirestore.instance
                       .collection('calls')
                       .doc(callId)
-                      .update({'status': 'declined'});
+                      .update({'status': 'declined'}).catchError((_) {});
                 },
               ),
               IconButton(
                 icon: const Icon(Icons.call, color: Colors.green),
                 onPressed: () async {
                   debugPrint('DEBUG: Accept button pressed for call $callId');
-                  OverlaySupportEntry.of(context)?.dismiss();
-                  _isShowingNotification = false;
-                  _stopRingtone();
+                  _dismissNotification();
 
                   try {
                     debugPrint(
                       'DEBUG: Updating call document to accepted: $callId',
                     );
-                    // Use SignalingService update method for consistency if available,
-                    // or just direct update.
                     await FirebaseFirestore.instance
                         .collection('calls')
                         .doc(callId)
-                        .update({'status': 'accepted'});
+                        .update({'status': 'accepted'}).catchError((_) {});
 
                     debugPrint(
                       'DEBUG: Call document updated. Navigating to CallScreen for $channelId',
@@ -186,6 +206,6 @@ class CallManager {
           ),
         ),
       );
-    }, duration: const Duration(seconds: 30));
+    }, duration: const Duration(seconds: 45));
   }
 }

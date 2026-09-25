@@ -286,6 +286,9 @@ class SignalingService {
     if (roomId != null) {
       var db = FirebaseFirestore.instance;
       var roomRef = db.collection('calls').doc(roomId);
+      // Actualizar a ended primero para que el receptor cierre inmediatamente la barra y el ringtone
+      await roomRef.update({'status': 'ended'}).catchError((_) {});
+
       var calleeCandidates = await roomRef.collection('calleeCandidates').get();
       for (var document in calleeCandidates.docs) {
         document.reference.delete();

@@ -384,11 +384,10 @@ class _MusicSearchSheetState extends State<MusicSearchSheet>
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(10),
                               child: CachedNetworkImage(
-                                imageUrl: (song['thumbnail'] != null && song['thumbnail'].toString().startsWith('http'))
-                                    ? song['thumbnail'].toString()
-                                    : (song['id'] != null && song['id'].toString().length == 11 && !song['id'].toString().contains(' ')
-                                        ? 'https://img.youtube.com/vi/${song['id']}/hqdefault.jpg'
-                                        : 'https://img.youtube.com/vi/QCZZwZQ4qNs/hqdefault.jpg'),
+                                imageUrl: MusicService.getCleanThumbnail(
+                                  song['id']?.toString(),
+                                  song['thumbnail']?.toString(),
+                                ),
                                 width: 50,
                                 height: 50,
                                 fit: BoxFit.cover,
@@ -397,12 +396,28 @@ class _MusicSearchSheetState extends State<MusicSearchSheet>
                                   child: const Icon(Icons.music_note,
                                       color: Color(0xFF0094FF), size: 22),
                                 ),
-                                errorWidget: (context, url, error) =>
-                                    Container(
-                                  color: const Color(0xFF1E293B),
-                                  child: const Icon(Icons.music_note,
-                                      color: Color(0xFF0094FF), size: 22),
-                                ),
+                                errorWidget: (context, url, error) {
+                                  final cleanId = (song['id'] ?? '').toString().trim();
+                                  final fallbackUrl = 'https://i.ytimg.com/vi/$cleanId/mqdefault.jpg';
+                                  if (url != fallbackUrl && cleanId.length == 11) {
+                                    return CachedNetworkImage(
+                                      imageUrl: fallbackUrl,
+                                      width: 50,
+                                      height: 50,
+                                      fit: BoxFit.cover,
+                                      errorWidget: (_, __, ___) => Container(
+                                        color: const Color(0xFF1E293B),
+                                        child: const Icon(Icons.music_note,
+                                            color: Color(0xFF0094FF), size: 22),
+                                      ),
+                                    );
+                                  }
+                                  return Container(
+                                    color: const Color(0xFF1E293B),
+                                    child: const Icon(Icons.music_note,
+                                        color: Color(0xFF0094FF), size: 22),
+                                  );
+                                },
                               ),
                             ),
                           ),

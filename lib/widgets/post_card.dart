@@ -117,8 +117,15 @@ class PostCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (postId != null) {
+      BoostService().trackPostImpression(postId);
+    }
+
     return GestureDetector(
       onTap: () {
+        if (postId != null) {
+          BoostService().trackPostDetailView(postId, null, userId);
+        }
         if (data == null || postId == null) return;
         final category = data!['category']?.toString().toLowerCase() ?? '';
 

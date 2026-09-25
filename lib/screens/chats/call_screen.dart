@@ -265,16 +265,20 @@ class _CallScreenState extends State<CallScreen> {
     _stopSounds(); // Ensure no double sounds
     if (isCaller) {
       print('DEBUG: [CallScreen] Playing dial tone (caller)');
-      // Simular un ringback tone (tono de marcado) que suena una vez cada X segundos, no en bucle infinito
+      // Tono de timbrado continuo para el emisor de la llamada
       FlutterRingtonePlayer().play(
-        android: AndroidSounds.notification,
-        ios: IosSounds.glass,
+        android: AndroidSounds.ringtone,
+        ios: IosSounds.electronic,
+        looping: false,
+        asAlarm: false,
       );
       _ringbackTimer?.cancel();
-      _ringbackTimer = Timer.periodic(const Duration(seconds: 4), (timer) {
+      _ringbackTimer = Timer.periodic(const Duration(milliseconds: 3200), (timer) {
         FlutterRingtonePlayer().play(
-          android: AndroidSounds.notification,
-          ios: IosSounds.glass,
+          android: AndroidSounds.ringtone,
+          ios: IosSounds.electronic,
+          looping: false,
+          asAlarm: false,
         );
       });
     } else {

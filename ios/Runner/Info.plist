@@ -46,7 +46,7 @@
 	<key>NSCameraUsageDescription</key>
 	<string>Necesitamos acceso a tu cámara para tomar y enviar fotos.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Esta aplicación necesita acceso al micrófono para grabar y enviar mensajes de voz en el chat.</string>
+	<string>Esta aplicación necesita acceso al micrófono para llamadas de audio y voz en el chat.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Necesitamos acceso a tu galería para enviar fotos.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
@@ -85,6 +85,8 @@
 	</dict>
 	<key>UIBackgroundModes</key>
 	<array>
+		<string>audio</string>
+		<string>voip</string>
 		<string>fetch</string>
 		<string>remote-notification</string>
 	</array>

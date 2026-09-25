@@ -522,11 +522,10 @@ class _MusicPlayerPillState extends State<MusicPlayerPill>
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(activePlaying ? 14 : 5),
                           child: CachedNetworkImage(
-                            imageUrl: (widget.musicThumbnail.isNotEmpty && widget.musicThumbnail.startsWith('http'))
-                                ? widget.musicThumbnail
-                                : (widget.musicId.length == 11 && !widget.musicId.contains(' ')
-                                    ? 'https://img.youtube.com/vi/${widget.musicId}/hqdefault.jpg'
-                                    : 'https://img.youtube.com/vi/QCZZwZQ4qNs/hqdefault.jpg'),
+                            imageUrl: MusicService.getCleanThumbnail(
+                              widget.musicId,
+                              widget.musicThumbnail,
+                            ),
                             width: 28,
                             height: 28,
                             fit: BoxFit.cover,
@@ -535,11 +534,28 @@ class _MusicPlayerPillState extends State<MusicPlayerPill>
                               child: const Icon(Icons.music_note,
                                   color: Color(0xFF0094FF), size: 14),
                             ),
-                            errorWidget: (context, url, error) => Container(
-                              color: const Color(0xFF1E293B),
-                              child: const Icon(Icons.music_note,
-                                  color: Color(0xFF0094FF), size: 14),
-                            ),
+                            errorWidget: (context, url, error) {
+                              final cleanId = widget.musicId.trim();
+                              final fallbackUrl = 'https://i.ytimg.com/vi/$cleanId/mqdefault.jpg';
+                              if (url != fallbackUrl && cleanId.length == 11) {
+                                return CachedNetworkImage(
+                                  imageUrl: fallbackUrl,
+                                  width: 28,
+                                  height: 28,
+                                  fit: BoxFit.cover,
+                                  errorWidget: (_, __, ___) => Container(
+                                    color: const Color(0xFF1E293B),
+                                    child: const Icon(Icons.music_note,
+                                        color: Color(0xFF0094FF), size: 14),
+                                  ),
+                                );
+                              }
+                              return Container(
+                                color: const Color(0xFF1E293B),
+                                child: const Icon(Icons.music_note,
+                                    color: Color(0xFF0094FF), size: 14),
+                              );
+                            },
                           ),
                         ),
                       );
