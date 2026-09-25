@@ -16,10 +16,12 @@ import {
     Eye,
     Globe,
     Layers,
-    Layout,
-    Sparkles
+    Sparkles,
+    Upload,
+    Loader2
 } from 'lucide-react';
-import { db } from '../services/firebase';
+import { db, storage } from '../services/firebase';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import {
     collection,
     getDocs,
@@ -62,6 +64,38 @@ export const Ads: React.FC = () => {
     const [formLinkUrl, setFormLinkUrl] = useState('');
     const [formPlacement, setFormPlacement] = useState<AdCampaign['placement']>('home_top');
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isUploadingImage, setIsUploadingImage] = useState(false);
+
+    const handleImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        if (!file.type.startsWith('image/')) {
+            toast.error('Por favor selecciona un archivo de imagen válido');
+            return;
+        }
+
+        if (file.size > 8 * 1024 * 1024) {
+            toast.error('La imagen no debe superar los 8MB');
+            return;
+        }
+
+        setIsUploadingImage(true);
+        const toastId = toast.loading('Subiendo imagen a Firebase Storage...');
+        try {
+            const fileExt = file.name.split('.').pop() || 'jpg';
+            const storageRef = ref(storage, `ads/${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`);
+            const snapshot = await uploadBytes(storageRef, file);
+            const downloadUrl = await getDownloadURL(snapshot.ref);
+            setFormImageUrl(downloadUrl);
+            toast.success('¡Imagen subida exitosamente!', { id: toastId });
+        } catch (err: any) {
+            console.error('Error uploading ad image:', err);
+            toast.error(`Error al subir imagen: ${err.message || 'Error desconocido'}`, { id: toastId });
+        } finally {
+            setIsUploadingImage(false);
+        }
+    };
 
     const fetchAds = async () => {
         setLoading(true);
@@ -490,17 +524,40 @@ export const Ads: React.FC = () => {
                                 </div>
 
                                 <div>
-                                    <label className="block text-xs font-bold text-zinc-700 mb-1">
-                                        URL de la Imagen / Banner <span className="text-red-500">*</span>
-                                    </label>
-                                    <input
-                                        type="url"
-                                        required
-                                        value={formImageUrl}
-                                        onChange={(e) => setFormImageUrl(e.target.value)}
-                                        placeholder="https://images.unsplash.com/... o enlace de imagen"
-                                        className="input-clean w-full text-xs font-mono"
-                                    />
+                                    <div className="flex items-center justify-between mb-1">
+                                        <label className="block text-xs font-bold text-zinc-700">
+                                            Imagen del Banner <span className="text-red-500">*</span>
+                                        </label>
+                                        <label className="cursor-pointer text-[11px] font-bold text-[#0094FF] hover:underline flex items-center gap-1">
+                                            <Upload size={12} />
+                                            <span>{isUploadingImage ? 'Subiendo...' : 'Subir imagen local'}</span>
+                                            <input
+                                                type="file"
+                                                accept="image/*"
+                                                className="hidden"
+                                                disabled={isUploadingImage}
+                                                onChange={handleImageFileChange}
+                                            />
+                                        </label>
+                                    </div>
+                                    <div className="relative">
+                                        <input
+                                            type="url"
+                                            required
+                                            value={formImageUrl}
+                                            onChange={(e) => setFormImageUrl(e.target.value)}
+                                            placeholder="Pega un enlace https://... o sube una imagen"
+                                            className="input-clean w-full text-xs font-mono pr-8"
+                                        />
+                                        {isUploadingImage && (
+                                            <div className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#0094FF] animate-spin">
+                                                <Loader2 size={14} />
+                                            </div>
+                                        )}
+                                    </div>
+                                    <p className="text-[10px] text-zinc-400 mt-1">
+                                        Recomendado: 1200x600px o formato panorámico. Se sube a Firebase Storage.
+                                    </p>
                                 </div>
 
                                 <div>

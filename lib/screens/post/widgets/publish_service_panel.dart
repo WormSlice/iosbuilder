@@ -35,7 +35,7 @@ class _PublishServicePanelState extends State<PublishServicePanel> {
   String? _musicArtist;
   String? _musicThumbnail;
   int _musicStartSeconds = 0;
-  int _musicDuration = 30;
+  int _musicDuration = 240;
 
   String _selectedContractType = 'Por hora';
   String _selectedModality = 'Presencial';

@@ -3,8 +3,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../services/algolia_service.dart';
 import '../../widgets/post_card.dart';
 import '../../services/location_service.dart';
-import '../../widgets/liquid_glass_filter_modal.dart';
 import '../../widgets/location_picker/location_bottom_sheet.dart';
+import '../../services/firestore_service.dart';
+import '../../models/ad_campaign.dart';
+import '../../widgets/connect_ad_banner.dart';
+import '../../widgets/liquid_glass_filter_modal.dart';
 
 /// Pantalla de resultados de busqueda basada en Algolia.
 /// Soporta busqueda por texto libre, filtros por categoria,
@@ -431,27 +434,53 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
       );
     }
 
-    return GridView.builder(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        mainAxisSpacing: 10,
-        crossAxisSpacing: 10,
-        childAspectRatio: 0.76,
-      ),
-      itemCount: _results.length,
-      itemBuilder: (context, i) {
-        final d = _results[i];
-        return PostCard(
-          imageUrl: _getImageUrl(d),
-          title: d['title']?.toString() ?? '',
-          price: d['price']?.toString() ?? '',
-          location: d['location']?.toString() ?? d['city']?.toString() ?? '',
-          postId: d['objectID']?.toString() ?? d['id']?.toString() ?? '',
-          userId: d['userId']?.toString() ?? '',
-          data: d,
-        );
-      },
+    return CustomScrollView(
+      slivers: [
+        // Campaña o Anuncio Patrocinado Superior en Búsqueda (search_top)
+        SliverToBoxAdapter(
+          child: StreamBuilder<List<AdCampaign>>(
+            stream: FirestoreService().activeAdsStream(placement: 'search_top'),
+            builder: (context, snapshot) {
+              final ads = snapshot.data ?? [];
+              if (ads.isEmpty) return const SizedBox.shrink();
+              return Padding(
+                padding: const EdgeInsets.only(top: 8, bottom: 4),
+                child: ConnectAdBanner(
+                  ad: ads.first,
+                  compact: true,
+                  margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                ),
+              );
+            },
+          ),
+        ),
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
+          sliver: SliverGrid(
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              mainAxisSpacing: 10,
+              crossAxisSpacing: 10,
+              childAspectRatio: 0.76,
+            ),
+            delegate: SliverChildBuilderDelegate(
+              (context, i) {
+                final d = _results[i];
+                return PostCard(
+                  imageUrl: _getImageUrl(d),
+                  title: d['title']?.toString() ?? '',
+                  price: d['price']?.toString() ?? '',
+                  location: d['location']?.toString() ?? d['city']?.toString() ?? '',
+                  postId: d['objectID']?.toString() ?? d['id']?.toString() ?? '',
+                  userId: d['userId']?.toString() ?? '',
+                  data: d,
+                );
+              },
+              childCount: _results.length,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

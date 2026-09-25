@@ -44,7 +44,7 @@ class _PublishVehiclePanelState extends State<PublishVehiclePanel> {
   String? _musicArtist;
   String? _musicThumbnail;
   int _musicStartSeconds = 0;
-  int _musicDuration = 30;
+  int _musicDuration = 240;
 
   String _selectedImpuestos = 'Pagos';
   bool _barterMode = false;

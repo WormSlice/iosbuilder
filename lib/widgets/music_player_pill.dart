@@ -399,19 +399,23 @@ class _MusicPlayerPillState extends State<MusicPlayerPill>
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(activePlaying ? 14 : 5),
                           child: CachedNetworkImage(
-                            imageUrl: widget.musicThumbnail,
+                            imageUrl: (widget.musicThumbnail.isNotEmpty && widget.musicThumbnail.startsWith('http'))
+                                ? widget.musicThumbnail
+                                : (widget.musicId.length == 11 && !widget.musicId.contains(' ')
+                                    ? 'https://img.youtube.com/vi/${widget.musicId}/hqdefault.jpg'
+                                    : 'https://img.youtube.com/vi/QCZZwZQ4qNs/hqdefault.jpg'),
                             width: 28,
                             height: 28,
                             fit: BoxFit.cover,
                             placeholder: (context, url) => Container(
-                              color: Colors.grey[200],
+                              color: const Color(0xFF1E293B),
                               child: const Icon(Icons.music_note,
-                                  color: Colors.grey, size: 14),
+                                  color: Color(0xFF0094FF), size: 14),
                             ),
                             errorWidget: (context, url, error) => Container(
-                              color: Colors.grey[200],
+                              color: const Color(0xFF1E293B),
                               child: const Icon(Icons.music_note,
-                                  color: Colors.grey, size: 14),
+                                  color: Color(0xFF0094FF), size: 14),
                             ),
                           ),
                         ),

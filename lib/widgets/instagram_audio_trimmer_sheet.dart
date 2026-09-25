@@ -173,10 +173,9 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
     try {
       String? streamUrl;
 
-      // 1. Si viene audioUrl directa y permanente (sin googlevideo ni snippets de 29s)
+      // 1. Si viene audioUrl directa
       if (widget.audioUrl != null &&
           widget.audioUrl!.startsWith('http') &&
-          !widget.audioUrl!.contains('googlevideo.com') &&
           !widget.audioUrl!.contains('mzstatic.com') &&
           !widget.audioUrl!.contains('deezer.com') &&
           !widget.audioUrl!.contains('preview')) {
@@ -409,23 +408,27 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(26),
                               child: CachedNetworkImage(
-                                imageUrl: widget.thumbnail,
+                                imageUrl: (widget.thumbnail.isNotEmpty && widget.thumbnail.startsWith('http'))
+                                    ? widget.thumbnail
+                                    : (widget.musicId.length == 11 && !widget.musicId.contains(' ')
+                                        ? 'https://img.youtube.com/vi/${widget.musicId}/hqdefault.jpg'
+                                        : 'https://img.youtube.com/vi/QCZZwZQ4qNs/hqdefault.jpg'),
                                 width: 52,
                                 height: 52,
                                 fit: BoxFit.cover,
                                 placeholder: (_, _) => Container(
                                   width: 52,
                                   height: 52,
-                                  color: Colors.grey[200],
+                                  color: const Color(0xFF1E293B),
                                   child: const Icon(Icons.music_note,
-                                      color: Colors.grey),
+                                      color: Color(0xFF0094FF)),
                                 ),
                                 errorWidget: (_, _, _) => Container(
                                   width: 52,
                                   height: 52,
-                                  color: Colors.grey[200],
+                                  color: const Color(0xFF1E293B),
                                   child: const Icon(Icons.music_note,
-                                      color: Colors.grey),
+                                      color: Color(0xFF0094FF)),
                                 ),
                               ),
                             ),

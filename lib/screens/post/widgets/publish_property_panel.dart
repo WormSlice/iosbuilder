@@ -42,7 +42,7 @@ class _PublishPropertyPanelState extends State<PublishPropertyPanel> {
   String? _musicArtist;
   String? _musicThumbnail;
   int _musicStartSeconds = 0;
-  int _musicDuration = 30;
+  int _musicDuration = 240;
 
   String _selectedPropertyType = 'Apartamento';
   bool _acceptsPermuta = false;

@@ -33,7 +33,7 @@ class _PublishProductPanelState extends State<PublishProductPanel> {
   String? _musicArtist;
   String? _musicThumbnail;
   int _musicStartSeconds = 0;
-  int _musicDuration = 30;
+  int _musicDuration = 240;
 
   // Form selections
   String _selectedCategory = 'Productos';

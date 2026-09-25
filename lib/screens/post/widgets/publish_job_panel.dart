@@ -39,7 +39,7 @@ class _PublishJobPanelState extends State<PublishJobPanel> {
   String? _musicArtist;
   String? _musicThumbnail;
   int _musicStartSeconds = 0;
-  int _musicDuration = 30;
+  int _musicDuration = 240;
 
   final Set<String> _selectedContracts = {};
   final Set<String> _selectedJornadas = {};

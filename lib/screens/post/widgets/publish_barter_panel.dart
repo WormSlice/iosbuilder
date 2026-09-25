@@ -34,7 +34,7 @@ class _PublishBarterPanelState extends State<PublishBarterPanel> {
   String? _musicArtist;
   String? _musicThumbnail;
   int _musicStartSeconds = 0;
-  int _musicDuration = 30;
+  int _musicDuration = 240;
 
   String _selectedState = 'Nuevo';
   String _selectedCategory = 'Hogar';

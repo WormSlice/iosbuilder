@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'algolia_service.dart';
+import '../models/ad_campaign.dart';
 
 class FirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -511,5 +512,45 @@ class FirestoreService {
         .doc(userId)
         .collection('following')
         .snapshots();
+  }
+
+  /// Transmisión en tiempo real de campañas publicitarias activas (Ads)
+  /// Opcionalmente filtradas por ubicación: 'home_top', 'feed_interstitial', 'explore_banner', 'search_top'
+  Stream<List<AdCampaign>> activeAdsStream({String? placement}) {
+    Query<Map<String, dynamic>> query = _db.collection('ads');
+    return query.snapshots().map((snapshot) {
+      final list = snapshot.docs
+          .map((doc) => AdCampaign.fromFirestore(doc))
+          .where((ad) => ad.isActive)
+          .where((ad) => placement == null || ad.placement == placement)
+          .toList();
+      return list;
+    });
+  }
+
+  /// Registra una impresión visual de la campaña publicitaria
+  Future<void> recordAdImpression(String adId) async {
+    if (adId.isEmpty) return;
+    try {
+      await _db.collection('ads').doc(adId).update({
+        'impressions': FieldValue.increment(1),
+        'lastImpressionAt': FieldValue.serverTimestamp(),
+      });
+    } catch (_) {
+      // Silencioso para no interrumpir la experiencia de usuario
+    }
+  }
+
+  /// Registra un clic/interacción del usuario en la campaña publicitaria
+  Future<void> recordAdClick(String adId) async {
+    if (adId.isEmpty) return;
+    try {
+      await _db.collection('ads').doc(adId).update({
+        'clicks': FieldValue.increment(1),
+        'lastClickAt': FieldValue.serverTimestamp(),
+      });
+    } catch (_) {
+      // Silencioso
+    }
   }
 }

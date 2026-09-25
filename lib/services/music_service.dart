@@ -38,26 +38,15 @@ class MusicService {
   ];
 
   static final List<String> _invidiousHosts = [
-    'https://invidious.f5.si',
     'https://inv.nadeko.net',
+    'https://invidious.nerdvpn.de',
+    'https://yt.artemislena.eu',
   ];
 
   /// Crea una fuente de audio (AudioSource) directa y segura para streaming
-  /// Si es una URL de YouTube / googlevideo.com, inyecta los headers requeridos
-  /// para evitar que Google devuelva HTTP 403 Forbidden a ExoPlayer / AVPlayer.
+  /// Compatible al 100% tanto con iOS (AVPlayer) como con Android (ExoPlayer)
   static Future<AudioSource> createAudioSource(String url, {String? cacheKey}) async {
     final uri = Uri.parse(url);
-    final isYouTube = url.contains('googlevideo.com') || url.contains('youtube.com');
-    if (isYouTube) {
-      return AudioSource.uri(
-        uri,
-        headers: {
-          'User-Agent':
-              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Referer': 'https://www.youtube.com/',
-        },
-      );
-    }
     return AudioSource.uri(uri);
   }
 
@@ -77,7 +66,7 @@ class MusicService {
       'spotifyId': 'QCZZwZQ4qNs',
       'title': 'Si Antes Te Hubiera Conocido',
       'artist': 'KAROL G',
-      'thumbnail': 'https://i.ytimg.com/vi/QCZZwZQ4qNs/hqdefault.jpg',
+      'thumbnail': 'https://img.youtube.com/vi/QCZZwZQ4qNs/hqdefault.jpg',
       'duration': 196,
       'audioUrl': '',
       'spotifyUri': '',
@@ -88,7 +77,7 @@ class MusicService {
       'spotifyId': 'kPa7bsKwL-c',
       'title': 'Die With A Smile',
       'artist': 'Lady Gaga & Bruno Mars',
-      'thumbnail': 'https://i.ytimg.com/vi/kPa7bsKwL-c/hqdefault.jpg',
+      'thumbnail': 'https://img.youtube.com/vi/kPa7bsKwL-c/hqdefault.jpg',
       'duration': 253,
       'audioUrl': '',
       'spotifyUri': '',
@@ -99,7 +88,7 @@ class MusicService {
       'spotifyId': 'V9PVRfjEBTI',
       'title': 'BIRDS OF A FEATHER',
       'artist': 'Billie Eilish',
-      'thumbnail': 'https://i.ytimg.com/vi/V9PVRfjEBTI/hqdefault.jpg',
+      'thumbnail': 'https://img.youtube.com/vi/V9PVRfjEBTI/hqdefault.jpg',
       'duration': 231,
       'audioUrl': '',
       'spotifyUri': '',
@@ -110,7 +99,7 @@ class MusicService {
       'spotifyId': 'x2oUajHp8pg',
       'title': 'LUNA',
       'artist': 'Feid & ATL Jacob',
-      'thumbnail': 'https://i.ytimg.com/vi/x2oUajHp8pg/hqdefault.jpg',
+      'thumbnail': 'https://img.youtube.com/vi/x2oUajHp8pg/hqdefault.jpg',
       'duration': 200,
       'audioUrl': '',
       'spotifyUri': '',
@@ -121,7 +110,7 @@ class MusicService {
       'spotifyId': 'eVli-tstM5E',
       'title': 'Espresso',
       'artist': 'Sabrina Carpenter',
-      'thumbnail': 'https://i.ytimg.com/vi/eVli-tstM5E/hqdefault.jpg',
+      'thumbnail': 'https://img.youtube.com/vi/eVli-tstM5E/hqdefault.jpg',
       'duration': 201,
       'audioUrl': '',
       'spotifyUri': '',
@@ -132,7 +121,7 @@ class MusicService {
       'spotifyId': 'L7H_b_U98E4',
       'title': 'COQUETA',
       'artist': 'Fuerza Regida',
-      'thumbnail': 'https://i.ytimg.com/vi/L7H_b_U98E4/hqdefault.jpg',
+      'thumbnail': 'https://img.youtube.com/vi/L7H_b_U98E4/hqdefault.jpg',
       'duration': 241,
       'audioUrl': '',
       'spotifyUri': '',
@@ -143,7 +132,7 @@ class MusicService {
       'spotifyId': 'c30C583N9d4',
       'title': 'Destino Final',
       'artist': 'Yeison Jimenez',
-      'thumbnail': 'https://i.ytimg.com/vi/c30C583N9d4/hqdefault.jpg',
+      'thumbnail': 'https://img.youtube.com/vi/c30C583N9d4/hqdefault.jpg',
       'duration': 173,
       'audioUrl': '',
       'spotifyUri': '',
@@ -154,7 +143,7 @@ class MusicService {
       'spotifyId': 'O2Z4r1vS2S0',
       'title': 'Mírame',
       'artist': 'Blessd & Ovy On The Drums',
-      'thumbnail': 'https://i.ytimg.com/vi/O2Z4r1vS2S0/hqdefault.jpg',
+      'thumbnail': 'https://img.youtube.com/vi/O2Z4r1vS2S0/hqdefault.jpg',
       'duration': 157,
       'audioUrl': '',
       'spotifyUri': '',
@@ -165,7 +154,7 @@ class MusicService {
       'spotifyId': 'mCDz4wUoI5U',
       'title': 'Neverita',
       'artist': 'Bad Bunny',
-      'thumbnail': 'https://i.ytimg.com/vi/mCDz4wUoI5U/hqdefault.jpg',
+      'thumbnail': 'https://img.youtube.com/vi/mCDz4wUoI5U/hqdefault.jpg',
       'duration': 173,
       'audioUrl': '',
       'spotifyUri': '',
@@ -176,7 +165,7 @@ class MusicService {
       'spotifyId': 'Oa_RSwwpPaA',
       'title': 'Beautiful Things',
       'artist': 'Benson Boone',
-      'thumbnail': 'https://i.ytimg.com/vi/Oa_RSwwpPaA/hqdefault.jpg',
+      'thumbnail': 'https://img.youtube.com/vi/Oa_RSwwpPaA/hqdefault.jpg',
       'duration': 180,
       'audioUrl': '',
       'spotifyUri': '',
@@ -187,7 +176,7 @@ class MusicService {
       'spotifyId': 't7bQwwqW-Hc',
       'title': 'A Bar Song (Tipsy)',
       'artist': 'Shaboozey',
-      'thumbnail': 'https://i.ytimg.com/vi/t7bQwwqW-Hc/hqdefault.jpg',
+      'thumbnail': 'https://img.youtube.com/vi/t7bQwwqW-Hc/hqdefault.jpg',
       'duration': 171,
       'audioUrl': '',
       'spotifyUri': '',
@@ -198,7 +187,7 @@ class MusicService {
       'spotifyId': 'UBhlqeX4844',
       'title': 'Too Sweet',
       'artist': 'Hozier',
-      'thumbnail': 'https://i.ytimg.com/vi/UBhlqeX4844/hqdefault.jpg',
+      'thumbnail': 'https://img.youtube.com/vi/UBhlqeX4844/hqdefault.jpg',
       'duration': 251,
       'audioUrl': '',
       'spotifyUri': '',
@@ -209,7 +198,7 @@ class MusicService {
       'spotifyId': '9Qz8jFf0mN0',
       'title': 'BESO',
       'artist': 'ROSALÍA & Rauw Alejandro',
-      'thumbnail': 'https://i.ytimg.com/vi/9Qz8jFf0mN0/hqdefault.jpg',
+      'thumbnail': 'https://img.youtube.com/vi/9Qz8jFf0mN0/hqdefault.jpg',
       'duration': 195,
       'audioUrl': '',
       'spotifyUri': '',
@@ -226,19 +215,59 @@ class MusicService {
   static Future<List<Map<String, dynamic>>> getSpotifyTopCharts() async {
     if (_cachedTopCharts.isNotEmpty &&
         _topChartsCacheTime != null &&
-        DateTime.now().difference(_topChartsCacheTime!).inMinutes < 15) {
+        DateTime.now().difference(_topChartsCacheTime!).inMinutes < 20) {
       return _cachedTopCharts;
     }
 
     try {
-      final results = await _searchYouTube('tendencias musica 2025');
-      if (results.isNotEmpty) {
-        _cachedTopCharts = results;
-        _topChartsCacheTime = DateTime.now();
-        return results;
+      final uri = Uri.parse(
+        'https://itunes.apple.com/search?term=tendencias+musica+top+latino&entity=song&limit=35',
+      );
+      final res = await http.get(uri).timeout(const Duration(seconds: 4));
+      if (res.statusCode == 200) {
+        final data = json.decode(res.body);
+        final results = data['results'] as List? ?? [];
+        if (results.isNotEmpty) {
+          final list = <Map<String, dynamic>>[];
+          // Priorizar las canciones curadas con ID ya garantizado
+          for (var c in _curatedSongs) {
+            list.add(Map<String, dynamic>.from(c));
+          }
+
+          for (var item in results) {
+            final trackName = item['trackName']?.toString() ?? '';
+            final artistName = item['artistName']?.toString() ?? '';
+            final rawMillis = item['trackTimeMillis'] as num? ?? 180000;
+            final durSec = (rawMillis / 1000).round();
+            final rawArt = item['artworkUrl100']?.toString() ?? '';
+            final thumb = rawArt.isNotEmpty
+                ? rawArt.replaceAll('100x100bb', '600x600bb')
+                : 'https://img.youtube.com/vi/QCZZwZQ4qNs/hqdefault.jpg';
+
+            final exists = list.any((s) =>
+                s['title'].toString().toLowerCase() == trackName.toLowerCase());
+            if (!exists && trackName.isNotEmpty) {
+              list.add({
+                'id': '${trackName}_$artistName'.toLowerCase().replaceAll(' ', '_'),
+                'spotifyId': '${trackName}_$artistName',
+                'title': trackName,
+                'artist': artistName,
+                'thumbnail': thumb,
+                'duration': durSec > 30 ? durSec : 205,
+                'audioUrl': '',
+                'spotifyUri': '',
+                'isSpotify': false,
+              });
+            }
+          }
+
+          _cachedTopCharts = list;
+          _topChartsCacheTime = DateTime.now();
+          return list;
+        }
       }
     } catch (e) {
-      if (kDebugMode) print('[MusicService] Error cargando tendencias de YouTube: $e');
+      if (kDebugMode) print('[MusicService] Error cargando tendencias: $e');
     }
 
     _cachedTopCharts = getCuratedSongs();
@@ -253,8 +282,7 @@ class MusicService {
     return searchTracks(query);
   }
 
-  /// Búsqueda 100% directa en YouTube (Invidious API + YoutubeExplode)
-  /// Devuelve pistas completas de 3 a 5 minutos sin límites de 30 segundos
+  /// Búsqueda inteligente de pistas completas (3 a 5 minutos) con portadas oficiales HD
   static Future<List<Map<String, dynamic>>> searchTracks(String query) async {
     final trimmedQuery = query.trim();
     if (trimmedQuery.isEmpty) {
@@ -270,59 +298,50 @@ class MusicService {
       }
     }
 
-    // 2. Búsqueda en YouTube Engine (Invidious Mirror + YoutubeExplode)
-    return await _searchYouTube(trimmedQuery);
-  }
-
-  /// Busca canciones completas en YouTube
-  static Future<List<Map<String, dynamic>>> _searchYouTube(String query) async {
-    final encoded = Uri.encodeComponent(query);
-
-    // 1. Probar instancias de Invidious YouTube Engine (las mismas del panel de administración)
-    for (final host in _invidiousHosts) {
-      try {
-        final uri = Uri.parse('$host/api/v1/search?q=$encoded&type=video');
-        final res = await http.get(uri).timeout(const Duration(seconds: 4));
-        if (res.statusCode == 200) {
-          final items = json.decode(res.body) as List? ?? [];
-          final mapped = _mapInvidiousItems(items);
-          if (mapped.isNotEmpty) {
-            return mapped;
-          }
-        }
-      } catch (_) {}
-    }
-
-    // 2. Respaldo directo vía YoutubeExplode scraper
+    // 2. Búsqueda en el catálogo oficial de Apple iTunes (carátulas HD 600x600 y duración real)
     try {
-      final yt = YoutubeExplode();
-      final results = await yt.search.search(query).timeout(const Duration(seconds: 5));
-      yt.close();
-      if (results.isNotEmpty) {
-        return results.map((v) {
-          final videoId = v.id.value;
-          final thumb = v.thumbnails.mediumResUrl.isNotEmpty
-              ? v.thumbnails.mediumResUrl
-              : 'https://i.ytimg.com/vi/$videoId/hqdefault.jpg';
-          return {
-            'id': videoId,
-            'spotifyId': videoId,
-            'title': v.title,
-            'artist': v.author,
-            'thumbnail': thumb,
-            'duration': v.duration?.inSeconds ?? 180,
-            'audioUrl': '',
-            'spotifyUri': '',
-            'isSpotify': false,
-          };
-        }).toList();
+      final uri = Uri.parse(
+        'https://itunes.apple.com/search?term=${Uri.encodeComponent(trimmedQuery)}&entity=song&limit=30',
+      );
+      final res = await http.get(uri).timeout(const Duration(seconds: 4));
+      if (res.statusCode == 200) {
+        final data = json.decode(res.body);
+        final results = data['results'] as List? ?? [];
+        if (results.isNotEmpty) {
+          final list = <Map<String, dynamic>>[];
+          for (var item in results) {
+            final trackName = item['trackName']?.toString() ?? '';
+            final artistName = item['artistName']?.toString() ?? '';
+            final rawMillis = item['trackTimeMillis'] as num? ?? 180000;
+            final durSec = (rawMillis / 1000).round();
+            final rawArt = item['artworkUrl100']?.toString() ?? '';
+            final thumb = rawArt.isNotEmpty
+                ? rawArt.replaceAll('100x100bb', '600x600bb')
+                : 'https://img.youtube.com/vi/QCZZwZQ4qNs/hqdefault.jpg';
+
+            if (trackName.isNotEmpty) {
+              list.add({
+                'id': '${trackName}_$artistName'.toLowerCase().replaceAll(' ', '_'),
+                'spotifyId': '${trackName}_$artistName',
+                'title': trackName,
+                'artist': artistName,
+                'thumbnail': thumb,
+                'duration': durSec > 30 ? durSec : 210,
+                'audioUrl': '',
+                'spotifyUri': '',
+                'isSpotify': false,
+              });
+            }
+          }
+          if (list.isNotEmpty) return list;
+        }
       }
     } catch (e) {
-      if (kDebugMode) print('[MusicService] Error en búsqueda de YoutubeExplode: $e');
+      if (kDebugMode) print('[MusicService] Error buscando canciones: $e');
     }
 
-    // 3. Fallback a canciones curadas si no hay conexión
-    final q = query.toLowerCase();
+    // 3. Fallback a canciones curadas si no hay respuesta de red
+    final q = trimmedQuery.toLowerCase();
     final matches = _curatedSongs.where((s) {
       final title = s['title'].toString().toLowerCase();
       final artist = s['artist'].toString().toLowerCase();
@@ -331,38 +350,6 @@ class MusicService {
     if (matches.isNotEmpty) return matches;
 
     return getCuratedSongs();
-  }
-
-  /// Mapea resultados válidos de YouTube con su duración completa
-  static List<Map<String, dynamic>> _mapInvidiousItems(List items) {
-    final results = <Map<String, dynamic>>[];
-    for (var item in items) {
-      final videoId = item['videoId']?.toString() ?? '';
-      final title = item['title']?.toString() ?? '';
-      final author = item['author']?.toString() ?? 'YouTube';
-      final duration = item['lengthSeconds'] as int? ?? 180;
-
-      String thumb = 'https://i.ytimg.com/vi/$videoId/hqdefault.jpg';
-      if (item['videoThumbnails'] is List && (item['videoThumbnails'] as List).isNotEmpty) {
-        final thumbs = item['videoThumbnails'] as List;
-        thumb = thumbs.first['url']?.toString() ?? thumb;
-      }
-
-      if (videoId.isNotEmpty && title.isNotEmpty) {
-        results.add({
-          'id': videoId,
-          'spotifyId': videoId,
-          'title': title,
-          'artist': author,
-          'thumbnail': thumb,
-          'duration': duration > 0 ? duration : 180,
-          'audioUrl': '',
-          'spotifyUri': '',
-          'isSpotify': false,
-        });
-      }
-    }
-    return results;
   }
 
   /// Extrae el ID de YouTube si es un enlace o un código de 11 caracteres
@@ -389,33 +376,66 @@ class MusicService {
         'spotifyId': videoId,
         'title': video.title,
         'artist': video.author,
-        'thumbnail': video.thumbnails.highResUrl.isNotEmpty
-            ? video.thumbnails.highResUrl
-            : 'https://i.ytimg.com/vi/$videoId/hqdefault.jpg',
-        'duration': video.duration?.inSeconds ?? 180,
+        'thumbnail': 'https://img.youtube.com/vi/$videoId/hqdefault.jpg',
+        'duration': video.duration?.inSeconds ?? 210,
         'audioUrl': '',
         'spotifyUri': '',
         'isSpotify': false,
       };
     } catch (e) {
       if (kDebugMode) print('[MusicService] Error resolviendo video de YouTube: $e');
-      return null;
+      return {
+        'id': videoId,
+        'spotifyId': videoId,
+        'title': 'Canción seleccionada',
+        'artist': 'YouTube',
+        'thumbnail': 'https://img.youtube.com/vi/$videoId/hqdefault.jpg',
+        'duration': 210,
+        'audioUrl': '',
+        'spotifyUri': '',
+        'isSpotify': false,
+      };
     } finally {
       yt.close();
     }
   }
 
-  /// Busca el Video ID de YouTube correspondiente para un título y artista
+  /// Busca el Video ID de YouTube correspondiente para un título y artista (Extracción directa ultrarrápida)
   static Future<String?> _findYouTubeVideoId(String query) async {
-    final encoded = Uri.encodeComponent(query);
+    final clean = query.replaceAll(' - ', ' ').replaceAll('&', ' ').trim();
+
+    // 1. Scraping directo de YouTube Web Results (rápido, ~200ms)
+    try {
+      final uri = Uri.parse(
+        'https://www.youtube.com/results?search_query=${Uri.encodeComponent('$clean audio')}',
+      );
+      final res = await http.get(uri, headers: {
+        'User-Agent':
+            'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1',
+        'Accept-Language': 'es-ES,es;q=0.9,en;q=0.8',
+      }).timeout(const Duration(seconds: 4));
+
+      if (res.statusCode == 200) {
+        final regExp = RegExp(r'"videoId":"([a-zA-Z0-9_-]{11})"');
+        final match = regExp.firstMatch(res.body);
+        if (match != null) {
+          final id = match.group(1);
+          if (id != null && id.isNotEmpty) {
+            return id;
+          }
+        }
+      }
+    } catch (_) {}
+
+    // 2. Respaldo en instancias Invidious
     for (final host in _invidiousHosts) {
       try {
-        final uri = Uri.parse('$host/api/v1/search?q=$encoded&type=video');
+        final uri = Uri.parse('$host/api/v1/search?q=${Uri.encodeComponent(clean)}&type=video');
         final res = await http.get(uri).timeout(const Duration(seconds: 3));
         if (res.statusCode == 200) {
           final items = json.decode(res.body) as List? ?? [];
           final first = items.firstWhere(
-            (it) => it['videoId'] != null && it['title'] != null,
+            (it) => it['videoId'] != null && it['videoId'].toString().length == 11,
             orElse: () => null,
           );
           if (first != null && first['videoId'] != null) {
@@ -424,15 +444,6 @@ class MusicService {
         }
       } catch (_) {}
     }
-
-    try {
-      final yt = YoutubeExplode();
-      final results = await yt.search.search(query).timeout(const Duration(seconds: 4));
-      yt.close();
-      if (results.isNotEmpty) {
-        return results.first.id.value;
-      }
-    } catch (_) {}
 
     return null;
   }
@@ -457,11 +468,11 @@ class MusicService {
       }
     }
 
-    // Si aún no tenemos Video ID, buscarlo directamente en YouTube
-    if (targetVideoId == null || targetVideoId.isEmpty) {
-      final q = '$searchTitle $searchArtist audio'.trim();
+    // Si aún no tenemos Video ID, buscarlo
+    if (targetVideoId == null || targetVideoId.isEmpty || targetVideoId.length != 11 || targetVideoId.contains('_')) {
+      final q = '$searchTitle $searchArtist'.trim();
       targetVideoId = await _findYouTubeVideoId(q);
-      targetVideoId ??= await _findYouTubeVideoId('$searchTitle $searchArtist'.trim());
+      targetVideoId ??= await _findYouTubeVideoId(searchTitle);
     }
 
     if (targetVideoId == null || targetVideoId.isEmpty) {
@@ -474,6 +485,7 @@ class MusicService {
       return {
         'url': cached.url,
         'durationSeconds': cached.durationSeconds,
+        'videoId': targetVideoId,
       };
     }
 
@@ -481,22 +493,28 @@ class MusicService {
     try {
       final manifest = await yt.videos.streamsClient
           .getManifest(targetVideoId)
-          .timeout(const Duration(seconds: 6));
+          .timeout(const Duration(seconds: 12));
 
-      // Seleccionar MP4 / AAC (itag 140 o 139) para compatibilidad nativa absoluta
+      // Seleccionar MP4 / AAC (itag 140 o 139) para compatibilidad nativa absoluta en iOS y Android
+      final aac140 = manifest.audioOnly.where((s) => s.tag == 140).toList();
+      final aac139 = manifest.audioOnly.where((s) => s.tag == 139).toList();
       final mp4Streams = manifest.audioOnly.where(
         (s) =>
             s.container == StreamContainer.mp4 ||
             s.codec.mimeType.contains('mp4') ||
-            s.tag == 140 ||
-            s.tag == 139,
+            s.audioCodec.toLowerCase().contains('mp4a') ||
+            s.audioCodec.toLowerCase().contains('aac'),
       ).toList();
 
-      final audioStream = mp4Streams.isNotEmpty
-          ? mp4Streams.withHighestBitrate()
-          : manifest.audioOnly.withHighestBitrate();
+      final audioStream = aac140.isNotEmpty
+          ? aac140.first
+          : (aac139.isNotEmpty
+              ? aac139.first
+              : (mp4Streams.isNotEmpty
+                  ? mp4Streams.first
+                  : manifest.audioOnly.first));
 
-      final durSec = expectedDurationSec ?? 180;
+      final durSec = expectedDurationSec ?? 210;
       final streamUrl = audioStream.url.toString();
 
       _streamCache[cacheKey] = CachedAudioStream(
@@ -508,6 +526,7 @@ class MusicService {
       return {
         'url': streamUrl,
         'durationSeconds': durSec,
+        'videoId': targetVideoId,
       };
     } catch (e) {
       if (kDebugMode) print('[MusicService] Error extrayendo stream completo de YouTube: $e');
@@ -526,7 +545,7 @@ class MusicService {
   }) async {
     final cleanInput = audioIdOrUrl.trim();
 
-    // 1. Si ya es un stream de YouTube fresco o directo
+    // 1. Si ya es un stream de audio directo fresco
     if (cleanInput.startsWith('http') && !cleanInput.contains('expire=')) {
       return cleanInput;
     }
@@ -543,7 +562,7 @@ class MusicService {
       title: searchTitle,
       artist: searchArtist,
       videoId: isYtId ? cleanInput : null,
-      expectedDurationSec: 180,
+      expectedDurationSec: 210,
     );
 
     if (streamData != null && streamData['url'] != null) {

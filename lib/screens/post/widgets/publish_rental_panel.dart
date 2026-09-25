@@ -37,7 +37,7 @@ class _PublishRentalPanelState extends State<PublishRentalPanel> {
   String? _musicArtist;
   String? _musicThumbnail;
   int _musicStartSeconds = 0;
-  int _musicDuration = 30;
+  int _musicDuration = 240;
 
   String _rentalType = 'Inmueble';
   bool _hasDeposit = false;

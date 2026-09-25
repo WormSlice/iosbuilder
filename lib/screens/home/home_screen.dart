@@ -1,5 +1,3 @@
-import 'dart:io';
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../../widgets/section_header.dart';
 import '../../widgets/empty_state.dart';
@@ -10,6 +8,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../services/location_service.dart';
 import '../../services/algolia_sync_service.dart';
 import '../../widgets/location_picker/location_bottom_sheet.dart';
+import '../../models/ad_campaign.dart';
+import '../../widgets/connect_ad_banner.dart';
 
 /// Pantalla principal del Marketplace.
 /// 
@@ -225,6 +225,20 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                   ),
+                  // Banners y Campañas Publicitarias Superiores (home_top)
+                  SliverToBoxAdapter(
+                    child: StreamBuilder<List<AdCampaign>>(
+                      stream: _service.activeAdsStream(placement: 'home_top'),
+                      builder: (context, snapshot) {
+                        final ads = snapshot.data ?? [];
+                        if (ads.isEmpty) return const SizedBox.shrink();
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 4, bottom: 6),
+                          child: ConnectAdCarousel(ads: ads),
+                        );
+                      },
+                    ),
+                  ),
                   if (!isFiltered) ...[
                     SliverToBoxAdapter(
                       child: _CategoryCarousel(
@@ -293,6 +307,20 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     const SliverToBoxAdapter(child: SizedBox(height: 4)),
                   ],
+                  // Anuncio / Campaña Intersticial entre secciones
+                  SliverToBoxAdapter(
+                    child: StreamBuilder<List<AdCampaign>>(
+                      stream: _service.activeAdsStream(placement: 'feed_interstitial'),
+                      builder: (context, snapshot) {
+                        final ads = snapshot.data ?? [];
+                        if (ads.isEmpty) return const SizedBox.shrink();
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          child: ConnectAdBanner(ad: ads.first),
+                        );
+                      },
+                    ),
+                  ),
                   if (!isFiltered)
                     SliverToBoxAdapter(
                       child: Padding(

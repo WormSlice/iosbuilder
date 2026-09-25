@@ -35,7 +35,7 @@ class _PublishPetPanelState extends State<PublishPetPanel> {
   String? _musicArtist;
   String? _musicThumbnail;
   int _musicStartSeconds = 0;
-  int _musicDuration = 30;
+  int _musicDuration = 240;
 
   String _selectedType = 'Venta';
   String _selectedEspecie = 'Perro';

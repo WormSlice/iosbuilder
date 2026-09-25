@@ -382,20 +382,24 @@ class _MusicSearchSheetState extends State<MusicSearchSheet>
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(10),
                               child: CachedNetworkImage(
-                                imageUrl: song['thumbnail']?.toString() ?? '',
+                                imageUrl: (song['thumbnail'] != null && song['thumbnail'].toString().startsWith('http'))
+                                    ? song['thumbnail'].toString()
+                                    : (song['id'] != null && song['id'].toString().length == 11 && !song['id'].toString().contains(' ')
+                                        ? 'https://img.youtube.com/vi/${song['id']}/hqdefault.jpg'
+                                        : 'https://img.youtube.com/vi/QCZZwZQ4qNs/hqdefault.jpg'),
                                 width: 50,
                                 height: 50,
                                 fit: BoxFit.cover,
                                 placeholder: (context, url) => Container(
-                                  color: Colors.grey[200],
+                                  color: const Color(0xFF1E293B),
                                   child: const Icon(Icons.music_note,
-                                      color: Colors.grey, size: 22),
+                                      color: Color(0xFF0094FF), size: 22),
                                 ),
                                 errorWidget: (context, url, error) =>
                                     Container(
-                                  color: Colors.grey[200],
+                                  color: const Color(0xFF1E293B),
                                   child: const Icon(Icons.music_note,
-                                      color: Colors.grey, size: 22),
+                                      color: Color(0xFF0094FF), size: 22),
                                 ),
                               ),
                             ),
