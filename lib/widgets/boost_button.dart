@@ -4,10 +4,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/boost_service.dart';
 import '../screens/post/boost_configuration_screen.dart';
 
-/// Botón inteligente de impulso de publicaciones:
-/// - Si la publicación NO está impulsada: Muestra "IMPULSAR PUBLICACIÓN" y permite configurar un nuevo impulso.
-/// - Si la publicación YA ESTÁ impulsada: Cambia automáticamente a "REVISAR ESTADÍSTICAS", evitando doble cobro
-///   y desplegando el panel de métricas 100% reales (alcance exterior en feed/explorar, visitas al detalle, CTR).
+/// Botón de impulso para publicaciones:
+/// - Si no está impulsada: muestra botón de impulso para configurar campaña.
+/// - Si ya está impulsada: muestra botón directo de "REVISAR ESTADÍSTICAS" para ver métricas reales.
 class BoostButton extends StatefulWidget {
   final String postId;
   final String imageUrl;
@@ -78,233 +77,109 @@ class _BoostButtonState extends State<BoostButton>
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
+      backgroundColor: Colors.transparent,
       builder: (ctx) {
-        return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-          stream: FirebaseFirestore.instance
-              .collection('boosts')
-              .where('postId', isEqualTo: widget.postId)
-              .where('status', isEqualTo: 'active')
-              .snapshots(),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const SizedBox(
-                height: 320,
-                child: Center(
-                  child: CircularProgressIndicator(color: Color(0xFF0094FF)),
-                ),
-              );
-            }
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: SafeArea(
+            child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+              stream: FirebaseFirestore.instance
+                  .collection('boosts')
+                  .where('postId', isEqualTo: widget.postId)
+                  .where('status', isEqualTo: 'active')
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const SizedBox(
+                    height: 240,
+                    child: Center(
+                      child: CircularProgressIndicator(color: Color(0xFF0094FF)),
+                    ),
+                  );
+                }
 
-            Map<String, dynamic>? boostData;
-            if (snapshot.hasData && snapshot.data!.docs.isNotEmpty) {
-              boostData = snapshot.data!.docs.first.data();
-            }
+                Map<String, dynamic>? boostData;
+                if (snapshot.hasData && snapshot.data!.docs.isNotEmpty) {
+                  boostData = snapshot.data!.docs.first.data();
+                }
 
-            final int impressions = boostData?['impressions'] ?? 0;
-            final int detailViews = boostData?['detailViews'] ?? 0;
-            final double ctr = impressions > 0
-                ? ((detailViews / impressions) * 100).clamp(0.0, 100.0)
-                : 0.0;
+                final int impressions = boostData?['impressions'] ?? 0;
+                final int detailViews = boostData?['detailViews'] ?? 0;
+                final double ctr = impressions > 0
+                    ? ((detailViews / impressions) * 100).clamp(0.0, 100.0)
+                    : 0.0;
 
-            String remainingTimeStr = 'Activo';
-            final expiresAt = boostData?['expiresAt'];
-            if (expiresAt is Timestamp) {
-              final expDate = expiresAt.toDate();
-              final diff = expDate.difference(DateTime.now());
-              if (diff.isNegative) {
-                remainingTimeStr = 'Finalizado';
-              } else if (diff.inDays > 0) {
-                remainingTimeStr = '${diff.inDays}d ${diff.inHours % 24}h restantes';
-              } else {
-                remainingTimeStr = '${diff.inHours}h ${diff.inMinutes % 60}m restantes';
-              }
-            }
+                String remainingTimeStr = 'Activo';
+                final expiresAt = boostData?['expiresAt'];
+                if (expiresAt is Timestamp) {
+                  final expDate = expiresAt.toDate();
+                  final diff = expDate.difference(DateTime.now());
+                  if (diff.isNegative) {
+                    remainingTimeStr = 'Finalizado';
+                  } else if (diff.inDays > 0) {
+                    remainingTimeStr = '${diff.inDays} días';
+                  } else {
+                    remainingTimeStr = '${diff.inHours} horas';
+                  }
+                }
 
-            final totalBudget = boostData?['totalBudget'] ?? 0;
-            final dailyBudget = boostData?['dailyBudget'] ?? 0;
-            final durationDays = boostData?['durationDays'] ?? 1;
+                final totalBudget = boostData?['totalBudget'] ?? 0;
 
-            return SafeArea(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-                child: Column(
+                return Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Indicador de arrastre superior
+                    // Manija superior
                     Center(
                       child: Container(
-                        width: 40,
+                        width: 36,
                         height: 4,
+                        margin: const EdgeInsets.only(bottom: 14),
                         decoration: BoxDecoration(
-                          color: Colors.grey.shade300,
+                          color: Colors.grey[300],
                           borderRadius: BorderRadius.circular(2),
                         ),
                       ),
                     ),
-                    const SizedBox(height: 16),
 
                     // Encabezado
                     Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Container(
-                          width: 44,
-                          height: 44,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF0094FF).withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Icon(
-                            Icons.insights_rounded,
-                            color: Color(0xFF0094FF),
-                            size: 24,
+                        const Text(
+                          'Estadísticas de la publicación',
+                          style: TextStyle(
+                            fontFamily: 'CanvaSans',
+                            fontSize: 16.5,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
                           ),
                         ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'Rendimiento del Impulso',
-                                style: TextStyle(
-                                  fontFamily: 'CanvaSans',
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.black87,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                'Estadísticas 100% reales en tiempo real',
-                                style: TextStyle(
-                                  fontFamily: 'CanvaSans',
-                                  fontSize: 12.5,
-                                  color: Colors.grey.shade600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 5,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF10B981).withOpacity(0.12),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                              color: const Color(0xFF10B981).withOpacity(0.3),
-                              width: 1,
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Container(
-                                width: 7,
-                                height: 7,
-                                decoration: const BoxDecoration(
-                                  color: Color(0xFF10B981),
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                              const SizedBox(width: 5),
-                              const Text(
-                                'EN CURSO',
-                                style: TextStyle(
-                                  fontFamily: 'CanvaSans',
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFF059669),
-                                ),
-                              ),
-                            ],
-                          ),
+                        IconButton(
+                          icon: const Icon(Icons.close, size: 20, color: Colors.black54),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          onPressed: () => Navigator.pop(ctx),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 14),
 
-                    // Tarjetas métricas principales (Alcance exterior vs Visitas al detalle)
+                    // Cuadrícula compacta de 2 columnas para métricas
                     Row(
                       children: [
-                        // Card 1: Alcance Exterior (Feed / Explorar)
+                        // Columna 1: Alcance en feed
                         Expanded(
                           child: Container(
-                            padding: const EdgeInsets.all(14),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                             decoration: BoxDecoration(
                               color: const Color(0xFFF8FAFC),
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(
-                                color: Colors.grey.shade200,
-                                width: 1,
-                              ),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Icon(
-                                      Icons.visibility_outlined,
-                                      color: const Color(0xFF0094FF),
-                                      size: 18,
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      'Alcance en Feed',
-                                      style: TextStyle(
-                                        fontFamily: 'CanvaSans',
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                        color: Colors.grey.shade600,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 10),
-                                Text(
-                                  _formatNumber(impressions),
-                                  style: const TextStyle(
-                                    fontFamily: 'CanvaSans',
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.black87,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  'Usuarios que vieron tu tarjeta fuera de ella',
-                                  style: TextStyle(
-                                    fontFamily: 'CanvaSans',
-                                    fontSize: 11,
-                                    color: Colors.grey.shade500,
-                                    height: 1.2,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-
-                        // Card 2: Visitas que entraron a la publicación
-                        Expanded(
-                          child: Container(
-                            padding: const EdgeInsets.all(14),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFF8FAFC),
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(
-                                color: Colors.grey.shade200,
-                                width: 1,
-                              ),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: Colors.grey.shade200, width: 0.8),
                             ),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -312,40 +187,95 @@ class _BoostButtonState extends State<BoostButton>
                                 Row(
                                   children: [
                                     const Icon(
-                                      Icons.ads_click_rounded,
-                                      color: Color(0xFF10B981),
-                                      size: 18,
+                                      Icons.visibility_outlined,
+                                      size: 15,
+                                      color: Color(0xFF0094FF),
                                     ),
-                                    const SizedBox(width: 6),
+                                    const SizedBox(width: 5),
                                     Text(
-                                      'Visitas al Detalle',
+                                      'Alcance',
                                       style: TextStyle(
                                         fontFamily: 'CanvaSans',
-                                        fontSize: 12,
+                                        fontSize: 11.5,
                                         fontWeight: FontWeight.w600,
-                                        color: Colors.grey.shade600,
+                                        color: Colors.grey[600],
                                       ),
                                     ),
                                   ],
                                 ),
-                                const SizedBox(height: 10),
+                                const SizedBox(height: 4),
                                 Text(
-                                  _formatNumber(detailViews),
+                                  _formatNumber(impressions),
                                   style: const TextStyle(
                                     fontFamily: 'CanvaSans',
-                                    fontSize: 24,
+                                    fontSize: 20,
                                     fontWeight: FontWeight.bold,
                                     color: Colors.black87,
                                   ),
                                 ),
-                                const SizedBox(height: 4),
+                                const SizedBox(height: 2),
                                 Text(
-                                  'Usuarios que abrieron tu publicación',
+                                  'Visualizaciones en feed',
                                   style: TextStyle(
                                     fontFamily: 'CanvaSans',
-                                    fontSize: 11,
-                                    color: Colors.grey.shade500,
-                                    height: 1.2,
+                                    fontSize: 10,
+                                    color: Colors.grey[500],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+
+                        // Columna 2: Visitas que entraron al post
+                        Expanded(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF8FAFC),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: Colors.grey.shade200, width: 0.8),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.touch_app_outlined,
+                                      size: 15,
+                                      color: Color(0xFF0094FF),
+                                    ),
+                                    const SizedBox(width: 5),
+                                    Text(
+                                      'Visitas',
+                                      style: TextStyle(
+                                        fontFamily: 'CanvaSans',
+                                        fontSize: 11.5,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.grey[600],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  _formatNumber(detailViews),
+                                  style: const TextStyle(
+                                    fontFamily: 'CanvaSans',
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.black87,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  'Entraron a la publicación',
+                                  style: TextStyle(
+                                    fontFamily: 'CanvaSans',
+                                    fontSize: 10,
+                                    color: Colors.grey[500],
                                   ),
                                 ),
                               ],
@@ -354,158 +284,82 @@ class _BoostButtonState extends State<BoostButton>
                         ),
                       ],
                     ),
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 10),
 
-                    // Card 3: Tasa de Interés / CTR
+                    // Fila CTR
                     Container(
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF0F172A),
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.05),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
+                        color: const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.grey.shade200, width: 0.8),
                       ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Row(
-                                children: const [
-                                  Icon(
-                                    Icons.trending_up_rounded,
-                                    color: Color(0xFF00D4FF),
-                                    size: 18,
-                                  ),
-                                  SizedBox(width: 8),
-                                  Text(
-                                    'Efectividad de Conversión (CTR)',
-                                    style: TextStyle(
-                                      fontFamily: 'CanvaSans',
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              Text(
-                                '${ctr.toStringAsFixed(1)}%',
-                                style: const TextStyle(
+                              const Text(
+                                'Interacción (CTR)',
+                                style: TextStyle(
                                   fontFamily: 'CanvaSans',
-                                  fontSize: 18,
+                                  fontSize: 12,
                                   fontWeight: FontWeight.bold,
-                                  color: Color(0xFF00D4FF),
+                                  color: Colors.black87,
+                                ),
+                              ),
+                              const SizedBox(height: 1),
+                              Text(
+                                'Porcentaje de usuarios que entraron a verla',
+                                style: TextStyle(
+                                  fontFamily: 'CanvaSans',
+                                  fontSize: 10,
+                                  color: Colors.grey[500],
                                 ),
                               ),
                             ],
                           ),
-                          const SizedBox(height: 10),
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(4),
-                            child: LinearProgressIndicator(
-                              value: (ctr / 100).clamp(0.02, 1.0),
-                              backgroundColor: Colors.white12,
-                              valueColor: const AlwaysStoppedAnimation<Color>(
-                                Color(0xFF00D4FF),
-                              ),
-                              minHeight: 6,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
                           Text(
-                            impressions > 0
-                                ? 'De cada 100 personas que vieron tu anuncio en el feed, ${ctr.toStringAsFixed(1)} entraron a revisarlo.'
-                                : 'Tu publicación está activa y se mostrará a los usuarios objetivo en breve.',
+                            '${ctr.toStringAsFixed(1)}%',
                             style: const TextStyle(
                               fontFamily: 'CanvaSans',
-                              fontSize: 11.5,
-                              color: Colors.white70,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF0094FF),
                             ),
                           ),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 10),
 
-                    // Card 4: Detalles del Impulso
+                    // Fila de información adicional de campaña
                     Container(
-                      padding: const EdgeInsets.all(14),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                       decoration: BoxDecoration(
                         color: const Color(0xFFF8FAFC),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: Colors.grey.shade200,
-                          width: 1,
-                        ),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.grey.shade200, width: 0.8),
                       ),
                       child: Column(
                         children: [
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Row(
-                                children: [
-                                  Icon(
-                                    Icons.timer_outlined,
-                                    color: Colors.grey.shade700,
-                                    size: 16,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'Tiempo restante',
-                                    style: TextStyle(
-                                      fontFamily: 'CanvaSans',
-                                      fontSize: 12.5,
-                                      color: Colors.grey.shade700,
-                                    ),
-                                  ),
-                                ],
+                              Text(
+                                'Tiempo restante',
+                                style: TextStyle(
+                                  fontFamily: 'CanvaSans',
+                                  fontSize: 12,
+                                  color: Colors.grey[600],
+                                ),
                               ),
                               Text(
                                 remainingTimeStr,
                                 style: const TextStyle(
                                   fontFamily: 'CanvaSans',
-                                  fontSize: 12.5,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.black87,
-                                ),
-                              ),
-                            ],
-                          ),
-                          Divider(color: Colors.grey.shade200, height: 18),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Row(
-                                children: [
-                                  Icon(
-                                    Icons.calendar_month_outlined,
-                                    color: Colors.grey.shade700,
-                                    size: 16,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'Duración total',
-                                    style: TextStyle(
-                                      fontFamily: 'CanvaSans',
-                                      fontSize: 12.5,
-                                      color: Colors.grey.shade700,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              Text(
-                                '$durationDays días',
-                                style: const TextStyle(
-                                  fontFamily: 'CanvaSans',
-                                  fontSize: 12.5,
+                                  fontSize: 12,
                                   fontWeight: FontWeight.bold,
                                   color: Colors.black87,
                                 ),
@@ -513,37 +367,25 @@ class _BoostButtonState extends State<BoostButton>
                             ],
                           ),
                           if (totalBudget > 0) ...[
-                            Divider(color: Colors.grey.shade200, height: 18),
+                            Divider(color: Colors.grey.shade200, height: 14),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Row(
-                                  children: [
-                                    Icon(
-                                      Icons.account_balance_wallet_outlined,
-                                      color: Colors.grey.shade700,
-                                      size: 16,
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      'Presupuesto invertido',
-                                      style: TextStyle(
-                                        fontFamily: 'CanvaSans',
-                                        fontSize: 12.5,
-                                        color: Colors.grey.shade700,
-                                      ),
-                                    ),
-                                  ],
+                                Text(
+                                  'Inversión',
+                                  style: TextStyle(
+                                    fontFamily: 'CanvaSans',
+                                    fontSize: 12,
+                                    color: Colors.grey[600],
+                                  ),
                                 ),
                                 Text(
-                                  dailyBudget > 0
-                                      ? '\$${_formatPrice(totalBudget)} COP (\$${_formatPrice(dailyBudget)}/día)'
-                                      : '\$${_formatPrice(totalBudget)} COP',
+                                  '\$${_formatPrice(totalBudget)} COP',
                                   style: const TextStyle(
                                     fontFamily: 'CanvaSans',
-                                    fontSize: 12.5,
+                                    fontSize: 12,
                                     fontWeight: FontWeight.bold,
-                                    color: Color(0xFF0094FF),
+                                    color: Colors.black87,
                                   ),
                                 ),
                               ],
@@ -552,37 +394,12 @@ class _BoostButtonState extends State<BoostButton>
                         ],
                       ),
                     ),
-                    const SizedBox(height: 20),
-
-                    // Botón Cerrar
-                    SizedBox(
-                      width: double.infinity,
-                      height: 48,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF0094FF),
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                        ),
-                        onPressed: () => Navigator.pop(ctx),
-                        child: const Text(
-                          'Cerrar',
-                          style: TextStyle(
-                            fontFamily: 'CanvaSans',
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ),
+                    const SizedBox(height: 14),
                   ],
-                ),
-              ),
-            );
-          },
+                );
+              },
+            ),
+          ),
         );
       },
     );
@@ -602,92 +419,39 @@ class _BoostButtonState extends State<BoostButton>
             border: Border(top: BorderSide(color: Color(0xFFEEEEEE), width: 1)),
           ),
           child: isBoosted
-              // VISTA 1: PUBLICACIÓN IMPULSADA -> REVISAR ESTADÍSTICAS
+              // Publicación impulsada: Botón sobrio y directo para revisar estadísticas
               ? GestureDetector(
                   onTap: () => _showStatisticsSheet(context),
                   child: Container(
-                    height: 52,
+                    height: 48,
                     decoration: BoxDecoration(
-                      color: const Color(0xFF0F172A),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: const Color(0xFF00D4FF).withOpacity(0.4),
-                        width: 1.2,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFF0094FF).withOpacity(0.2),
-                          blurRadius: 10,
-                          offset: const Offset(0, 3),
+                      color: const Color(0xFF0094FF),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.bar_chart_rounded,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                        SizedBox(width: 8),
+                        Text(
+                          'REVISAR ESTADÍSTICAS',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontFamily: 'CanvaSans',
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.5,
+                          ),
                         ),
                       ],
                     ),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(
-                            Icons.insights_rounded,
-                            color: Color(0xFF00D4FF),
-                            size: 22,
-                          ),
-                          const SizedBox(width: 10),
-                          const Text(
-                            'REVISAR ESTADÍSTICAS',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontFamily: 'CanvaSans',
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 0.6,
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 3,
-                            ),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF10B981).withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(
-                                color: const Color(0xFF10B981).withOpacity(0.5),
-                                width: 0.8,
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Container(
-                                  width: 6,
-                                  height: 6,
-                                  decoration: const BoxDecoration(
-                                    color: Color(0xFF10B981),
-                                    shape: BoxShape.circle,
-                                  ),
-                                ),
-                                const SizedBox(width: 4),
-                                const Text(
-                                  'ACTIVO',
-                                  style: TextStyle(
-                                    color: Color(0xFF34D399),
-                                    fontFamily: 'CanvaSans',
-                                    fontSize: 9.5,
-                                    fontWeight: FontWeight.bold,
-                                    letterSpacing: 0.5,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
                   ),
                 )
-              // VISTA 2: PUBLICACIÓN NO IMPULSADA -> IMPULSAR PUBLICACIÓN
+              // Publicación no impulsada: Botón original de impulsar
               : AnimatedBuilder(
                   animation: _controller,
                   builder: (context, child) {
@@ -704,9 +468,9 @@ class _BoostButtonState extends State<BoostButton>
                         );
                       },
                       child: Container(
-                        height: 52,
+                        height: 48,
                         decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(16),
+                          borderRadius: BorderRadius.circular(12),
                           gradient: LinearGradient(
                             begin: Alignment.centerLeft,
                             end: Alignment.centerRight,
@@ -721,22 +485,11 @@ class _BoostButtonState extends State<BoostButton>
                             ],
                             stops: const [0.0, 0.5, 1.0],
                           ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFF0094FF).withOpacity(
-                                0.3 + _glowAnimation.value * 0.3,
-                              ),
-                              blurRadius: 12 + _glowAnimation.value * 8,
-                              spreadRadius: _glowAnimation.value * 2,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
                         ),
                         child: ClipRRect(
-                          borderRadius: BorderRadius.circular(16),
+                          borderRadius: BorderRadius.circular(12),
                           child: Stack(
                             children: [
-                              // Efecto de brillo deslizante
                               Positioned.fill(
                                 child: Transform.translate(
                                   offset: Offset(
@@ -749,7 +502,7 @@ class _BoostButtonState extends State<BoostButton>
                                       gradient: LinearGradient(
                                         colors: [
                                           Colors.transparent,
-                                          Colors.white.withOpacity(0.12),
+                                          Colors.white.withValues(alpha: 0.12),
                                           Colors.transparent,
                                         ],
                                         stops: const [0.0, 0.5, 1.0],
@@ -758,7 +511,6 @@ class _BoostButtonState extends State<BoostButton>
                                   ),
                                 ),
                               ),
-                              // Contenido del boton
                               Center(
                                 child: Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
@@ -768,38 +520,18 @@ class _BoostButtonState extends State<BoostButton>
                                       child: const Icon(
                                         Icons.rocket_launch_rounded,
                                         color: Colors.white,
-                                        size: 22,
+                                        size: 20,
                                       ),
                                     ),
-                                    const SizedBox(width: 10),
+                                    const SizedBox(width: 8),
                                     const Text(
                                       'IMPULSAR PUBLICACIÓN',
                                       style: TextStyle(
                                         color: Colors.white,
-                                        fontFamily: 'ArchivoBlack',
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w900,
-                                        letterSpacing: 1.0,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 10),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 6,
-                                        vertical: 2,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white.withOpacity(0.2),
-                                        borderRadius: BorderRadius.circular(6),
-                                      ),
-                                      child: const Text(
-                                        'PRO',
-                                        style: TextStyle(
-                                          color: Colors.white,
-                                          fontFamily: 'ArchivoBlack',
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.bold,
-                                        ),
+                                        fontFamily: 'CanvaSans',
+                                        fontSize: 13.5,
+                                        fontWeight: FontWeight.bold,
+                                        letterSpacing: 0.5,
                                       ),
                                     ),
                                   ],
