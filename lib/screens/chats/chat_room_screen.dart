@@ -670,6 +670,9 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   ) {
     final bool isPublicationChat = postId != null;
     final String subtitleText = isPublicationChat ? (postTitle ?? '') : 'En línea';
+    final String? avatarToDisplay = isPublicationChat
+        ? (postImage != null && postImage.isNotEmpty ? postImage : peerAvatar)
+        : peerAvatar;
 
     return AppBar(
       elevation: 0.5,
@@ -707,11 +710,15 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
               child: CircleAvatar(
                 radius: 18,
                 backgroundColor: Colors.grey[200],
-                backgroundImage: (peerAvatar != null && peerAvatar.isNotEmpty)
-                    ? CachedNetworkImageProvider(peerAvatar)
+                backgroundImage: (avatarToDisplay != null && avatarToDisplay.isNotEmpty)
+                    ? CachedNetworkImageProvider(avatarToDisplay)
                     : null,
-                child: (peerAvatar == null || peerAvatar.isEmpty)
-                    ? const Icon(Icons.person, color: Colors.grey, size: 20)
+                child: (avatarToDisplay == null || avatarToDisplay.isEmpty)
+                    ? Icon(
+                        isPublicationChat ? Icons.shopping_bag_outlined : Icons.person,
+                        color: Colors.grey,
+                        size: 20,
+                      )
                     : null,
               ),
             ),
@@ -795,16 +802,16 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
       child: Row(
         children: [
           Container(
-            width: 40,
-            height: 40,
+            width: 38,
+            height: 38,
+            padding: const EdgeInsets.all(7),
             decoration: const BoxDecoration(
               color: Colors.white,
               shape: BoxShape.circle,
             ),
-            child: Icon(
-              _getCategoryIcon(category),
-              color: Colors.black87,
-              size: 22,
+            child: Image.asset(
+              _getCategoryAsset(category),
+              fit: BoxFit.contain,
             ),
           ),
           const SizedBox(width: 12),
@@ -835,7 +842,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                             height: 28,
                             decoration: BoxDecoration(
                               color: Colors.white,
-                              borderRadius: BorderRadius.circular(14),
+                              borderRadius: BorderRadius.circular(8),
                               border: Border.all(color: Colors.grey.shade300, width: 0.8),
                             ),
                             alignment: Alignment.center,
@@ -854,12 +861,18 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                       const SizedBox(width: 8),
                       Expanded(
                         child: GestureDetector(
-                          onTap: () => _showReviewDialog(context, peerId, peerName, postTitle),
+                          onTap: () => _showReviewDialog(
+                            context,
+                            peerId,
+                            peerName,
+                            postTitle,
+                            category: category,
+                          ),
                           child: Container(
                             height: 28,
                             decoration: BoxDecoration(
                               color: Colors.white,
-                              borderRadius: BorderRadius.circular(14),
+                              borderRadius: BorderRadius.circular(8),
                               border: Border.all(color: Colors.grey.shade300, width: 0.8),
                             ),
                             alignment: Alignment.center,
@@ -882,12 +895,18 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                     children: [
                       Expanded(
                         child: GestureDetector(
-                          onTap: () => _showReviewDialog(context, peerId, peerName, postTitle),
+                          onTap: () => _showReviewDialog(
+                            context,
+                            peerId,
+                            peerName,
+                            postTitle,
+                            category: category,
+                          ),
                           child: Container(
                             height: 28,
                             decoration: BoxDecoration(
                               color: Colors.white,
-                              borderRadius: BorderRadius.circular(14),
+                              borderRadius: BorderRadius.circular(8),
                               border: Border.all(color: Colors.grey.shade300, width: 0.8),
                             ),
                             alignment: Alignment.center,
@@ -973,24 +992,30 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     );
   }
 
-  IconData _getCategoryIcon(String? category) {
+  String _getCategoryAsset(String? category) {
     final cat = (category ?? '').toLowerCase();
     if (cat.contains('vehic') || cat.contains('car') || cat.contains('moto') || cat.contains('auto')) {
-      return Icons.directions_car_rounded;
+      return 'assets/iconos/AssetsCPu/vehiculos.png';
     }
-    if (cat.contains('prop') || cat.contains('inmueble') || cat.contains('rent') || cat.contains('casa') || cat.contains('apto')) {
-      return Icons.home_outlined;
+    if (cat.contains('alquiler') || cat.contains('rent')) {
+      return 'assets/iconos/AssetsCPu/alquiler.png';
+    }
+    if (cat.contains('prop') || cat.contains('inmueble') || cat.contains('casa') || cat.contains('apto') || cat.contains('terreno')) {
+      return 'assets/iconos/AssetsCPu/propiedades.png';
     }
     if (cat.contains('serv')) {
-      return Icons.work_outline_rounded;
+      return 'assets/iconos/AssetsCPu/servicios.png';
     }
     if (cat.contains('pet') || cat.contains('masc')) {
-      return Icons.pets_rounded;
+      return 'assets/iconos/AssetsCPu/mascotas.png';
     }
-    if (cat.contains('empleo') || cat.contains('job')) {
-      return Icons.badge_outlined;
+    if (cat.contains('empleo') || cat.contains('job') || cat.contains('trabaj')) {
+      return 'assets/iconos/AssetsCPu/empleos.png';
     }
-    return Icons.shopping_bag_outlined;
+    if (cat.contains('trueque') || cat.contains('barter') || cat.contains('cambio')) {
+      return 'assets/iconos/AssetsCPu/trueques.png';
+    }
+    return 'assets/iconos/AssetsCPu/productos.png';
   }
 
   String _formatPrice(dynamic priceRaw) {
@@ -1012,100 +1037,320 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     return '\$${out.reversed.join()}';
   }
 
-  void _showReviewDialog(BuildContext context, String? peerId, String? peerName, String? postTitle) {
+  void _showReviewDialog(
+    BuildContext context,
+    String? peerId,
+    String? peerName,
+    String? postTitle, {
+    String? category,
+  }) {
     if (peerId == null || peerId.isEmpty) return;
-    double rating = 5.0;
-    final commentCtrl = TextEditingController();
+    double userRating = 5.0;
+    List<File> selectedImages = [];
+    final reviewController = TextEditingController();
+    bool isUploading = false;
 
-    showDialog(
+    showModalBottomSheet(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Text(
-            'Calificar a ${peerName ?? "usuario"}',
-            style: const TextStyle(fontWeight: FontWeight.bold, fontFamily: 'CanvaSans', fontSize: 16),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (postTitle != null)
-                Text(
-                  'Por: $postTitle',
-                  style: const TextStyle(fontSize: 12, color: Colors.grey, fontFamily: 'CanvaSans'),
-                ),
-              const SizedBox(height: 12),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(5, (index) {
-                  return IconButton(
-                    icon: Icon(
-                      index < rating ? Icons.star_rounded : Icons.star_border_rounded,
-                      color: Colors.amber,
-                      size: 32,
-                    ),
-                    onPressed: () {
-                      setDialogState(() {
-                        rating = index + 1.0;
-                      });
-                    },
-                  );
-                }),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: commentCtrl,
-                maxLines: 3,
-                style: const TextStyle(fontSize: 13, fontFamily: 'CanvaSans'),
-                decoration: InputDecoration(
-                  hintText: 'Escribe tu opinión...',
-                  hintStyle: const TextStyle(color: Colors.black38, fontSize: 13),
-                  filled: true,
-                  fillColor: Colors.grey[100],
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancelar', style: TextStyle(color: Colors.grey, fontFamily: 'CanvaSans')),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF0094FF),
-                elevation: 0,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              ),
-              onPressed: () async {
-                Navigator.pop(ctx);
-                try {
-                  await FirestoreService().addReview(
-                    reviewerId: currentUid,
-                    targetUserId: peerId,
-                    rating: rating,
-                    text: commentCtrl.text.trim(),
-                    itemReviewed: postTitle ?? 'Publicación',
-                  );
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('¡Gracias por tu calificación!')),
-                    );
-                  }
-                } catch (e) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Error al calificar: $e')),
-                    );
-                  }
-                }
-              },
-              child: const Text('Enviar', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontFamily: 'CanvaSans')),
-            ),
-          ],
-        ),
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
+      builder: (bottomSheetContext) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+                top: 12,
+                left: 16,
+                right: 16,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 36,
+                      height: 4,
+                      margin: const EdgeInsets.only(bottom: 12),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Calificar a ${peerName ?? "usuario"}',
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black,
+                                fontFamily: 'CanvaSans',
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            if (postTitle != null && postTitle.isNotEmpty)
+                              Text(
+                                postTitle,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey,
+                                  fontFamily: 'CanvaSans',
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close, color: Colors.grey, size: 20),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        onPressed: () => Navigator.pop(bottomSheetContext),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  // Rating stars selector (exact same as profile reviews)
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Text(
+                        'Reseñar: ',
+                        style: TextStyle(fontSize: 12, color: Colors.grey, fontFamily: 'CanvaSans'),
+                      ),
+                      ...List.generate(5, (index) {
+                        return GestureDetector(
+                          onTap: () => setSheetState(() => userRating = index + 1.0),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 2),
+                            child: Icon(
+                              index < userRating ? Icons.star : Icons.star_border,
+                              color: Colors.black,
+                              size: 20,
+                            ),
+                          ),
+                        );
+                      }),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  // Attached images horizontal preview
+                  if (selectedImages.isNotEmpty)
+                    Container(
+                      height: 50,
+                      margin: const EdgeInsets.only(bottom: 8),
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: selectedImages.length,
+                        itemBuilder: (context, index) {
+                          return Stack(
+                            children: [
+                              Container(
+                                margin: const EdgeInsets.only(right: 8, top: 4),
+                                width: 46,
+                                height: 46,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(8),
+                                  image: DecorationImage(
+                                    image: FileImage(selectedImages[index]),
+                                    fit: BoxFit.cover,
+                                  ),
+                                ),
+                              ),
+                              Positioned(
+                                top: 0,
+                                right: 4,
+                                child: GestureDetector(
+                                  onTap: () => setSheetState(() => selectedImages.removeAt(index)),
+                                  child: Container(
+                                    padding: const EdgeInsets.all(2),
+                                    decoration: const BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: Colors.black54,
+                                    ),
+                                    child: const Icon(Icons.close, size: 10, color: Colors.white),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          );
+                        },
+                      ),
+                    ),
+                  // Input bar container (matches reviews_section.dart)
+                  Container(
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE8E8E8),
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.08),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        // Botón de más (+) / galería
+                        GestureDetector(
+                          onTap: (isUploading || selectedImages.length >= 5)
+                              ? null
+                              : () async {
+                                  try {
+                                    final List<XFile> files = await _picker.pickMultiImage();
+                                    if (files.isNotEmpty) {
+                                      setSheetState(() {
+                                        selectedImages.addAll(files.map((e) => File(e.path)));
+                                        if (selectedImages.length > 5) {
+                                          selectedImages = selectedImages.sublist(0, 5);
+                                        }
+                                      });
+                                    }
+                                  } catch (e) {
+                                    if (mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(content: Text('Error al seleccionar fotos: $e')),
+                                      );
+                                    }
+                                  }
+                                },
+                          child: Container(
+                            margin: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              color: selectedImages.length >= 5 ? Colors.grey.shade200 : Colors.white,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: SizedBox(
+                              width: 36,
+                              height: 36,
+                              child: Icon(
+                                Icons.add_photo_alternate,
+                                color: selectedImages.length >= 5 ? Colors.grey : Colors.black,
+                                size: 22,
+                              ),
+                            ),
+                          ),
+                        ),
+                        // Campo de texto
+                        Expanded(
+                          child: TextField(
+                            controller: reviewController,
+                            enabled: !isUploading,
+                            style: const TextStyle(fontSize: 14, color: Colors.black, fontFamily: 'CanvaSans'),
+                            decoration: const InputDecoration(
+                              hintText: 'Escribe tu reseña aquí...',
+                              hintStyle: TextStyle(
+                                color: Color(0xFFAAAAAA),
+                                fontSize: 14,
+                                fontWeight: FontWeight.w400,
+                                fontFamily: 'CanvaSans',
+                              ),
+                              border: InputBorder.none,
+                              contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+                            ),
+                          ),
+                        ),
+                        // Botón de enviar (avión de papel celeste #00A8E8)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 4.0),
+                          child: isUploading
+                              ? const SizedBox(
+                                  width: 36,
+                                  height: 36,
+                                  child: Padding(
+                                    padding: EdgeInsets.all(8.0),
+                                    child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF00A8E8)),
+                                  ),
+                                )
+                              : IconButton(
+                                  icon: Transform.rotate(
+                                    angle: -0.785398, // ~45 grados en radianes
+                                    child: const Icon(
+                                      Icons.send,
+                                      color: Color(0xFF00A8E8),
+                                      size: 22,
+                                    ),
+                                  ),
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                                  onPressed: () async {
+                                    if (reviewController.text.trim().isEmpty || currentUid.isEmpty) {
+                                      return;
+                                    }
+                                    setSheetState(() => isUploading = true);
+                                    String? imageUrl;
+                                    List<String> imageUrls = [];
+
+                                    try {
+                                      if (selectedImages.isNotEmpty) {
+                                        for (var i = 0; i < selectedImages.length; i++) {
+                                          final String fileName =
+                                              '${currentUid}_${DateTime.now().millisecondsSinceEpoch}_$i.jpg';
+                                          final ref = FirebaseStorage.instance
+                                              .ref()
+                                              .child('reviews')
+                                              .child(fileName);
+                                          await ref.putFile(selectedImages[i]);
+                                          final url = await ref.getDownloadURL();
+                                          imageUrls.add(url);
+                                        }
+                                        imageUrl = imageUrls.first;
+                                      }
+
+                                      await FirestoreService().addReview(
+                                        reviewerId: currentUid,
+                                        targetUserId: peerId,
+                                        rating: userRating,
+                                        text: reviewController.text.trim(),
+                                        category: category ?? 'General',
+                                        itemReviewed: postTitle ?? 'Publicación',
+                                        imageUrl: imageUrl,
+                                        imageUrls: imageUrls.isNotEmpty ? imageUrls : null,
+                                      );
+
+                                      if (bottomSheetContext.mounted) {
+                                        Navigator.pop(bottomSheetContext);
+                                      }
+                                      if (mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(content: Text('¡Reseña publicada con éxito!')),
+                                        );
+                                      }
+                                    } catch (e) {
+                                      setSheetState(() => isUploading = false);
+                                      if (mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(content: Text('Error al enviar reseña: $e')),
+                                        );
+                                      }
+                                    }
+                                  },
+                                ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
@@ -1456,7 +1701,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
             ),
             decoration: BoxDecoration(
               color: isImage ? Colors.transparent : const Color(0xFF0094FF),
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(10),
             ),
             padding: isImage
                 ? EdgeInsets.zero
@@ -1502,7 +1747,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                   ),
                   decoration: BoxDecoration(
                     color: isImage ? Colors.transparent : const Color(0xFFE5E5EA),
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(10),
                   ),
                   padding: isImage
                       ? EdgeInsets.zero
@@ -1528,7 +1773,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
       child: Hero(
         tag: url,
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(10),
           child: CachedNetworkImage(
             imageUrl: url,
             placeholder: (context, url) => const SizedBox(
