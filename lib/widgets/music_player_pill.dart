@@ -40,6 +40,9 @@ class _MusicPlayerPillState extends State<MusicPlayerPill>
   bool _isYouTube = false;
   yt.YoutubePlayerController? _ytController;
   Timer? _ytLoopTimer;
+  StreamSubscription? _ytStreamSub;
+  StreamSubscription? _playerStateSub;
+  StreamSubscription? _playerPositionSub;
 
   // Ajustes de música
   bool _isMuted = false;
@@ -61,6 +64,9 @@ class _MusicPlayerPillState extends State<MusicPlayerPill>
   @override
   void dispose() {
     _ytLoopTimer?.cancel();
+    _ytStreamSub?.cancel();
+    _playerStateSub?.cancel();
+    _playerPositionSub?.cancel();
     _ytController?.close();
     _rotationController.dispose();
     _player.stop();
@@ -97,10 +103,18 @@ class _MusicPlayerPillState extends State<MusicPlayerPill>
           ),
         );
 
-        _ytController!.stream.listen((value) {
+        _ytStreamSub?.cancel();
+        _ytStreamSub = _ytController!.stream.listen((value) {
           if (!mounted) return;
           final state = value.playerState;
           final isPlaying = state == yt.PlayerState.playing;
+          if (state == yt.PlayerState.ended) {
+            _ytController?.seekTo(
+              seconds: widget.startSeconds.toDouble(),
+              allowSeekAhead: true,
+            );
+            _ytController?.playVideo();
+          }
           setState(() {
             _isPlaying = isPlaying;
             if (_isPlaying && !_isMuted) {
@@ -125,11 +139,11 @@ class _MusicPlayerPillState extends State<MusicPlayerPill>
           await _ytController!.setVolume((_calculateVolume() * 100).toInt());
         }
 
-        final totalSec = widget.duration > 30 ? widget.duration : 240;
-        final endDurationSec = (widget.startSeconds + totalSec).toDouble();
+        final playDuration = widget.duration > 0 ? widget.duration : 30;
+        final endDurationSec = (widget.startSeconds + playDuration).toDouble();
 
         _ytLoopTimer?.cancel();
-        _ytLoopTimer = Timer.periodic(const Duration(milliseconds: 600), (timer) async {
+        _ytLoopTimer = Timer.periodic(const Duration(milliseconds: 300), (timer) async {
           if (!mounted || _ytController == null) {
             timer.cancel();
             return;
@@ -153,7 +167,18 @@ class _MusicPlayerPillState extends State<MusicPlayerPill>
     }
 
     try {
-      _player.playerStateStream.listen((state) {
+      _playerStateSub?.cancel();
+      _playerStateSub = _player.playerStateStream.listen((state) {
+        if (state.processingState == ProcessingState.completed) {
+          final totalSec = (_player.duration != null && _player.duration!.inSeconds > 0)
+              ? _player.duration!.inSeconds
+              : 240;
+          final safeStartSec = widget.startSeconds
+              .clamp(0, math.max(0, totalSec - 5))
+              .toInt();
+          _player.seek(Duration(seconds: safeStartSec));
+          _player.play();
+        }
         if (mounted) {
           setState(() {
             _isPlaying = state.playing && state.processingState != ProcessingState.completed;
@@ -208,14 +233,11 @@ class _MusicPlayerPillState extends State<MusicPlayerPill>
         .clamp(0, math.max(0, totalSec - 5))
         .toInt();
 
-    final bool isFullTrack = widget.duration <= 0 ||
-        widget.duration == 30 ||
-        widget.duration >= totalSec;
-
-    final playDuration = isFullTrack ? totalSec : widget.duration;
+    final playDuration = widget.duration > 0 ? widget.duration : 30;
     final endDurationSec = (safeStartSec + playDuration).clamp(5, totalSec);
 
-    _player.positionStream.listen((pos) {
+    _playerPositionSub?.cancel();
+    _playerPositionSub = _player.positionStream.listen((pos) {
       final start = Duration(seconds: safeStartSec);
       final end = Duration(seconds: endDurationSec);
       if (pos >= end || (loadedDuration != null && pos >= loadedDuration)) {

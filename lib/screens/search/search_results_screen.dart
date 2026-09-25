@@ -67,26 +67,38 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
 
       final result = await _algolia.searchPosts(
         _currentQuery,
-        city: city != null && city != 'Todo' && !city.toLowerCase().contains('todo') ? city : null,
+        city: null, // Don't restrict Algolia search to city so all hits are retrieved
         filter: widget.category != null
             ? (isBarterCategory ? {'category': 'trueques'} : {'category': widget.category})
             : null,
         limit: 60,
       );
 
-      List<Map<String, dynamic>> hits = result.hits.map((h) => h.toJson()).toList();
+      List<Map<String, dynamic>> hits = result.hits.map((h) {
+        final map = Map<String, dynamic>.from(h);
+        map.putIfAbsent('objectID', () => h.objectID);
+        map.putIfAbsent('id', () => h.objectID);
+        return map;
+      }).toList();
 
       if (hits.isEmpty) {
         hits = await _firestoreFallback(_currentQuery, widget.category);
       }
 
-      // Strict location filter fallback if present
+      // Prioritize local hits first without discarding national results
       if (city != null && city != 'Todo' && !city.toLowerCase().contains('todo')) {
         final targetCity = city.toLowerCase().trim();
-        hits = hits.where((h) {
+        final localHits = <Map<String, dynamic>>[];
+        final otherHits = <Map<String, dynamic>>[];
+        for (final h in hits) {
           final loc = (h['location'] ?? h['city'] ?? h['ubicacion'] ?? h['ubicación'] ?? '').toString().toLowerCase();
-          return loc.contains(targetCity);
-        }).toList();
+          if (loc.isNotEmpty && loc.contains(targetCity)) {
+            localHits.add(h);
+          } else {
+            otherHits.add(h);
+          }
+        }
+        hits = [...localHits, ...otherHits];
       }
 
       // Ordenamiento local si se necesita
@@ -143,7 +155,7 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
       final qLower = query.toLowerCase().trim();
       final city = _locationService.currentCity;
 
-      return snap.docs
+      final filteredDocs = snap.docs
           .map((doc) {
             final data = doc.data();
             data['objectID'] = doc.id;
@@ -161,11 +173,6 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
               if (!isBarterPost) return false;
             }
 
-            if (city != null && city != 'Todo' && !city.toLowerCase().contains('todo')) {
-              final loc = (data['location'] ?? data['city'] ?? data['ubicacion'] ?? '').toString().toLowerCase();
-              if (!loc.contains(city.toLowerCase().trim())) return false;
-            }
-
             if (qLower.isEmpty) return true;
             final title = (data['title'] ?? '').toString().toLowerCase();
             final desc = (data['description'] ?? '').toString().toLowerCase();
@@ -174,6 +181,23 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
             return title.contains(qLower) || desc.contains(qLower) || loc.contains(qLower) || cat.contains(qLower);
           })
           .toList();
+
+      if (city != null && city != 'Todo' && !city.toLowerCase().contains('todo')) {
+        final targetCity = city.toLowerCase().trim();
+        final localDocs = <Map<String, dynamic>>[];
+        final otherDocs = <Map<String, dynamic>>[];
+        for (final d in filteredDocs) {
+          final loc = (d['location'] ?? d['city'] ?? d['ubicacion'] ?? '').toString().toLowerCase();
+          if (loc.isNotEmpty && loc.contains(targetCity)) {
+            localDocs.add(d);
+          } else {
+            otherDocs.add(d);
+          }
+        }
+        return [...localDocs, ...otherDocs];
+      }
+
+      return filteredDocs;
     } catch (e) {
       return [];
     }

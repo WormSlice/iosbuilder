@@ -402,26 +402,36 @@ class _HomeScreenState extends State<HomeScreen> {
                           );
                         }
                         final allDocs = snapshot.data!.docs;
-                        final matchingDocs = (_selectedLocation != null &&
+                        final bool isLocationFiltered = (_selectedLocation != null &&
                                 _selectedLocation!.isNotEmpty &&
                                 _selectedLocation!.toLowerCase() != 'todo' &&
                                 !_selectedLocation!.toLowerCase().contains('todo') &&
-                                !_selectedLocation!.toLowerCase().contains('mostrar'))
-                            ? allDocs.where((doc) {
-                                final d = doc.data();
-                                final loc = (d['location'] ??
-                                        d['city'] ??
-                                        d['ubicacion'] ??
-                                        d['ubicación'] ??
-                                        '')
-                                    .toString()
-                                    .toLowerCase();
-                                final selected = _selectedLocation!.toLowerCase().trim();
-                                return loc.contains(selected) || selected.contains(loc);
-                              }).toList()
-                            : allDocs;
+                                !_selectedLocation!.toLowerCase().contains('mostrar'));
 
-                        final docs = matchingDocs.isNotEmpty ? matchingDocs : allDocs;
+                        final List<QueryDocumentSnapshot<Map<String, dynamic>>> docs;
+                        if (isLocationFiltered) {
+                          final selected = _selectedLocation!.toLowerCase().trim();
+                          final matchingDocs = <QueryDocumentSnapshot<Map<String, dynamic>>>[];
+                          final otherDocs = <QueryDocumentSnapshot<Map<String, dynamic>>>[];
+                          for (final doc in allDocs) {
+                            final d = doc.data();
+                            final loc = (d['location'] ??
+                                    d['city'] ??
+                                    d['ubicacion'] ??
+                                    d['ubicación'] ??
+                                    '')
+                                .toString()
+                                .toLowerCase();
+                            if (loc.isNotEmpty && (loc.contains(selected) || selected.contains(loc))) {
+                              matchingDocs.add(doc);
+                            } else {
+                              otherDocs.add(doc);
+                            }
+                          }
+                          docs = [...matchingDocs, ...otherDocs];
+                        } else {
+                          docs = allDocs;
+                        }
 
                         if (docs.isEmpty) {
                           return const EmptyState(
@@ -577,27 +587,36 @@ class _CategoryCarouselState extends State<_CategoryCarousel> {
           return data;
         }).toList();
 
-        // Location filter with fallback to all docs if no matches exist in this town
-        final List<Map<String, dynamic>> matchingDocs = (widget.currentLocation != null &&
+        // Location filter: prioritize current location first, followed by all remaining posts
+        final bool isLocationFiltered = (widget.currentLocation != null &&
                 widget.currentLocation!.isNotEmpty &&
                 widget.currentLocation!.toLowerCase() != 'todo' &&
                 !widget.currentLocation!.toLowerCase().contains('todo') &&
-                !widget.currentLocation!.toLowerCase().contains('mostrar'))
-            ? docList.where((d) {
-                final loc = (d['location'] ??
-                        d['city'] ??
-                        d['ubicacion'] ??
-                        d['ubicación'] ??
-                        '')
-                    .toString()
-                    .toLowerCase();
-                final selected = widget.currentLocation!.toLowerCase().trim();
-                return loc.contains(selected) || selected.contains(loc);
-              }).toList()
-            : docList;
+                !widget.currentLocation!.toLowerCase().contains('mostrar'));
 
-        final List<Map<String, dynamic>> filteredDocs =
-            matchingDocs.isNotEmpty ? matchingDocs : docList;
+        final List<Map<String, dynamic>> filteredDocs;
+        if (isLocationFiltered) {
+          final selected = widget.currentLocation!.toLowerCase().trim();
+          final matchingDocs = <Map<String, dynamic>>[];
+          final otherDocs = <Map<String, dynamic>>[];
+          for (final d in docList) {
+            final loc = (d['location'] ??
+                    d['city'] ??
+                    d['ubicacion'] ??
+                    d['ubicación'] ??
+                    '')
+                .toString()
+                .toLowerCase();
+            if (loc.isNotEmpty && (loc.contains(selected) || selected.contains(loc))) {
+              matchingDocs.add(d);
+            } else {
+              otherDocs.add(d);
+            }
+          }
+          filteredDocs = [...matchingDocs, ...otherDocs];
+        } else {
+          filteredDocs = docList;
+        }
 
         return _buildCarouselContent(context, filteredDocs);
       },

@@ -269,7 +269,7 @@ class _MusicSearchSheetState extends State<MusicSearchSheet>
       thumbnail: song['thumbnail'].toString(),
       totalTrackSeconds: totalSec,
       initialStartSeconds: 0,
-      initialDuration: totalSec,
+      initialDuration: 30,
     );
 
     if (trimmed != null && mounted) {
@@ -280,7 +280,7 @@ class _MusicSearchSheetState extends State<MusicSearchSheet>
         'artist': song['artist'].toString(),
         'thumbnail': song['thumbnail'].toString(),
         'startSeconds': trimmed['startSeconds'] ?? 0,
-        'duration': trimmed['duration'] ?? totalSec,
+        'duration': trimmed['duration'] ?? 30,
         'audioUrl': resolvedUrl,
       });
     }

@@ -102,9 +102,9 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
     _totalTrackDurationSec = (widget.totalTrackSeconds > 0)
         ? widget.totalTrackSeconds.toDouble()
         : 240.0;
-    _duration = (widget.initialDuration > 0 && widget.initialDuration != 30)
+    _duration = (widget.initialDuration > 0)
         ? widget.initialDuration.clamp(5, _totalTrackDurationSec.toInt())
-        : _totalTrackDurationSec.toInt();
+        : 30;
 
     final maxStart = math.max(0.0, _totalTrackDurationSec - _duration);
     _startSeconds = widget.initialStartSeconds.clamp(0, maxStart.toInt());
@@ -326,10 +326,10 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
       _totalTrackDurationSec = loadedDuration.inSeconds.toDouble();
     }
 
-    if (widget.initialDuration == 30 || widget.initialDuration <= 0 || widget.initialDuration >= _totalTrackDurationSec.toInt()) {
+    if (widget.initialDuration <= 0 || widget.initialDuration >= _totalTrackDurationSec.toInt()) {
       _duration = _totalTrackDurationSec.toInt();
     } else {
-      _duration = _duration.clamp(5, _totalTrackDurationSec.toInt());
+      _duration = widget.initialDuration.clamp(5, _totalTrackDurationSec.toInt());
     }
     final maxStart = math.max(0.0, _totalTrackDurationSec - _duration);
     _startSeconds = _startSeconds.clamp(0, maxStart.toInt());

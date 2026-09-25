@@ -1,5 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:algolia_client_search/algolia_client_search.dart';
+import 'package:algoliasearch/algoliasearch.dart';
 import 'algolia_service.dart';
 
 class AlgoliaSyncService {
@@ -54,7 +54,7 @@ class AlgoliaSyncService {
       for (var i = 0; i < batchRequests.length; i += batchSize) {
         final end = (i + batchSize < batchRequests.length) ? i + batchSize : batchRequests.length;
         final batch = batchRequests.sublist(i, end);
-        await _algolia.client.batch(
+        await _algolia.adminClient.batch(
           indexName: AlgoliaService.postsIndex,
           batchWriteParams: BatchWriteParams(requests: batch),
         );
@@ -100,7 +100,7 @@ class AlgoliaSyncService {
       for (var i = 0; i < batchRequests.length; i += batchSize) {
         final end = (i + batchSize < batchRequests.length) ? i + batchSize : batchRequests.length;
         final batch = batchRequests.sublist(i, end);
-        await _algolia.client.batch(
+        await _algolia.adminClient.batch(
           indexName: AlgoliaService.wantsIndex,
           batchWriteParams: BatchWriteParams(requests: batch),
         );

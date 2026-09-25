@@ -378,7 +378,12 @@ class _WantsScreenState extends State<WantsScreen>
                                                 );
                                             if (mounted) {
                                               setState(() {
-                                                _searchHits = results.hits.map((h) => h.toJson()).toList();
+                                                _searchHits = results.hits.map((h) {
+                                                  final map = Map<String, dynamic>.from(h);
+                                                  map.putIfAbsent('objectID', () => h.objectID);
+                                                  map.putIfAbsent('id', () => h.objectID);
+                                                  return map;
+                                                }).toList();
                                                 _isAlgoliaLoading = false;
                                               });
                                             }

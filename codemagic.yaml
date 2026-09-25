@@ -44,8 +44,8 @@ workflows:
             NEXT_BUILD=$((LATEST_BUILD + 1))
           fi
           # Safety floor
-          if [ "$NEXT_BUILD" -le 86 ]; then
-            NEXT_BUILD=87
+          if [ "$NEXT_BUILD" -le 88 ]; then
+            NEXT_BUILD=89
           fi
           echo "Building iOS Release version $VERSION_NAME (Build $NEXT_BUILD)"
           

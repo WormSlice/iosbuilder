@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'package:algolia_client_search/algolia_client_search.dart';
+import 'package:algoliasearch/algoliasearch.dart';
 import 'package:http/http.dart' as http;
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -13,18 +13,25 @@ class AlgoliaService {
   static const String _adminApiKey = '4aa72340abeb49d79d888cc3271c23b1';
 
   late SearchClient _client;
+  SearchClient? _adminClient;
   bool _initialized = false;
 
   void init() {
     if (_initialized) return;
     print('DEBUG: Inicializando Algolia...');
     _client = SearchClient(appId: _appId, apiKey: _apiKey);
+    _adminClient = SearchClient(appId: _appId, apiKey: _adminApiKey);
     _initialized = true;
   }
 
   SearchClient get client {
     if (!_initialized) init();
     return _client;
+  }
+
+  SearchClient get adminClient {
+    if (!_initialized) init();
+    return _adminClient!;
   }
 
   static const String postsIndex = 'ALGOLIA';

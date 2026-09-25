@@ -163,7 +163,7 @@ class _MusicSelectorFieldState extends State<MusicSelectorField>
       final startSec =
           int.tryParse(selectedSong['startSeconds']?.toString() ?? '0') ?? 0;
       final duration =
-          int.tryParse(selectedSong['duration']?.toString() ?? '240') ?? 240;
+          int.tryParse(selectedSong['duration']?.toString() ?? '30') ?? 30;
 
       widget.onMusicSelected(
         selectedSong['id']?.toString(),
@@ -188,9 +188,9 @@ class _MusicSelectorFieldState extends State<MusicSelectorField>
       title: widget.musicTitle ?? 'Canción',
       artist: widget.musicArtist ?? '',
       thumbnail: widget.musicThumbnail ?? '',
-      totalTrackSeconds: widget.musicDuration > 30 ? widget.musicDuration : 240,
+      totalTrackSeconds: 240,
       initialStartSeconds: widget.musicStartSeconds,
-      initialDuration: widget.musicDuration > 30 ? widget.musicDuration : 240,
+      initialDuration: widget.musicDuration > 0 ? widget.musicDuration : 30,
     );
 
     if (trimResult != null && mounted) {
