@@ -80,7 +80,7 @@ dependencies {
     implementation("com.google.android.play:integrity:1.4.0")
 }
 
-tasks.matching { it.name.startsWith("cleanMerge") }.configureEach {
+tasks.matching { it.name.startsWith("cleanMerge") && it.name.endsWith("Assets") }.configureEach {
     enabled = false
 }
 
