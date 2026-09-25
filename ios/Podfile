@@ -46,6 +46,15 @@ post_install do |installer|
       config.build_settings['BUILD_LIBRARY_FOR_DISTRIBUTION'] = 'YES'
       config.build_settings['DEAD_CODE_STRIPPING'] = 'NO'
       config.build_settings['STRIP_STYLE'] = 'debugging'
+      config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= [
+        '$(inherited)',
+        'PERMISSION_MICROPHONE=1',
+        'PERMISSION_CAMERA=1',
+        'PERMISSION_PHOTOS=1',
+        'PERMISSION_LOCATION=1',
+        'PERMISSION_NOTIFICATIONS=1',
+        'PERMISSION_SPEECH_RECOGNIZER=1',
+      ]
     end
   end
 end

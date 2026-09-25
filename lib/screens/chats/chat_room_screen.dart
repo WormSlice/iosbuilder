@@ -16,7 +16,6 @@ import 'package:geolocator/geolocator.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:translator/translator.dart';
-import '../../app.dart';
 import 'call_screen.dart';
 import 'chat_info_screen.dart';
 import '../../services/signaling_service.dart';
@@ -56,7 +55,6 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   final AudioRecorder _audioRecorder = AudioRecorder();
   final AudioPlayer _audioPlayer = AudioPlayer(); // For preview if needed
 
-  String? _cachedAudioPath;
   final _translator = GoogleTranslator();
   final Map<String, String> _translations = {};
   String _targetLanguage = 'es';
@@ -183,7 +181,6 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
         final directory = await getTemporaryDirectory();
         final path =
             '${directory.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
-        _cachedAudioPath = path;
 
         const config = RecordConfig();
         await _audioRecorder.start(config, path: path);
@@ -1444,33 +1441,14 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
       return;
     }
 
-    // Solicitar permiso de micrófono (y cámara si es videollamada) antes de proceder
-    final micStatus = await Permission.microphone.request();
-    if (!micStatus.isGranted) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Se requiere acceso al micrófono para realizar la llamada.'),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
+    // Solicitar permisos sin bloquear la navegación para permitir que WebRTC gestione el acceso nativo
+    try {
+      await Permission.microphone.request();
+      if (isVideoCall) {
+        await Permission.camera.request();
       }
-      return;
-    }
-
-    if (isVideoCall) {
-      final camStatus = await Permission.camera.request();
-      if (!camStatus.isGranted) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Se requiere acceso a la cámara para la videollamada.'),
-              backgroundColor: Colors.redAccent,
-            ),
-          );
-        }
-        return;
-      }
+    } catch (e) {
+      debugPrint('[ChatRoomScreen] Error solicitando permisos previos: $e');
     }
 
     // Check if there is an active call minimized
