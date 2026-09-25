@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../screens/publications/vehicle_detail_screen.dart';
 import '../screens/publications/product_detail_screen.dart';
@@ -223,41 +224,39 @@ class PostCard extends StatelessWidget {
                     ),
                   ),
                   if (_buildCategoryIcons() != null) _buildCategoryIcons()!,
-                  if (data?['is_boosted'] == true)
-                    Positioned(
-                      top: 5,
-                      left: 5,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF0094FF),
-                          borderRadius: BorderRadius.circular(6),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.15),
-                              blurRadius: 4,
-                              offset: const Offset(0, 1),
-                            ),
-                          ],
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.bolt, color: Colors.white, size: 10),
-                            SizedBox(width: 2),
-                            Text(
-                              'IMPULSADO',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 8,
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: 0.4,
+                  Builder(
+                    builder: (context) {
+                      bool isBoosted = data?['is_boosted'] == true;
+                      if (isBoosted && data?['boost_expires_at'] is Timestamp) {
+                        final expiresAt = (data!['boost_expires_at'] as Timestamp).toDate();
+                        if (expiresAt.isBefore(DateTime.now())) {
+                          isBoosted = false;
+                        }
+                      }
+                      if (!isBoosted) return const SizedBox.shrink();
+
+                      return Positioned(
+                        top: 6,
+                        left: 6,
+                        child: Container(
+                          width: 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF0094FF),
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white, width: 1.5),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF0094FF).withOpacity(0.6),
+                                blurRadius: 4,
+                                spreadRadius: 1,
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
-                    ),
+                      );
+                    },
+                  ),
                 ],
               ),
             ),

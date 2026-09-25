@@ -244,6 +244,8 @@ class MusicService {
                 ? rawArt.replaceAll('100x100bb', '600x600bb')
                 : 'https://img.youtube.com/vi/QCZZwZQ4qNs/hqdefault.jpg';
 
+            final preview = item['previewUrl']?.toString() ?? '';
+
             final exists = list.any((s) =>
                 s['title'].toString().toLowerCase() == trackName.toLowerCase());
             if (!exists && trackName.isNotEmpty) {
@@ -254,7 +256,8 @@ class MusicService {
                 'artist': artistName,
                 'thumbnail': thumb,
                 'duration': durSec > 30 ? durSec : 205,
-                'audioUrl': '',
+                'audioUrl': preview,
+                'previewUrl': preview,
                 'spotifyUri': '',
                 'isSpotify': false,
               });
@@ -319,6 +322,8 @@ class MusicService {
                 ? rawArt.replaceAll('100x100bb', '600x600bb')
                 : 'https://img.youtube.com/vi/QCZZwZQ4qNs/hqdefault.jpg';
 
+            final preview = item['previewUrl']?.toString() ?? '';
+
             if (trackName.isNotEmpty) {
               list.add({
                 'id': '${trackName}_$artistName'.toLowerCase().replaceAll(' ', '_'),
@@ -327,7 +332,8 @@ class MusicService {
                 'artist': artistName,
                 'thumbnail': thumb,
                 'duration': durSec > 30 ? durSec : 210,
-                'audioUrl': '',
+                'audioUrl': preview,
+                'previewUrl': preview,
                 'spotifyUri': '',
                 'isSpotify': false,
               });
@@ -337,10 +343,52 @@ class MusicService {
         }
       }
     } catch (e) {
-      if (kDebugMode) print('[MusicService] Error buscando canciones: $e');
+      if (kDebugMode) print('[MusicService] Error buscando canciones en iTunes: $e');
     }
 
-    // 3. Fallback a canciones curadas si no hay respuesta de red
+    // 3. Búsqueda en Deezer (alta fidelidad y respaldo garantizado)
+    try {
+      final uri = Uri.parse(
+        'https://api.deezer.com/search?q=${Uri.encodeComponent(trimmedQuery)}&limit=25',
+      );
+      final res = await http.get(uri).timeout(const Duration(seconds: 4));
+      if (res.statusCode == 200) {
+        final data = json.decode(res.body);
+        final results = data['data'] as List? ?? [];
+        if (results.isNotEmpty) {
+          final list = <Map<String, dynamic>>[];
+          for (var item in results) {
+            final trackName = item['title']?.toString() ?? '';
+            final artistName = item['artist']?['name']?.toString() ?? '';
+            final durSec = item['duration'] as int? ?? 210;
+            final thumb = item['album']?['cover_xl']?.toString() ??
+                item['album']?['cover_big']?.toString() ??
+                'https://img.youtube.com/vi/QCZZwZQ4qNs/hqdefault.jpg';
+            final preview = item['preview']?.toString() ?? '';
+
+            if (trackName.isNotEmpty) {
+              list.add({
+                'id': '${trackName}_$artistName'.toLowerCase().replaceAll(' ', '_'),
+                'spotifyId': '${trackName}_$artistName',
+                'title': trackName,
+                'artist': artistName,
+                'thumbnail': thumb,
+                'duration': durSec > 30 ? durSec : 210,
+                'audioUrl': preview,
+                'previewUrl': preview,
+                'spotifyUri': '',
+                'isSpotify': false,
+              });
+            }
+          }
+          if (list.isNotEmpty) return list;
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) print('[MusicService] Error buscando canciones en Deezer: $e');
+    }
+
+    // 4. Fallback a canciones curadas si no hay respuesta de red
     final q = trimmedQuery.toLowerCase();
     final matches = _curatedSongs.where((s) {
       final title = s['title'].toString().toLowerCase();
@@ -476,6 +524,14 @@ class MusicService {
     }
 
     if (targetVideoId == null || targetVideoId.isEmpty) {
+      final fallbackUrl = fallbackPreviewUrl ?? await _resolveFallbackAudioUrl(searchTitle, searchArtist);
+      if (fallbackUrl != null && fallbackUrl.isNotEmpty) {
+        return {
+          'url': fallbackUrl,
+          'durationSeconds': expectedDurationSec ?? 30,
+          'videoId': 'stream_fallback',
+        };
+      }
       return null;
     }
 
@@ -493,7 +549,7 @@ class MusicService {
     try {
       final manifest = await yt.videos.streamsClient
           .getManifest(targetVideoId)
-          .timeout(const Duration(seconds: 12));
+          .timeout(const Duration(seconds: 4));
 
       // Seleccionar MP4 / AAC (itag 140 o 139) para compatibilidad nativa absoluta en iOS y Android
       final aac140 = manifest.audioOnly.where((s) => s.tag == 140).toList();
@@ -529,11 +585,59 @@ class MusicService {
         'videoId': targetVideoId,
       };
     } catch (e) {
-      if (kDebugMode) print('[MusicService] Error extrayendo stream completo de YouTube: $e');
+      if (kDebugMode) print('[MusicService] Fallback stream tras bloqueo de YouTube: $e');
+      final fallbackUrl = fallbackPreviewUrl ?? await _resolveFallbackAudioUrl(searchTitle, searchArtist);
+      if (fallbackUrl != null && fallbackUrl.isNotEmpty) {
+        return {
+          'url': fallbackUrl,
+          'durationSeconds': expectedDurationSec ?? 30,
+          'videoId': targetVideoId,
+        };
+      }
       return null;
     } finally {
       yt.close();
     }
+  }
+
+  /// Resuelve un stream de audio oficial de Apple iTunes o Deezer cuando YouTube falla
+  static Future<String?> _resolveFallbackAudioUrl(String title, String artist) async {
+    final q = '$title $artist'.trim();
+    if (q.isEmpty) return null;
+
+    // 1. Apple iTunes Search Preview (AAC alta fidelidad)
+    try {
+      final uri = Uri.parse('https://itunes.apple.com/search?term=${Uri.encodeComponent(q)}&entity=song&limit=3');
+      final res = await http.get(uri).timeout(const Duration(seconds: 3));
+      if (res.statusCode == 200) {
+        final d = json.decode(res.body);
+        final results = d['results'] as List? ?? [];
+        for (var item in results) {
+          final preview = item['previewUrl']?.toString();
+          if (preview != null && preview.startsWith('http')) {
+            return preview;
+          }
+        }
+      }
+    } catch (_) {}
+
+    // 2. Deezer Preview (MP3 128kbps)
+    try {
+      final uri = Uri.parse('https://api.deezer.com/search?q=${Uri.encodeComponent(q)}&limit=3');
+      final res = await http.get(uri).timeout(const Duration(seconds: 3));
+      if (res.statusCode == 200) {
+        final d = json.decode(res.body);
+        final list = d['data'] as List? ?? [];
+        for (var item in list) {
+          final preview = item['preview']?.toString();
+          if (preview != null && preview.startsWith('http')) {
+            return preview;
+          }
+        }
+      }
+    } catch (_) {}
+
+    return null;
   }
 
   /// Obtiene el enlace de audio streaming de la canción completa
@@ -562,6 +666,7 @@ class MusicService {
       title: searchTitle,
       artist: searchArtist,
       videoId: isYtId ? cleanInput : null,
+      fallbackPreviewUrl: cleanInput.startsWith('http') ? cleanInput : null,
       expectedDurationSec: 210,
     );
 
@@ -569,7 +674,8 @@ class MusicService {
       return streamData['url'].toString();
     }
 
-    return null;
+    // 3. Fallback directo si no se resolvió
+    return _resolveFallbackAudioUrl(searchTitle, searchArtist);
   }
 
   static const String _savedSongsKey = 'saved_songs_list';

@@ -159,7 +159,9 @@ class _MusicSearchSheetState extends State<MusicSearchSheet>
     final id = song['id'].toString();
     final title = song['title']?.toString() ?? '';
     final artist = song['artist']?.toString() ?? '';
-    final directAudioUrl = song['audioUrl']?.toString();
+    final directAudioUrl = (song['audioUrl'] != null && song['audioUrl'].toString().isNotEmpty)
+        ? song['audioUrl'].toString()
+        : song['previewUrl']?.toString();
 
     if (_playingId == id) {
       if (_isPlaying) {
@@ -181,13 +183,13 @@ class _MusicSearchSheetState extends State<MusicSearchSheet>
     try {
       await _previewPlayer.stop();
 
-      final url = (directAudioUrl != null && directAudioUrl.isNotEmpty)
+      final url = (directAudioUrl != null && directAudioUrl.isNotEmpty && directAudioUrl.startsWith('http'))
           ? directAudioUrl
           : await MusicService.getAudioStreamUrl(
               id,
               title: title,
               artist: artist,
-              forceFullTrack: true,
+              forceFullTrack: false,
             );
 
       if (url != null && url.isNotEmpty && mounted) {
@@ -245,12 +247,12 @@ class _MusicSearchSheetState extends State<MusicSearchSheet>
 
     final cleanId = song['id'].toString();
 
-    final workingAudioUrl = (song['audioUrl'] != null &&
-            song['audioUrl'].toString().startsWith('http') &&
-            !song['audioUrl'].toString().contains('googlevideo.com') &&
-            !song['audioUrl'].toString().contains('mzstatic.com') &&
-            !song['audioUrl'].toString().contains('deezer.com'))
+    final directAudio = (song['audioUrl'] != null && song['audioUrl'].toString().isNotEmpty)
         ? song['audioUrl'].toString()
+        : song['previewUrl']?.toString();
+
+    final workingAudioUrl = (directAudio != null && directAudio.startsWith('http'))
+        ? directAudio
         : null;
 
     final rawDur = song['duration'];

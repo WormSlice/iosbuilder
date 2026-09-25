@@ -170,6 +170,18 @@ export const Boosts: React.FC = () => {
                 status: newStatus,
                 updatedAt: new Date()
             });
+
+            // Sincronizar estado en la publicación original
+            if (boost.postId) {
+                try {
+                    await updateDoc(doc(db, 'posts', boost.postId), {
+                        is_boosted: newStatus === 'active',
+                    });
+                } catch (postErr) {
+                    console.warn('No se pudo actualizar is_boosted en la publicación:', postErr);
+                }
+            }
+
             setBoosts(prev => prev.map(b => b.id === boost.id ? { ...b, status: newStatus } : b));
             toast.success(`Impulso ${newStatus === 'active' ? 'reactivado' : 'pausado'}`);
         } catch (e) {
@@ -180,9 +192,25 @@ export const Boosts: React.FC = () => {
     const handleDelete = async (id: string) => {
         if (!window.confirm('¿Seguro que deseas eliminar permanentemente este impulso?')) return;
         try {
+            const boostToDelete = boosts.find(b => b.id === id);
+
             await deleteDoc(doc(db, 'boosts', id));
+
+            // Desactivar estado impulsado en la publicación original en Firestore
+            if (boostToDelete?.postId) {
+                try {
+                    await updateDoc(doc(db, 'posts', boostToDelete.postId), {
+                        is_boosted: false,
+                        boost_id: null,
+                        boost_expires_at: null
+                    });
+                } catch (postErr) {
+                    console.warn('No se pudo remover is_boosted de la publicación:', postErr);
+                }
+            }
+
             setBoosts(prev => prev.filter(b => b.id !== id));
-            toast.success('Impulso eliminado');
+            toast.success('Impulso eliminado y publicación restaurada');
         } catch (e) {
             toast.error('Error al eliminar');
         }

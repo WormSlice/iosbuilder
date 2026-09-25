@@ -174,15 +174,11 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
       String? streamUrl;
 
       // 1. Si viene audioUrl directa
-      if (widget.audioUrl != null &&
-          widget.audioUrl!.startsWith('http') &&
-          !widget.audioUrl!.contains('mzstatic.com') &&
-          !widget.audioUrl!.contains('deezer.com') &&
-          !widget.audioUrl!.contains('preview')) {
+      if (widget.audioUrl != null && widget.audioUrl!.startsWith('http')) {
         streamUrl = widget.audioUrl;
       }
 
-      // 2. Si no viene o no es directa, resolver stream completo
+      // 2. Si no viene o no es directa, resolver stream completo con fallback
       if (streamUrl == null || streamUrl.isEmpty) {
         final streamData = await MusicService.getFullAudioStream(
           title: widget.title,
@@ -211,7 +207,14 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
           _finishTrimmerInit(loadedDuration);
         } catch (err) {
           debugPrint('[Trimmer] Error cargando stream de audio: $err');
-          if (mounted) setState(() => _isLoading = false);
+          try {
+            final fallbackSource = AudioSource.uri(Uri.parse(streamUrl));
+            final loadedDuration = await _player.setAudioSource(fallbackSource);
+            _finishTrimmerInit(loadedDuration);
+          } catch (e2) {
+            debugPrint('[Trimmer] Fallback de audio también falló: $e2');
+            if (mounted) setState(() => _isLoading = false);
+          }
         }
       } else {
         if (mounted) setState(() => _isLoading = false);
