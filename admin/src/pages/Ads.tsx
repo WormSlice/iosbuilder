@@ -168,7 +168,7 @@ export const Ads: React.FC = () => {
             const newAd = {
                 id: adId,
                 title: formTitle.trim(),
-                client: formClient.trim() || 'Directo',
+                client: formClient.trim() || '',
                 imageUrl: formImageUrl.trim(),
                 linkUrl: formLinkUrl.trim(),
                 placement: formPlacement,
@@ -602,9 +602,8 @@ export const Ads: React.FC = () => {
 
                                 {/* Mockup Banner según ubicación */}
                                 <div className="w-full max-w-[280px] bg-white rounded-2xl shadow-lg border border-zinc-200 overflow-hidden relative">
-                                    <div className="absolute top-2.5 left-2.5 z-10 bg-black/70 backdrop-blur-md text-white px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider flex items-center gap-1">
-                                        <Sparkles size={10} className="text-[#0094FF]" />
-                                        <span>Publicidad • {formClient || 'Patrocinador'}</span>
+                                    <div className="absolute top-2.5 left-2.5 z-10 bg-black/75 backdrop-blur-md text-white px-2.5 py-1 rounded-md text-[10px] font-bold tracking-wide">
+                                        <span>{formTitle || 'Nombre de la publicidad'}</span>
                                     </div>
 
                                     <div className={`w-full bg-zinc-200 overflow-hidden ${formPlacement === 'home_top' ? 'h-32' : formPlacement === 'feed_interstitial' ? 'h-48' : 'h-36'}`}>
@@ -662,9 +661,8 @@ export const Ads: React.FC = () => {
 
                         {/* Tarjeta Banner */}
                         <div className="bg-white rounded-2xl shadow-lg border border-zinc-200 overflow-hidden relative">
-                            <div className="absolute top-2.5 left-2.5 z-10 bg-black/70 backdrop-blur-md text-white px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider flex items-center gap-1">
-                                <Sparkles size={10} className="text-[#0094FF]" />
-                                <span>Publicidad • {previewAd.client}</span>
+                            <div className="absolute top-2.5 left-2.5 z-10 bg-black/75 backdrop-blur-md text-white px-2.5 py-1 rounded-md text-[10px] font-bold tracking-wide">
+                                <span>{previewAd.title}</span>
                             </div>
 
                             <div className="w-full h-44 bg-zinc-200 overflow-hidden">

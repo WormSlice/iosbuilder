@@ -205,44 +205,36 @@ class _ConnectAdBannerState extends State<ConnectAdBanner> {
                   ),
                 ),
 
-                // Etiqueta sutil de patrocinio (Sobria y elegante, no badge genérico)
-                Positioned(
-                  top: 10,
-                  left: 10,
-                  child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.60),
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.2),
-                        width: 0.6,
+                // Etiqueta superior con el nombre de la publicidad (sin icono de verificado ni texto de publicidad)
+                if (ad.title.isNotEmpty)
+                  Positioned(
+                    top: 10,
+                    left: 10,
+                    child: Container(
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.60),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.2),
+                          width: 0.6,
+                        ),
+                      ),
+                      child: Text(
+                        ad.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontFamily: 'CanvaSans',
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                          letterSpacing: 0.2,
+                        ),
                       ),
                     ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          Icons.verified_outlined,
-                          size: 10,
-                          color: Color(0xFF00B4FF),
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          'Publicidad • ${ad.client}',
-                          style: const TextStyle(
-                            fontFamily: 'CanvaSans',
-                            fontSize: 9.5,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white,
-                            letterSpacing: 0.2,
-                          ),
-                        ),
-                      ],
-                    ),
                   ),
-                ),
 
                 // Información inferior con botón de acción directo
                 Positioned(
@@ -253,17 +245,24 @@ class _ConnectAdBannerState extends State<ConnectAdBanner> {
                     children: [
                       Expanded(
                         child: Text(
-                          ad.title,
+                          (ad.client.isNotEmpty &&
+                                  ad.client.toLowerCase() != 'directo' &&
+                                  ad.client.toLowerCase() != 'anunciante')
+                              ? ad.client
+                              : (ad.linkUrl.isNotEmpty
+                                  ? ad.linkUrl.replaceFirst(
+                                      RegExp(r'^https?:\/\/(www\.)?'), '')
+                                  : ''),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontFamily: 'Alexandria',
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
-                            shadows: [
+                          style: TextStyle(
+                            fontFamily: 'CanvaSans',
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.white.withValues(alpha: 0.9),
+                            shadows: const [
                               Shadow(
-                                color: Colors.black54,
+                                color: Colors.black87,
                                 offset: Offset(0, 1),
                                 blurRadius: 3,
                               ),
