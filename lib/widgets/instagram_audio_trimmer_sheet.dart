@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:youtube_player_iframe/youtube_player_iframe.dart' as yt;
 import '../services/music_service.dart';
 
 /// Hoja modal estilo Instagram para seleccionar y recortar cualquier fragmento
@@ -67,14 +68,23 @@ class InstagramAudioTrimmerSheet extends StatefulWidget {
 class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
     with TickerProviderStateMixin {
   final AudioPlayer _player = AudioPlayer();
+  yt.YoutubePlayerController? _ytController;
+  Timer? _ytLoopTimer;
+  StreamSubscription? _ytStateSub;
+
   late int _startSeconds;
   late int _duration;
   bool _isPlaying = false;
   bool _isLoading = true;
-  double _totalTrackDurationSec = 30.0;
+  double _totalTrackDurationSec = 240.0;
   bool _isAutoHighlight = true;
   double _currentPlaybackSec = 0.0;
   String? _resolvedAudioUrl;
+
+  bool get _isYouTube =>
+      widget.musicId.length == 11 &&
+      !widget.musicId.contains(' ') &&
+      !widget.musicId.startsWith('http');
 
   // Controladores de animación
   late AnimationController _waveAnimController;
@@ -127,6 +137,92 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
   }
 
   Future<void> _initAudio() async {
+    if (_isYouTube) {
+      await _initYouTubePlayer();
+      return;
+    }
+    await _initJustAudioPlayer();
+  }
+
+  Future<void> _initYouTubePlayer() async {
+    try {
+      _ytController = yt.YoutubePlayerController(
+        params: const yt.YoutubePlayerParams(
+          showControls: false,
+          showFullscreenButton: false,
+          mute: false,
+          loop: false,
+          playsInline: true,
+        ),
+      );
+
+      await _ytController!.loadVideoById(
+        videoId: widget.musicId,
+        startSeconds: _startSeconds.toDouble(),
+      );
+
+      _ytStateSub = _ytController!.stream.listen((value) {
+        if (mounted) {
+          final state = value.playerState;
+          final isBuffering = state == yt.PlayerState.buffering || state == yt.PlayerState.unStarted;
+          final playing = state == yt.PlayerState.playing;
+          setState(() {
+            _isLoading = isBuffering;
+            _isPlaying = playing;
+            if (_isPlaying) {
+              if (!_discAnimController.isAnimating) _discAnimController.repeat();
+              if (!_waveAnimController.isAnimating) _waveAnimController.repeat();
+            } else {
+              _discAnimController.stop();
+              _waveAnimController.stop();
+            }
+          });
+        }
+      });
+
+      _ytLoopTimer?.cancel();
+      _ytLoopTimer = Timer.periodic(const Duration(milliseconds: 150), (timer) async {
+        if (!mounted || _ytController == null) return;
+        try {
+          final cur = await _ytController!.currentTime;
+          final dur = await _ytController!.duration;
+          if (dur > 30.0 && dur != _totalTrackDurationSec) {
+            if (mounted) {
+              setState(() {
+                _totalTrackDurationSec = dur;
+              });
+            }
+          }
+
+          final start = _startSeconds.toDouble();
+          final end = start + _duration;
+
+          if (mounted) {
+            setState(() {
+              _currentPlaybackSec = cur;
+            });
+          }
+
+          // Bucle perfecto dentro del rango recortado [start, start + duration]
+          if (_isPlaying && (cur >= end || cur >= _totalTrackDurationSec - 0.25)) {
+            _ytController!.seekTo(seconds: start, allowSeekAhead: true);
+          }
+        } catch (_) {}
+      });
+
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _isPlaying = true;
+        });
+      }
+    } catch (e) {
+      debugPrint('[Trimmer] Error iniciando YouTube player: $e');
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _initJustAudioPlayer() async {
     _stateSub = _player.playerStateStream.listen((state) {
       if (mounted) {
         if (state.processingState == ProcessingState.completed) {
@@ -251,6 +347,9 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
 
   @override
   void dispose() {
+    _ytLoopTimer?.cancel();
+    _ytStateSub?.cancel();
+    _ytController?.close();
     _waveAnimController.dispose();
     _discAnimController.dispose();
     _pulseAnimController.dispose();
@@ -278,9 +377,16 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
 
     _seekDebounce?.cancel();
     _seekDebounce = Timer(const Duration(milliseconds: 30), () async {
-      await _player.seek(Duration(seconds: _startSeconds));
-      if (!_isPlaying) {
-        await _player.play();
+      if (_isYouTube && _ytController != null) {
+        await _ytController!.seekTo(seconds: _startSeconds.toDouble(), allowSeekAhead: true);
+        if (!_isPlaying) {
+          await _ytController!.playVideo();
+        }
+      } else {
+        await _player.seek(Duration(seconds: _startSeconds));
+        if (!_isPlaying) {
+          await _player.play();
+        }
       }
     });
   }
@@ -302,21 +408,41 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
       _currentPlaybackSec = safeStart.toDouble();
       _isAutoHighlight = true;
     });
-    _player.seek(Duration(seconds: safeStart));
-    if (!_isPlaying) {
-      _player.play();
+
+    if (_isYouTube && _ytController != null) {
+      _ytController!.seekTo(seconds: safeStart.toDouble(), allowSeekAhead: true);
+      if (!_isPlaying) {
+        _ytController!.playVideo();
+      }
+    } else {
+      _player.seek(Duration(seconds: safeStart));
+      if (!_isPlaying) {
+        _player.play();
+      }
     }
   }
 
   void _togglePlayPause() async {
     if (_isPlaying) {
-      await _player.pause();
-    } else {
-      if (_currentPlaybackSec < _startSeconds ||
-          _currentPlaybackSec >= _startSeconds + _duration) {
-        await _player.seek(Duration(seconds: _startSeconds));
+      if (_isYouTube && _ytController != null) {
+        await _ytController!.pauseVideo();
+      } else {
+        await _player.pause();
       }
-      await _player.play();
+    } else {
+      if (_isYouTube && _ytController != null) {
+        if (_currentPlaybackSec < _startSeconds ||
+            _currentPlaybackSec >= _startSeconds + _duration) {
+          await _ytController!.seekTo(seconds: _startSeconds.toDouble(), allowSeekAhead: true);
+        }
+        await _ytController!.playVideo();
+      } else {
+        if (_currentPlaybackSec < _startSeconds ||
+            _currentPlaybackSec >= _startSeconds + _duration) {
+          await _player.seek(Duration(seconds: _startSeconds));
+        }
+        await _player.play();
+      }
     }
   }
 
@@ -331,11 +457,11 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
     if (total <= 30) {
       return [total];
     } else if (total <= 60) {
-      return [30, total];
+      return [15, 30, total];
     } else if (total <= 90) {
-      return [30, 60, total];
+      return [15, 30, 60, total];
     } else {
-      return [30, 60, 90, total];
+      return [15, 30, 60, 90, total];
     }
   }
 
@@ -362,12 +488,25 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
       ),
       padding: EdgeInsets.fromLTRB(
           20, 12, 20, MediaQuery.of(context).padding.bottom + 20),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
+      child: Stack(
+        clipBehavior: Clip.none,
         children: [
-          // Barra de arrastre superior
-          Center(
-            child: Container(
+          if (_isYouTube && _ytController != null)
+            Positioned(
+              left: -9999,
+              top: -9999,
+              width: 1,
+              height: 1,
+              child: yt.YoutubePlayer(
+                controller: _ytController!,
+              ),
+            ),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Barra de arrastre superior
+              Center(
+                child: Container(
               width: 40,
               height: 4.5,
               decoration: BoxDecoration(
@@ -501,11 +640,16 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
               // Botón Listo
               _BouncingWidget(
                 onTap: () {
-                  _player.stop();
+                  if (_isYouTube && _ytController != null) {
+                    _ytController!.pauseVideo();
+                  } else {
+                    _player.stop();
+                  }
                   Navigator.pop(context, {
                     'startSeconds': _startSeconds,
                     'duration': _duration,
-                    'audioUrl': _resolvedAudioUrl,
+                    'totalDuration': _totalTrackDurationSec.toInt(),
+                    'audioUrl': _resolvedAudioUrl ?? widget.audioUrl ?? '',
                     'resolvedAudioUrl': _resolvedAudioUrl,
                   });
                 },
@@ -561,7 +705,11 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
                           }
                           _currentPlaybackSec = _startSeconds.toDouble();
                         });
-                        _player.seek(Duration(seconds: _startSeconds));
+                        if (_isYouTube && _ytController != null) {
+                          _ytController!.seekTo(seconds: _startSeconds.toDouble(), allowSeekAhead: true);
+                        } else {
+                          _player.seek(Duration(seconds: _startSeconds));
+                        }
                       },
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 200),
@@ -803,6 +951,8 @@ class _InstagramAudioTrimmerSheetState extends State<InstagramAudioTrimmerSheet>
               ],
             ),
           ),
+        ],
+      ),
         ],
       ),
     );

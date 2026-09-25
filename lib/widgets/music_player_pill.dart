@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:youtube_player_iframe/youtube_player_iframe.dart' as yt;
 import '../services/music_service.dart';
 import 'package:liquid_glass_easy/liquid_glass_easy.dart';
 
@@ -34,6 +36,11 @@ class _MusicPlayerPillState extends State<MusicPlayerPill>
   bool _isPlaying = false;
   bool _isLoading = true;
 
+  // YouTube player controller
+  bool _isYouTube = false;
+  yt.YoutubePlayerController? _ytController;
+  Timer? _ytLoopTimer;
+
   // Ajustes de música
   bool _isMuted = false;
   bool _isVolumeLimitEnabled = false;
@@ -53,6 +60,8 @@ class _MusicPlayerPillState extends State<MusicPlayerPill>
 
   @override
   void dispose() {
+    _ytLoopTimer?.cancel();
+    _ytController?.close();
     _rotationController.dispose();
     _player.stop();
     _player.dispose();
@@ -73,6 +82,76 @@ class _MusicPlayerPillState extends State<MusicPlayerPill>
   }
 
   Future<void> _initAudio() async {
+    final cleanId = widget.musicId.trim();
+    final isYt = (cleanId.length == 11 && !cleanId.contains(' ') && !cleanId.startsWith('http'));
+    _isYouTube = isYt;
+
+    if (_isYouTube) {
+      try {
+        _ytController = yt.YoutubePlayerController(
+          params: const yt.YoutubePlayerParams(
+            showControls: false,
+            showFullscreenButton: false,
+            mute: false,
+            loop: false,
+          ),
+        );
+
+        _ytController!.stream.listen((value) {
+          if (!mounted) return;
+          final state = value.playerState;
+          final isPlaying = state == yt.PlayerState.playing;
+          setState(() {
+            _isPlaying = isPlaying;
+            if (_isPlaying && !_isMuted) {
+              if (!_rotationController.isAnimating) {
+                _rotationController.repeat();
+              }
+            } else {
+              _rotationController.stop();
+            }
+          });
+        });
+
+        await _ytController!.loadVideoById(
+          videoId: cleanId,
+          startSeconds: widget.startSeconds.toDouble(),
+        );
+
+        if (_isMuted) {
+          await _ytController!.mute();
+        } else {
+          await _ytController!.unMute();
+          await _ytController!.setVolume((_calculateVolume() * 100).toInt());
+        }
+
+        final totalSec = widget.duration > 30 ? widget.duration : 240;
+        final endDurationSec = (widget.startSeconds + totalSec).toDouble();
+
+        _ytLoopTimer?.cancel();
+        _ytLoopTimer = Timer.periodic(const Duration(milliseconds: 600), (timer) async {
+          if (!mounted || _ytController == null) {
+            timer.cancel();
+            return;
+          }
+          if (_isPlaying) {
+            final pos = await _ytController!.currentTime;
+            if (pos >= endDurationSec) {
+              await _ytController!.seekTo(
+                seconds: widget.startSeconds.toDouble(),
+                allowSeekAhead: true,
+              );
+            }
+          }
+        });
+
+        if (mounted) setState(() => _isLoading = false);
+        return;
+      } catch (ytErr) {
+        debugPrint('[MusicPlayerPill] Error iniciando YouTube player: $ytErr');
+      }
+    }
+
     try {
       _player.playerStateStream.listen((state) {
         if (mounted) {
@@ -129,9 +208,6 @@ class _MusicPlayerPillState extends State<MusicPlayerPill>
         .clamp(0, math.max(0, totalSec - 5))
         .toInt();
 
-    // Las canciones se reproducen COMPLETAS (3 a 5 minutos) hasta el final de la pista.
-    // Si widget.duration viene en 30 (antiguo valor por defecto en Firestore) o <= 0,
-    // reproducimos la pista completa hasta el final sin cortes a los 29-30 segundos.
     final bool isFullTrack = widget.duration <= 0 ||
         widget.duration == 30 ||
         widget.duration >= totalSec;
@@ -159,6 +235,14 @@ class _MusicPlayerPillState extends State<MusicPlayerPill>
   }
 
   void _togglePlayPause() async {
+    if (_isYouTube && _ytController != null) {
+      if (_isPlaying) {
+        await _ytController!.pauseVideo();
+      } else {
+        await _ytController!.playVideo();
+      }
+      return;
+    }
     if (_player.playing) {
       await _player.pause();
     } else {
@@ -185,7 +269,16 @@ class _MusicPlayerPillState extends State<MusicPlayerPill>
         _rotationController.repeat();
       }
     });
-    await _player.setVolume(_calculateVolume());
+    if (_isYouTube && _ytController != null) {
+      if (muted) {
+        await _ytController!.mute();
+      } else {
+        await _ytController!.unMute();
+        await _ytController!.setVolume((_calculateVolume() * 100).toInt());
+      }
+    } else {
+      await _player.setVolume(_calculateVolume());
+    }
   }
 
   Future<void> _updateVolumeLimitEnabled(bool enabled) async {
@@ -194,7 +287,11 @@ class _MusicPlayerPillState extends State<MusicPlayerPill>
     setState(() {
       _isVolumeLimitEnabled = enabled;
     });
-    await _player.setVolume(_calculateVolume());
+    if (_isYouTube && _ytController != null && !_isMuted) {
+      await _ytController!.setVolume((_calculateVolume() * 100).toInt());
+    } else {
+      await _player.setVolume(_calculateVolume());
+    }
   }
 
   Future<void> _updateVolumeLimitValue(double limit) async {
@@ -203,7 +300,11 @@ class _MusicPlayerPillState extends State<MusicPlayerPill>
     setState(() {
       _maxVolumeLimit = limit;
     });
-    await _player.setVolume(_calculateVolume());
+    if (_isYouTube && _ytController != null && !_isMuted) {
+      await _ytController!.setVolume((_calculateVolume() * 100).toInt());
+    } else {
+      await _player.setVolume(_calculateVolume());
+    }
   }
 
   Future<void> _toggleMute() async {
@@ -348,7 +449,7 @@ class _MusicPlayerPillState extends State<MusicPlayerPill>
   Widget build(BuildContext context) {
     final activePlaying = _isPlaying && !_isMuted;
 
-    return LiquidGlassLens(
+    final pillWidget = LiquidGlassLens(
       style: const LiquidGlassStyle(
         shape: LiquidGlassShape.squircle(cornerRadius: 20),
         appearance: LiquidGlassAppearance(
@@ -502,6 +603,24 @@ class _MusicPlayerPillState extends State<MusicPlayerPill>
         ),
       ),
     );
+
+    if (_isYouTube && _ytController != null) {
+      return Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Positioned(
+            left: -9999,
+            top: -9999,
+            width: 1,
+            height: 1,
+            child: yt.YoutubePlayer(controller: _ytController!),
+          ),
+          pillWidget,
+        ],
+      );
+    }
+
+    return pillWidget;
   }
 }
 

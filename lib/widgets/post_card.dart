@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import '../services/boost_service.dart';
 import '../screens/publications/vehicle_detail_screen.dart';
 import '../screens/publications/product_detail_screen.dart';
 import '../screens/publications/service_detail_screen.dart';
@@ -95,11 +95,11 @@ class PostCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(4),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.8),
+          color: Colors.white.withValues(alpha: 0.8),
           shape: BoxShape.circle,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
+              color: Colors.black.withValues(alpha: 0.1),
               blurRadius: 4,
               offset: const Offset(0, 2),
             ),
@@ -224,15 +224,10 @@ class PostCard extends StatelessWidget {
                     ),
                   ),
                   if (_buildCategoryIcons() != null) _buildCategoryIcons()!,
-                  Builder(
-                    builder: (context) {
-                      bool isBoosted = data?['is_boosted'] == true;
-                      if (isBoosted && data?['boost_expires_at'] is Timestamp) {
-                        final expiresAt = (data!['boost_expires_at'] as Timestamp).toDate();
-                        if (expiresAt.isBefore(DateTime.now())) {
-                          isBoosted = false;
-                        }
-                      }
+                  ValueListenableBuilder<Set<String>>(
+                    valueListenable: BoostService().activeBoostedPostIds,
+                    builder: (context, activeIds, _) {
+                      final bool isBoosted = BoostService().isPostBoosted(postId, data);
                       if (!isBoosted) return const SizedBox.shrink();
 
                       return Positioned(
@@ -247,7 +242,7 @@ class PostCard extends StatelessWidget {
                             border: Border.all(color: Colors.white, width: 1.5),
                             boxShadow: [
                               BoxShadow(
-                                color: const Color(0xFF0094FF).withOpacity(0.6),
+                                color: const Color(0xFF0094FF).withValues(alpha: 0.6),
                                 blurRadius: 4,
                                 spreadRadius: 1,
                               ),

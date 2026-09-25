@@ -32,7 +32,9 @@ import {
     query,
     orderBy,
     limit,
-    getDoc
+    getDoc,
+    deleteField,
+    where
 } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 
@@ -163,6 +165,50 @@ export const Boosts: React.FC = () => {
         setFormSellerName(p.userName || 'Usuario');
     };
 
+    const [isSyncing, setIsSyncing] = useState(false);
+
+    const handleSyncBoosts = async () => {
+        setIsSyncing(true);
+        try {
+            // 1. Obtener todos los impulsos activos y vigentes
+            const boostSnap = await getDocs(collection(db, 'boosts'));
+            const activePostIds = new Set<string>();
+            const now = new Date();
+            boostSnap.forEach(d => {
+                const data = d.data();
+                if (data.status === 'active') {
+                    const exp = data.expiresAt?.toDate ? data.expiresAt.toDate() : (data.expiresAt ? new Date(data.expiresAt) : null);
+                    if (!exp || exp > now) {
+                        const pid = data.postId || d.id;
+                        if (pid) activePostIds.add(pid);
+                    }
+                }
+            });
+
+            // 2. Buscar todas las publicaciones con is_boosted == true
+            const postsSnap = await getDocs(query(collection(db, 'posts'), where('is_boosted', '==', true)));
+            let fixedCount = 0;
+            for (const pDoc of postsSnap.docs) {
+                if (!activePostIds.has(pDoc.id)) {
+                    await setDoc(doc(db, 'posts', pDoc.id), {
+                        is_boosted: false,
+                        boost_id: deleteField(),
+                        boost_expires_at: deleteField()
+                    }, { merge: true });
+                    fixedCount++;
+                }
+            }
+
+            toast.success(`Sincronización completa: ${fixedCount} publicaciones huérfanas restauradas.`);
+            fetchBoosts();
+        } catch (err: any) {
+            console.error('Error sincronizando impulsos:', err);
+            toast.error('Error al sincronizar impulsos');
+        } finally {
+            setIsSyncing(false);
+        }
+    };
+
     const handleToggleStatus = async (boost: BoostItem) => {
         const newStatus = boost.status === 'active' ? 'paused' : 'active';
         try {
@@ -171,12 +217,12 @@ export const Boosts: React.FC = () => {
                 updatedAt: new Date()
             });
 
-            // Sincronizar estado en la publicación original
+            // Sincronizar estado en la publicación original con merge seguro
             if (boost.postId) {
                 try {
-                    await updateDoc(doc(db, 'posts', boost.postId), {
+                    await setDoc(doc(db, 'posts', boost.postId), {
                         is_boosted: newStatus === 'active',
-                    });
+                    }, { merge: true });
                 } catch (postErr) {
                     console.warn('No se pudo actualizar is_boosted en la publicación:', postErr);
                 }
@@ -193,24 +239,34 @@ export const Boosts: React.FC = () => {
         if (!window.confirm('¿Seguro que deseas eliminar permanentemente este impulso?')) return;
         try {
             const boostToDelete = boosts.find(b => b.id === id);
+            let targetPostId = boostToDelete?.postId;
+
+            // Consultar el documento del impulso antes de eliminar para asegurar el postId correcto
+            try {
+                const bSnap = await getDoc(doc(db, 'boosts', id));
+                if (bSnap.exists()) {
+                    const bData = bSnap.data();
+                    if (bData.postId) targetPostId = bData.postId;
+                }
+            } catch (_) {}
 
             await deleteDoc(doc(db, 'boosts', id));
 
-            // Desactivar estado impulsado en la publicación original en Firestore
-            if (boostToDelete?.postId) {
+            // Desactivar de forma definitiva el estado impulsado en la publicación original
+            if (targetPostId) {
                 try {
-                    await updateDoc(doc(db, 'posts', boostToDelete.postId), {
+                    await setDoc(doc(db, 'posts', targetPostId), {
                         is_boosted: false,
-                        boost_id: null,
-                        boost_expires_at: null
-                    });
+                        boost_id: deleteField(),
+                        boost_expires_at: deleteField()
+                    }, { merge: true });
                 } catch (postErr) {
                     console.warn('No se pudo remover is_boosted de la publicación:', postErr);
                 }
             }
 
             setBoosts(prev => prev.filter(b => b.id !== id));
-            toast.success('Impulso eliminado y publicación restaurada');
+            toast.success('Impulso eliminado y publicación restaurada en la app');
         } catch (e) {
             toast.error('Error al eliminar');
         }
@@ -317,6 +373,15 @@ export const Boosts: React.FC = () => {
                     >
                         <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
                         <span>Actualizar</span>
+                    </button>
+                    <button
+                        onClick={handleSyncBoosts}
+                        disabled={isSyncing}
+                        className="btn-secondary flex items-center gap-1.5 text-xs py-2 text-zinc-700 bg-zinc-50 hover:bg-zinc-100 border-zinc-200"
+                        title="Sincronizar estados y limpiar publicaciones que ya no tienen impulso activo"
+                    >
+                        <RefreshCw size={13} className={isSyncing ? 'animate-spin' : ''} />
+                        <span>{isSyncing ? 'Sincronizando...' : 'Sincronizar y Limpiar'}</span>
                     </button>
                     <button
                         onClick={() => {
