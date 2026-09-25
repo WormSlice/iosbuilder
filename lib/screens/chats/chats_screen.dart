@@ -382,18 +382,19 @@ class _ChatsScreenContentState extends State<ChatsScreen> {
                                   overflow: TextOverflow.ellipsis,
                                   style: const TextStyle(
                                     fontFamily: 'CanvaSans',
-                                    fontSize: 17,
-                                    fontWeight: FontWeight.w700,
+                                    fontSize: 15.5,
+                                    fontWeight: FontWeight.w800,
+                                    color: Colors.black,
                                   ),
                                 ),
                               ),
                               if (verified && pubTitle == null)
                                 const Padding(
-                                  padding: EdgeInsets.only(left: 5),
+                                  padding: EdgeInsets.only(left: 4),
                                   child: Icon(
                                     Icons.verified,
-                                    color: Colors.blue,
-                                    size: 18,
+                                    color: Color(0xFF0094FF),
+                                    size: 16,
                                   ),
                                 ),
                               if (Provider.of<ChatFilterService>(
@@ -401,46 +402,26 @@ class _ChatsScreenContentState extends State<ChatsScreen> {
                                 listen: false,
                               ).isPinned(chatId))
                                 const Padding(
-                                  padding: EdgeInsets.only(left: 8),
+                                  padding: EdgeInsets.only(left: 6),
                                   child: Icon(
                                     Icons.push_pin,
-                                    color: Colors.blue,
-                                    size: 16,
+                                    color: Color(0xFF0094FF),
+                                    size: 14,
                                   ),
                                 ),
                             ],
                           ),
                           const SizedBox(height: 3),
-                          if (pubData != null && pubData['category'] != null)
-                            Padding(
-                              padding: const EdgeInsets.only(bottom: 4),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: Colors.blue.withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: Text(
-                                  pubData['category'].toString().toUpperCase(),
-                                  style: const TextStyle(
-                                    fontFamily: 'CanvaSans',
-                                    fontSize: 9,
-                                    fontWeight: FontWeight.w800,
-                                    color: Color(0xFF0094FF),
-                                    letterSpacing: 0.5,
-                                  ),
-                                ),
-                              ),
-                            ),
                           Text(
                             last,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                               fontFamily: 'CanvaSans',
-                              fontSize: 15,
-                              fontWeight: unread ? FontWeight.bold : FontWeight.w400,
-                              color: unread ? Colors.black : Colors.black87,
+                              fontSize: 13.5,
+                              fontWeight: unread ? FontWeight.w700 : FontWeight.w400,
+                              color: unread ? Colors.black : const Color(0xFF666666),
+                              height: 1.25,
                             ),
                           ),
                         ],

@@ -271,20 +271,6 @@ class _HomeScreenState extends State<HomeScreen> {
                         category: 'vehículos',
                       ),
                     ),
-                    // Intersticial entre secciones de categorías tempranas
-                    SliverToBoxAdapter(
-                      child: StreamBuilder<List<AdCampaign>>(
-                        stream: _service.activeAdsStream(placement: 'feed_interstitial'),
-                        builder: (context, snapshot) {
-                          final ads = snapshot.data ?? [];
-                          if (ads.isEmpty) return const SizedBox.shrink();
-                          return Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 4),
-                            child: ConnectAdCarousel(ads: ads, height: 165),
-                          );
-                        },
-                      ),
-                    ),
                     SliverToBoxAdapter(
                       child: _CategoryCarousel(
                         title: 'Propiedades',
@@ -307,20 +293,6 @@ class _HomeScreenState extends State<HomeScreen> {
                         currentLocation: _selectedLocation,
                         onLocationTap: _showLocationPicker,
                         category: 'servicios',
-                      ),
-                    ),
-                    // Banner de Explorar entre categorías intermedias
-                    SliverToBoxAdapter(
-                      child: StreamBuilder<List<AdCampaign>>(
-                        stream: _service.activeAdsStream(placement: 'explore_banner'),
-                        builder: (context, snapshot) {
-                          final ads = snapshot.data ?? [];
-                          if (ads.isEmpty) return const SizedBox.shrink();
-                          return Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 4),
-                            child: ConnectAdCarousel(ads: ads, height: 135),
-                          );
-                        },
                       ),
                     ),
                     SliverToBoxAdapter(
@@ -349,20 +321,6 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     const SliverToBoxAdapter(child: SizedBox(height: 4)),
                   ],
-                  // Anuncio / Campaña Intersticial entre secciones
-                  SliverToBoxAdapter(
-                    child: StreamBuilder<List<AdCampaign>>(
-                      stream: _service.activeAdsStream(placement: 'feed_interstitial'),
-                      builder: (context, snapshot) {
-                        final ads = snapshot.data ?? [];
-                        if (ads.isEmpty) return const SizedBox.shrink();
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 4),
-                          child: ConnectAdCarousel(ads: ads, height: 165),
-                        );
-                      },
-                    ),
-                  ),
                   if (!isFiltered)
                     SliverToBoxAdapter(
                       child: Padding(

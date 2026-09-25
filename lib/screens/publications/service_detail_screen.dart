@@ -246,19 +246,24 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
                   child: Text(locationText, style: TextStyle(fontSize: 12, color: Colors.grey[600], fontFamily: 'CanvaSans', fontWeight: FontWeight.w500), maxLines: 1, overflow: TextOverflow.ellipsis),
                 ),
                 const SizedBox(height: 12),
-                if (ownerId.isNotEmpty && !isOwner)
+                if (ownerId.isNotEmpty && !isOwner) ...[
                   Container(
                     margin: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 2.0),
                     padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 6.0),
-                    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.12), blurRadius: 15, offset: const Offset(0, 5))], border: Border.all(color: Colors.grey[100]!)),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.12), blurRadius: 15, offset: const Offset(0, 5))],
+                      border: Border.all(color: Colors.grey[100]!),
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
-                          children: [
-                            const Icon(Icons.near_me_rounded, color: Color(0xFF0094FF), size: 20),
-                            const SizedBox(width: 8),
-                            const Text('Envía un mensaje al connect', style: TextStyle(fontSize: 13, color: Colors.black87, fontFamily: 'CanvaSans', fontWeight: FontWeight.w600)),
+                          children: const [
+                            Icon(Icons.near_me_rounded, color: Color(0xFF0094FF), size: 20),
+                            SizedBox(width: 8),
+                            Text('Envía un mensaje al connect', style: TextStyle(fontSize: 13, color: Colors.black87, fontFamily: 'CanvaSans', fontWeight: FontWeight.w600)),
                           ],
                         ),
                         const SizedBox(height: 6),
@@ -304,6 +309,32 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
                       ],
                     ),
                   ),
+                  const SizedBox(height: 10),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                    child: SizedBox(
+                      width: double.infinity,
+                      height: 46,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF0094FF),
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                        onPressed: () => _showPaymentSheet(context, d, ownerId),
+                        child: const Text(
+                          'Pagar ahora',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            fontFamily: 'CanvaSans',
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
 
                 const SizedBox(height: 16),
                 Padding(
@@ -508,6 +539,147 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
           ),
         );
       },
+    );
+  }
+
+  void _showPaymentSheet(BuildContext context, Map<String, dynamic> d, String ownerId) {
+    final currentUid = FirebaseAuth.instance.currentUser?.uid;
+    if (currentUid == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Debes iniciar sesión para realizar un pago')));
+      return;
+    }
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.all(20),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)),
+                ),
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Resumen del Servicio', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, fontFamily: 'CanvaSans')),
+                  IconButton(icon: const Icon(Icons.close, size: 20), onPressed: () => Navigator.pop(ctx)),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.grey[50],
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey.shade200),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0094FF).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(Icons.work_outline, color: Color(0xFF0094FF)),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(_getString(d['title'], fallback: 'Servicio'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, fontFamily: 'CanvaSans'), maxLines: 1, overflow: TextOverflow.ellipsis),
+                          const SizedBox(height: 4),
+                          Text(_formatPrice(d['price']), style: const TextStyle(color: Color(0xFF0094FF), fontWeight: FontWeight.bold, fontSize: 15, fontFamily: 'CanvaSans')),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0094FF).withOpacity(0.06),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  children: const [
+                    Icon(Icons.verified_user_outlined, color: Color(0xFF0094FF), size: 20),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Pago Protegido CONNECT. El monto se libera una vez que confirmes la entrega satisfactoria del servicio.',
+                        style: TextStyle(fontSize: 12, color: Colors.black87, fontFamily: 'CanvaSans'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                height: 46,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF0094FF),
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  onPressed: () async {
+                    Navigator.pop(ctx);
+                    try {
+                      final images = d['images'] is List && (d['images'] as List).isNotEmpty ? List<String>.from(d['images']) : [d['imageUrl'] ?? d['image'] ?? ''];
+                      final chatId = await FirestoreService().getOrCreateChat(
+                        currentUid,
+                        ownerId,
+                        publicationId: widget.postId,
+                        publicationData: {'id': widget.postId, 'title': d['title'], 'image': images.isNotEmpty ? images.first : null, 'price': d['price'], 'type': 'service'},
+                      );
+                      final msg = 'Hola, deseo contratar y pagar este servicio (${_formatPrice(d['price'])}).';
+                      await FirebaseFirestore.instance.collection('chats').doc(chatId).collection('messages').add({
+                        'senderId': currentUid,
+                        'text': msg,
+                        'createdAt': FieldValue.serverTimestamp(),
+                        'type': 'text',
+                      });
+                      await FirebaseFirestore.instance.collection('chats').doc(chatId).update({
+                        'lastMessage': msg,
+                        'lastMessageTime': FieldValue.serverTimestamp(),
+                        'lastSenderId': currentUid,
+                        'unreadCount': FieldValue.increment(1),
+                      });
+                      if (mounted) {
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => ChatRoomScreen(chatId: chatId, peerId: ownerId)));
+                      }
+                    } catch (e) {
+                      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                    }
+                  },
+                  child: const Text('Confirmar y Acordar Pago', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15, fontFamily: 'CanvaSans')),
+                ),
+              ),
+              const SizedBox(height: 10),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

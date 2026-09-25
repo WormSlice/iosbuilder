@@ -9,11 +9,11 @@ import '../../services/algolia_service.dart';
 import '../../services/location_service.dart';
 import '../../models/want.dart';
 import 'widgets/want_card.dart';
+import 'widgets/want_ad_card.dart';
 import 'widgets/publish_want_panel.dart';
 import 'want_detail_screen.dart';
 import '../../widgets/location_picker/location_bottom_sheet.dart';
 import '../../models/ad_campaign.dart';
-import '../../widgets/connect_ad_banner.dart';
 
 class WantsScreen extends StatefulWidget {
   const WantsScreen({super.key});
@@ -458,21 +458,7 @@ class _WantsScreenState extends State<WantsScreen>
                     );
                   },
                 ),
-                // Banners y Campañas Publicitarias de Explorar (explore_banner)
-                StreamBuilder<List<AdCampaign>>(
-                  stream: _service.activeAdsStream(placement: 'explore_banner'),
-                  builder: (context, snapshot) {
-                    final ads = snapshot.data ?? [];
-                    if (ads.isEmpty) return const SizedBox.shrink();
-                    return Padding(
-                      padding: const EdgeInsets.only(top: 6, bottom: 6),
-                      child: ConnectAdCarousel(
-                        ads: ads,
-                        height: 125,
-                      ),
-                    );
-                  },
-                ),
+
                 const SizedBox(height: 4),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 14),
@@ -656,92 +642,109 @@ class _WantsScreenState extends State<WantsScreen>
   }
 
   Widget _buildList(List<dynamic> docs) {
-    return Column(
-      children: [
-        if (_isSelectionMode)
-          Container(
-            color: Colors.blue.shade50,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Row(
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.close),
-                  onPressed: _exitSelection,
-                ),
-                Text(
-                  '${_selectedIds.length} seleccionados',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-                const Spacer(),
-                if (_selectedIds.length == 1)
-                  IconButton(
-                    icon: const Icon(Icons.edit, color: Colors.blue),
-                    tooltip: 'Editar publicación',
-                    onPressed: () {
-                      final String id = _selectedIds.first;
-                      final wantData = docs.firstWhere(
-                        (doc) =>
-                            (doc is DocumentSnapshot ? doc.id : doc['id']) ==
-                            id,
-                      );
-                      final want = wantData is DocumentSnapshot
-                          ? Want.fromFirestore(
-                              wantData
-                                  as DocumentSnapshot<Map<String, dynamic>>,
-                            )
-                          : Want.fromMap(
-                              wantData as Map<String, dynamic>,
-                              wantData['id'].toString(),
-                            );
+    return StreamBuilder<List<AdCampaign>>(
+      stream: _service.activeAdsStream(placement: 'explore_banner'),
+      builder: (context, adSnap) {
+        final ads = adSnap.data ?? [];
+        final bool hasAds = ads.isNotEmpty && !_isMyPostsMode && !_isSearching;
+        const int adInterval = 5;
+        final int totalAds = hasAds ? (docs.length ~/ adInterval) : 0;
+        final int totalCount = docs.length + totalAds;
 
-                      _showPublishPanel(context, want: want);
-                      _exitSelection();
-                    },
-                  ),
-                PopupMenuButton<String>(
-                  icon: const Icon(Icons.visibility),
-                  tooltip: 'Visibilidad',
-                  onSelected: (val) => _toggleVisibilitySelected(val == 'hide'),
-                  itemBuilder: (ctx) => [
-                    const PopupMenuItem(
-                      value: 'hide',
-                      child: Text('Ocultar seleccionadas'),
+        return Column(
+          children: [
+            if (_isSelectionMode)
+              Container(
+                color: Colors.blue.shade50,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: _exitSelection,
                     ),
-                    const PopupMenuItem(
-                      value: 'show',
-                      child: Text('Mostrar seleccionadas'),
+                    Text(
+                      '${_selectedIds.length} seleccionados',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    const Spacer(),
+                    if (_selectedIds.length == 1)
+                      IconButton(
+                        icon: const Icon(Icons.edit, color: Colors.blue),
+                        tooltip: 'Editar publicación',
+                        onPressed: () {
+                          final String id = _selectedIds.first;
+                          final wantData = docs.firstWhere(
+                            (doc) =>
+                                (doc is DocumentSnapshot ? doc.id : doc['id']) ==
+                                id,
+                          );
+                          final want = wantData is DocumentSnapshot
+                              ? Want.fromFirestore(
+                                  wantData
+                                      as DocumentSnapshot<Map<String, dynamic>>,
+                                )
+                              : Want.fromMap(
+                                  wantData as Map<String, dynamic>,
+                                  wantData['id'].toString(),
+                                );
+
+                          _showPublishPanel(context, want: want);
+                          _exitSelection();
+                        },
+                      ),
+                    PopupMenuButton<String>(
+                      icon: const Icon(Icons.visibility),
+                      tooltip: 'Visibilidad',
+                      onSelected: (val) => _toggleVisibilitySelected(val == 'hide'),
+                      itemBuilder: (ctx) => [
+                        const PopupMenuItem(
+                          value: 'hide',
+                          child: Text('Ocultar seleccionadas'),
+                        ),
+                        const PopupMenuItem(
+                          value: 'show',
+                          child: Text('Mostrar seleccionadas'),
+                        ),
+                      ],
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.delete, color: Colors.red),
+                      tooltip: 'Eliminar seleccionadas',
+                      onPressed: _selectedIds.isNotEmpty ? _deleteSelected : null,
                     ),
                   ],
                 ),
-                IconButton(
-                  icon: const Icon(Icons.delete, color: Colors.red),
-                  tooltip: 'Eliminar seleccionadas',
-                  onPressed: _selectedIds.isNotEmpty ? _deleteSelected : null,
+              ),
+            Expanded(
+              child: ListView.separated(
+                padding: const EdgeInsets.only(top: 0, bottom: 20),
+                itemCount: totalCount,
+                separatorBuilder: (_, _) => const Divider(
+                  height: 1,
+                  thickness: 1,
+                  color: Color(0xFFF5F5F5),
+                  indent: 16,
+                  endIndent: 16,
                 ),
-              ],
-            ),
-          ),
-        Expanded(
-          child: ListView.separated(
-            padding: const EdgeInsets.only(top: 0, bottom: 20),
-            itemCount: docs.length,
-            separatorBuilder: (_, _) => const Divider(
-              height: 1,
-              thickness: 1,
-              color: Color(0xFFF5F5F5),
-              indent: 16,
-              endIndent: 16,
-            ),
-            itemBuilder: (context, i) {
-              final d = docs[i];
-              final want = d is DocumentSnapshot
-                  ? Want.fromFirestore(
-                      d as DocumentSnapshot<Map<String, dynamic>>,
-                    )
-                  : Want.fromMap(
-                      d is Map<String, dynamic> ? d : (d as dynamic).data(),
-                      (d is DocumentSnapshot ? d.id : d['id']).toString(),
-                    );
+                itemBuilder: (context, i) {
+                  if (hasAds && (i + 1) % (adInterval + 1) == 0) {
+                    final adIndex = ((i + 1) ~/ (adInterval + 1) - 1) % ads.length;
+                    return WantAdCard(ad: ads[adIndex]);
+                  }
+
+                  final docIndex = hasAds ? i - ((i + 1) ~/ (adInterval + 1)) : i;
+                  if (docIndex >= docs.length) return const SizedBox.shrink();
+
+                  final d = docs[docIndex];
+                  final want = d is DocumentSnapshot
+                      ? Want.fromFirestore(
+                          d as DocumentSnapshot<Map<String, dynamic>>,
+                        )
+                      : Want.fromMap(
+                          d is Map<String, dynamic> ? d : (d as dynamic).data(),
+                          (d is DocumentSnapshot ? d.id : d['id']).toString(),
+                        );
 
               final bool isSelected = _selectedIds.contains(want.id);
               bool isHidden = false;
@@ -857,6 +860,8 @@ class _WantsScreenState extends State<WantsScreen>
         ),
       ],
     );
+  }
+);
   }
 }
 

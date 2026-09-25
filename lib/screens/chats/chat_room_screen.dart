@@ -22,6 +22,8 @@ import 'chat_info_screen.dart';
 import '../../services/signaling_service.dart';
 import '../profile/social_icon_box.dart';
 import '../../services/messaging_service.dart';
+import '../../services/firestore_service.dart';
+import '../profile/profile_screen.dart';
 
 class ChatRoomScreen extends StatefulWidget {
   final String chatId;
@@ -59,6 +61,23 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   final Map<String, String> _translations = {};
   String _targetLanguage = 'es';
   late String currentUid;
+  bool _checkedPostOwnership = false;
+  bool _isPostOwner = false;
+
+  void _checkPostOwnership(String pid) async {
+    if (_checkedPostOwnership) return;
+    _checkedPostOwnership = true;
+    try {
+      final doc = await FirebaseFirestore.instance.collection('publications').doc(pid).get();
+      if (doc.exists) {
+        final d = doc.data();
+        final uid = d?['userId'] ?? d?['ownerId'] ?? d?['uid'];
+        if (uid == currentUid && mounted) {
+          setState(() => _isPostOwner = true);
+        }
+      }
+    } catch (_) {}
+  }
 
   @override
   void initState() {
@@ -464,6 +483,19 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
               isPeerVerified = chatData['verified'] == true;
             }
 
+            final bool isSeller = (pubData?['ownerId'] == currentUid) ||
+                (pubData?['userId'] == currentUid) ||
+                (chatData['sellerId'] == currentUid) ||
+                (chatData['ownerId'] == currentUid) ||
+                (chatData['participants'] is List &&
+                    (chatData['participants'] as List).length >= 2 &&
+                    (chatData['participants'] as List)[1] == currentUid) ||
+                _isPostOwner;
+
+            if (!_checkedPostOwnership && postId != null) {
+              _checkPostOwnership(postId);
+            }
+
             return Scaffold(
               backgroundColor: Colors.white,
               appBar: _buildAppBar(
@@ -474,11 +506,23 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                 peerId,
                 peerName,
                 peerAvatar,
-                pubData?['category']?.toString(),
+                pubData?['category']?.toString() ?? pubData?['type']?.toString(),
                 isPeerVerified,
               ),
               body: Column(
                 children: [
+                  if (postId != null)
+                    _buildPublicationSubBar(
+                      context,
+                      postId: postId,
+                      postTitle: postTitle,
+                      postImage: postImage,
+                      price: pubData?['price'],
+                      category: pubData?['category']?.toString() ?? pubData?['type']?.toString(),
+                      isSeller: isSeller,
+                      peerId: peerId,
+                      peerName: peerName,
+                    ),
                   Expanded(
                     child: StreamBuilder<QuerySnapshot>(
                       stream: FirebaseFirestore.instance
@@ -519,60 +563,77 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                           return 0;
                         });
 
+                        final bool hasHeroHeader = (postId != null);
+                        final int totalCount = msgs.length + (hasHeroHeader ? 1 : 0);
+
                         return ListView.builder(
                           controller: _scrollController,
                           reverse: true,
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
+                            horizontal: 14,
                             vertical: 8,
                           ),
-                          itemCount: msgs.length,
+                          itemCount: totalCount,
                           itemBuilder: (context, i) {
+                            if (hasHeroHeader && i == msgs.length) {
+                              return _buildHeroHeader(
+                                postImage ?? peerAvatar,
+                                postTitle,
+                                peerId,
+                              );
+                            }
+
                             final doc = msgs[i];
                             final data = doc.data() as Map<String, dynamic>;
                             final isMe = data['senderId'] == currentUid;
 
-                            // Date Header Logic
-                            bool showDateHeader = false;
                             DateTime? currentDate;
-                            DateTime? nextDate;
-
                             final tsCurrent =
                                 data['createdAt'] ?? data['timestamp'];
                             if (tsCurrent is Timestamp) {
                               currentDate = tsCurrent.toDate();
                             }
 
+                            DateTime? prevDate;
+                            String? prevSenderId;
                             if (i + 1 < msgs.length) {
-                              final nextData =
+                              final prevData =
                                   msgs[i + 1].data() as Map<String, dynamic>;
-                              final tsNext =
-                                  nextData['createdAt'] ??
-                                  nextData['timestamp'];
-                              if (tsNext is Timestamp) {
-                                nextDate = tsNext.toDate();
+                              final tsPrev =
+                                  prevData['createdAt'] ??
+                                  prevData['timestamp'];
+                              if (tsPrev is Timestamp) {
+                                prevDate = tsPrev.toDate();
                               }
+                              prevSenderId = prevData['senderId']?.toString();
                             }
 
+                            // Centered separator header logic:
+                            // Appears if first message ever, or >= 2 hours break, or day changed
+                            bool showDateHeader = false;
                             if (currentDate != null) {
-                              if (nextDate == null) {
-                                // Last message (top of conversation) always gets a header
+                              if (prevDate == null) {
                                 showDateHeader = true;
                               } else {
-                                // Check if day changed
-                                if (currentDate.day != nextDate.day ||
-                                    currentDate.month != nextDate.month ||
-                                    currentDate.year != nextDate.year) {
+                                final diff = currentDate.difference(prevDate).abs();
+                                if (currentDate.day != prevDate.day ||
+                                    currentDate.month != prevDate.month ||
+                                    currentDate.year != prevDate.year ||
+                                    diff.inMinutes >= 120) {
                                   showDateHeader = true;
                                 }
                               }
                             }
 
+                            // Avatar logic:
+                            // Display avatar only on the first message of a consecutive run
+                            final bool showAvatar = (!isMe) && (prevSenderId != data['senderId'] || showDateHeader);
+
                             return Column(
                               children: [
                                 if (showDateHeader && currentDate != null)
                                   _buildDateHeader(currentDate),
-                                _buildMessage(doc, isMe, peerAvatar),
+                                _buildMessage(doc, isMe, peerAvatar, showAvatar),
                               ],
                             );
                           },
@@ -607,20 +668,17 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     String? category,
     bool isVerified,
   ) {
-    // If it's a publication chat, we show the PUBLICATION info prominently,
-    // but allow navigation to the USER profile.
     final bool isPublicationChat = postId != null;
-
-    final String title = isPublicationChat
-        ? (postTitle ?? 'Artículo')
-        : (peerName ?? 'Chat');
-
-    final String? imageToDisplay = isPublicationChat ? postImage : peerAvatar;
+    final String subtitleText = isPublicationChat ? (postTitle ?? '') : 'En línea';
 
     return AppBar(
-      elevation: 1,
+      elevation: 0.5,
       backgroundColor: Colors.white,
-      leading: const BackButton(color: Colors.black),
+      leading: IconButton(
+        icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Color(0xFF0094FF), size: 20),
+        onPressed: () => Navigator.of(context).pop(),
+      ),
+      leadingWidth: 36,
       titleSpacing: 0,
       title: GestureDetector(
         onTap: () {
@@ -640,22 +698,24 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
         },
         child: Row(
           children: [
-            CircleAvatar(
-              radius: 18,
-              backgroundColor: Colors.grey[200],
-              backgroundImage:
-                  (imageToDisplay != null && imageToDisplay.isNotEmpty)
-                  ? CachedNetworkImageProvider(imageToDisplay)
-                  : null,
-              child: (imageToDisplay == null || imageToDisplay.isEmpty)
-                  ? Icon(
-                      isPublicationChat ? Icons.shopping_bag : Icons.person,
-                      color: Colors.grey,
-                      size: 20,
-                    )
-                  : null,
+            Container(
+              padding: const EdgeInsets.all(1.5),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: const Color(0xFF0094FF), width: 1.5),
+              ),
+              child: CircleAvatar(
+                radius: 18,
+                backgroundColor: Colors.grey[200],
+                backgroundImage: (peerAvatar != null && peerAvatar.isNotEmpty)
+                    ? CachedNetworkImageProvider(peerAvatar)
+                    : null,
+                child: (peerAvatar == null || peerAvatar.isEmpty)
+                    ? const Icon(Icons.person, color: Colors.grey, size: 20)
+                    : null,
+              ),
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 8),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -665,47 +725,33 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                     children: [
                       Flexible(
                         child: Text(
-                          title,
+                          peerName ?? 'Usuario',
                           style: const TextStyle(
                             color: Colors.black,
                             fontWeight: FontWeight.bold,
-                            fontSize: 15,
+                            fontSize: 15.5,
+                            fontFamily: 'CanvaSans',
                           ),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      if (isVerified && !isPublicationChat)
+                      if (isVerified)
                         const Padding(
                           padding: EdgeInsets.only(left: 4),
-                          child: Icon(Icons.verified, color: Color(0xFF0094FF), size: 14),
+                          child: Icon(Icons.verified, color: Color(0xFF0094FF), size: 15),
                         ),
                     ],
                   ),
-                  if (category != null)
-                    Container(
-                      margin: const EdgeInsets.symmetric(vertical: 2),
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF0094FF).withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        category.toUpperCase(),
-                        style: const TextStyle(
-                          color: Color(0xFF0094FF),
-                          fontSize: 8,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                    ),
-                  // If it's a publication chat, show the SELLER name below
-                  if (peerName != null)
+                  if (subtitleText.isNotEmpty)
                     Text(
-                      isPublicationChat
-                          ? peerName
-                          : 'En línea', // Or 'Tap for info'
-                      style: const TextStyle(color: Colors.grey, fontSize: 12),
+                      subtitleText,
+                      style: TextStyle(
+                        color: Colors.grey[600],
+                        fontSize: 12,
+                        fontFamily: 'CanvaSans',
+                        fontWeight: FontWeight.normal,
+                      ),
+                      overflow: TextOverflow.ellipsis,
                     ),
                 ],
               ),
@@ -715,7 +761,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
       ),
       actions: [
         IconButton(
-          icon: const Icon(Icons.call, color: Color(0xFF0094FF)),
+          icon: const Icon(Icons.call, color: Color(0xFF0094FF), size: 22),
           onPressed: () => _initiateCall(
             peerId: peerId,
             peerName: peerName,
@@ -723,16 +769,392 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
             isVideoCall: false,
           ),
         ),
-        IconButton(
-          icon: const Icon(Icons.videocam, color: Color(0xFF0094FF)),
-          onPressed: () => _initiateCall(
-            peerId: peerId,
-            peerName: peerName,
-            peerAvatar: peerAvatar,
-            isVideoCall: true,
-          ),
-        ),
       ],
+    );
+  }
+
+  Widget _buildPublicationSubBar(
+    BuildContext context, {
+    required String? postId,
+    required String? postTitle,
+    required String? postImage,
+    required dynamic price,
+    required String? category,
+    required bool isSeller,
+    required String? peerId,
+    required String? peerName,
+  }) {
+    final formattedPrice = _formatPrice(price);
+    final displayTitle = postTitle ?? 'Publicación';
+    final fullHeader = price != null ? '$formattedPrice – $displayTitle' : displayTitle;
+
+    return Container(
+      width: double.infinity,
+      color: const Color(0xFFF0F0F2),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              _getCategoryIcon(category),
+              color: Colors.black87,
+              size: 22,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  fullHeader,
+                  style: const TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                    fontFamily: 'CanvaSans',
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 5),
+                if (isSeller)
+                  Row(
+                    children: [
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () => _handleMarkAsSold(postId),
+                          child: Container(
+                            height: 28,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(color: Colors.grey.shade300, width: 0.8),
+                            ),
+                            alignment: Alignment.center,
+                            child: const Text(
+                              'Vendido',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12.5,
+                                color: Colors.black,
+                                fontFamily: 'CanvaSans',
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () => _showReviewDialog(context, peerId, peerName, postTitle),
+                          child: Container(
+                            height: 28,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(color: Colors.grey.shade300, width: 0.8),
+                            ),
+                            alignment: Alignment.center,
+                            child: const Text(
+                              'Calificar',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12.5,
+                                color: Colors.black,
+                                fontFamily: 'CanvaSans',
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  )
+                else
+                  Row(
+                    children: [
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () => _showReviewDialog(context, peerId, peerName, postTitle),
+                          child: Container(
+                            height: 28,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(color: Colors.grey.shade300, width: 0.8),
+                            ),
+                            alignment: Alignment.center,
+                            child: const Text(
+                              'Calificar',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12.5,
+                                color: Colors.black,
+                                fontFamily: 'CanvaSans',
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeroHeader(String? avatar, String? title, String? peerId) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 24, bottom: 16),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(3),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: const Color(0xFF0094FF), width: 2),
+            ),
+            child: CircleAvatar(
+              radius: 46,
+              backgroundColor: Colors.grey[200],
+              backgroundImage: (avatar != null && avatar.isNotEmpty)
+                  ? CachedNetworkImageProvider(avatar)
+                  : null,
+              child: (avatar == null || avatar.isEmpty)
+                  ? const Icon(Icons.person, size: 40, color: Colors.grey)
+                  : null,
+            ),
+          ),
+          const SizedBox(height: 12),
+          if (title != null && title.isNotEmpty)
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 16.5,
+                fontWeight: FontWeight.bold,
+                color: Colors.black,
+                fontFamily: 'CanvaSans',
+              ),
+              textAlign: TextAlign.center,
+            ),
+          const SizedBox(height: 4),
+          GestureDetector(
+            onTap: () {
+              if (peerId != null && peerId.isNotEmpty) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => ProfileScreen(userId: peerId)),
+                );
+              }
+            },
+            child: const Text(
+              'Ver perfil del connect',
+              style: TextStyle(
+                fontSize: 13.5,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF0094FF),
+                fontFamily: 'CanvaSans',
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+        ],
+      ),
+    );
+  }
+
+  IconData _getCategoryIcon(String? category) {
+    final cat = (category ?? '').toLowerCase();
+    if (cat.contains('vehic') || cat.contains('car') || cat.contains('moto') || cat.contains('auto')) {
+      return Icons.directions_car_rounded;
+    }
+    if (cat.contains('prop') || cat.contains('inmueble') || cat.contains('rent') || cat.contains('casa') || cat.contains('apto')) {
+      return Icons.home_outlined;
+    }
+    if (cat.contains('serv')) {
+      return Icons.work_outline_rounded;
+    }
+    if (cat.contains('pet') || cat.contains('masc')) {
+      return Icons.pets_rounded;
+    }
+    if (cat.contains('empleo') || cat.contains('job')) {
+      return Icons.badge_outlined;
+    }
+    return Icons.shopping_bag_outlined;
+  }
+
+  String _formatPrice(dynamic priceRaw) {
+    if (priceRaw == null) return '\$0';
+    double p = 0.0;
+    if (priceRaw is int) p = priceRaw.toDouble();
+    if (priceRaw is double) p = priceRaw;
+    if (priceRaw is String) p = double.tryParse(priceRaw.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0.0;
+    if (p == 0) return '\$0';
+
+    String s = p.toStringAsFixed(0);
+    List<String> out = [];
+    int count = 0;
+    for (int i = s.length - 1; i >= 0; i--) {
+      if (count != 0 && count % 3 == 0) out.add('.');
+      out.add(s[i]);
+      count++;
+    }
+    return '\$${out.reversed.join()}';
+  }
+
+  void _showReviewDialog(BuildContext context, String? peerId, String? peerName, String? postTitle) {
+    if (peerId == null || peerId.isEmpty) return;
+    double rating = 5.0;
+    final commentCtrl = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text(
+            'Calificar a ${peerName ?? "usuario"}',
+            style: const TextStyle(fontWeight: FontWeight.bold, fontFamily: 'CanvaSans', fontSize: 16),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (postTitle != null)
+                Text(
+                  'Por: $postTitle',
+                  style: const TextStyle(fontSize: 12, color: Colors.grey, fontFamily: 'CanvaSans'),
+                ),
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(5, (index) {
+                  return IconButton(
+                    icon: Icon(
+                      index < rating ? Icons.star_rounded : Icons.star_border_rounded,
+                      color: Colors.amber,
+                      size: 32,
+                    ),
+                    onPressed: () {
+                      setDialogState(() {
+                        rating = index + 1.0;
+                      });
+                    },
+                  );
+                }),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: commentCtrl,
+                maxLines: 3,
+                style: const TextStyle(fontSize: 13, fontFamily: 'CanvaSans'),
+                decoration: InputDecoration(
+                  hintText: 'Escribe tu opinión...',
+                  hintStyle: const TextStyle(color: Colors.black38, fontSize: 13),
+                  filled: true,
+                  fillColor: Colors.grey[100],
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancelar', style: TextStyle(color: Colors.grey, fontFamily: 'CanvaSans')),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF0094FF),
+                elevation: 0,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              onPressed: () async {
+                Navigator.pop(ctx);
+                try {
+                  await FirestoreService().addReview(
+                    reviewerId: currentUid,
+                    targetUserId: peerId,
+                    rating: rating,
+                    text: commentCtrl.text.trim(),
+                    itemReviewed: postTitle ?? 'Publicación',
+                  );
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('¡Gracias por tu calificación!')),
+                    );
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Error al calificar: $e')),
+                    );
+                  }
+                }
+              },
+              child: const Text('Enviar', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontFamily: 'CanvaSans')),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _handleMarkAsSold(String? postId) {
+    if (postId == null || postId.isEmpty) return;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('¿Marcar como vendido?', style: TextStyle(fontWeight: FontWeight.bold, fontFamily: 'CanvaSans', fontSize: 16)),
+        content: const Text(
+          'La publicación se marcará como vendida y dejará de aparecer disponible para otros usuarios.',
+          style: TextStyle(fontSize: 13, fontFamily: 'CanvaSans'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancelar', style: TextStyle(color: Colors.grey, fontFamily: 'CanvaSans')),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF0094FF),
+              elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              try {
+                await FirebaseFirestore.instance.collection('publications').doc(postId).update({
+                  'isSold': true,
+                  'status': 'sold',
+                });
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Publicación marcada como vendida')),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error: $e')),
+                  );
+                }
+              }
+            },
+            child: const Text('Confirmar', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontFamily: 'CanvaSans')),
+          ),
+        ],
+      ),
     );
   }
 
@@ -806,40 +1228,29 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   }
 
   Widget _buildDateHeader(DateTime date) {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final yesterday = today.subtract(const Duration(days: 1));
-    final dateOnly = DateTime(date.year, date.month, date.day);
-
-    String text;
-    if (dateOnly == today) {
-      text = 'HOY';
-    } else if (dateOnly == yesterday) {
-      text = 'AYER';
-    } else {
-      text = '${date.day}/${date.month}/${date.year}';
-    }
-
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 16),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 14),
       child: Center(
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-          decoration: BoxDecoration(
-            color: Colors.grey[200],
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Text(
-            text,
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-              color: Colors.black54,
-            ),
+        child: Text(
+          _formatHeaderDate(date),
+          style: const TextStyle(
+            color: Colors.black54,
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+            fontFamily: 'CanvaSans',
           ),
         ),
       ),
     );
+  }
+
+  String _formatHeaderDate(DateTime dt) {
+    const months = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
+    final monthStr = months[dt.month - 1];
+    final hour12 = dt.hour == 0 ? 12 : (dt.hour > 12 ? dt.hour - 12 : dt.hour);
+    final minuteStr = dt.minute.toString().padLeft(2, '0');
+    final ampm = dt.hour >= 12 ? 'P.M.' : 'A.M.';
+    return '${dt.day} $monthStr, $hour12:$minuteStr $ampm';
   }
 
   void _showMessageOptions(DocumentSnapshot doc, bool isMe) {
@@ -950,11 +1361,15 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     // Logic to add to 'reports' collection can go here
   }
 
-  Widget _buildMessage(DocumentSnapshot doc, bool isMe, String? peerAvatar) {
+  Widget _buildMessage(
+    DocumentSnapshot doc,
+    bool isMe,
+    String? peerAvatar,
+    bool showAvatar,
+  ) {
     final data = doc.data() as Map<String, dynamic>;
     final String type = data['type'] ?? 'text';
     final String text = data['text']?.toString() ?? '';
-    final String timestampStr = _formatMessageTime(data);
 
     Widget content;
     if (type == 'image') {
@@ -979,6 +1394,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                   color: Colors.black38,
                   fontSize: 12,
                   decoration: TextDecoration.lineThrough,
+                  fontFamily: 'CanvaSans',
                 ),
               ),
               const SizedBox(height: 2),
@@ -986,8 +1402,9 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                 _translations[doc.id]!,
                 style: const TextStyle(
                   color: Colors.black87,
-                  fontSize: 15,
+                  fontSize: 14.5,
                   fontWeight: FontWeight.w500,
+                  fontFamily: 'CanvaSans',
                 ),
               ),
             ],
@@ -1006,7 +1423,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
               Expanded(
                 child: Text(
                   text,
-                  style: const TextStyle(color: Colors.black87, fontSize: 15),
+                  style: const TextStyle(color: Colors.black87, fontSize: 14.5, fontFamily: 'CanvaSans'),
                 ),
               ),
             ],
@@ -1016,117 +1433,88 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
         content = Text(
           text,
           style: TextStyle(
-            color: isMe ? Colors.white : Colors.black87,
-            fontSize: 15,
+            color: isMe ? Colors.white : Colors.black,
+            fontSize: 14.5,
+            fontFamily: 'CanvaSans',
+            height: 1.25,
           ),
         );
       }
     }
 
     final bool isImage = type == 'image';
-    // User Blue: 0xFF0094FF, Peer Grey: Colors.grey[200]
-    final Color bgColor = isMe ? const Color(0xFF0094FF) : (Colors.grey[200]!);
-    final Color timeColor = isMe ? Colors.white70 : Colors.black54;
 
-    return GestureDetector(
-      onLongPress: () => _showMessageOptions(doc, isMe),
-      child: Align(
-        alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-        child: Container(
-          margin: const EdgeInsets.symmetric(vertical: 2, horizontal: 12),
-          constraints: BoxConstraints(
-            maxWidth: MediaQuery.of(context).size.width * 0.75,
-          ),
-          decoration: BoxDecoration(
-            color: isImage ? Colors.transparent : bgColor,
-            borderRadius: BorderRadius.only(
-              topLeft: const Radius.circular(12),
-              topRight: const Radius.circular(12),
-              bottomLeft: isMe
-                  ? const Radius.circular(12)
-                  : const Radius.circular(2),
-              bottomRight: isMe
-                  ? const Radius.circular(2)
-                  : const Radius.circular(12),
+    if (isMe) {
+      return GestureDetector(
+        onLongPress: () => _showMessageOptions(doc, isMe),
+        child: Align(
+          alignment: Alignment.centerRight,
+          child: Container(
+            margin: const EdgeInsets.symmetric(vertical: 2.5),
+            constraints: BoxConstraints(
+              maxWidth: MediaQuery.of(context).size.width * 0.72,
             ),
+            decoration: BoxDecoration(
+              color: isImage ? Colors.transparent : const Color(0xFF0094FF),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            padding: isImage
+                ? EdgeInsets.zero
+                : const EdgeInsets.symmetric(horizontal: 14, vertical: 8.5),
+            child: content,
           ),
-          padding: isImage
-              ? EdgeInsets.zero
-              : const EdgeInsets.fromLTRB(10, 6, 10, 4),
-          child: isImage
-              ? Stack(
-                  children: [
-                    content,
-                    Positioned(
-                      bottom: 6,
-                      right: 6,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.black26,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Text(
-                          timestampStr,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                )
-              : Wrap(
-                  alignment: WrapAlignment.end,
-                  crossAxisAlignment: WrapCrossAlignment.end,
-                  children: [
-                    content,
-                    const SizedBox(width: 4),
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            timestampStr,
-                            style: TextStyle(fontSize: 10, color: timeColor),
-                          ),
-                          if (isMe && (data['isEdited'] == true))
-                            Padding(
-                              padding: const EdgeInsets.only(left: 2),
-                              child: Icon(
-                                Icons.edit,
-                                size: 8,
-                                color: timeColor,
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
         ),
-      ),
-    );
-  }
-
-  String _formatMessageTime(Map<String, dynamic> data) {
-    final timestamp =
-        data['createdAt'] ??
-        data['timestamp'] ??
-        data['time'] ??
-        data['sentAt'];
-    if (timestamp is Timestamp) {
-      final dt = timestamp.toDate();
-      // Format: HH:mm
-      return '${dt.hour}:${dt.minute.toString().padLeft(2, '0')}';
+      );
+    } else {
+      return GestureDetector(
+        onLongPress: () => _showMessageOptions(doc, isMe),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 2.5),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            mainAxisAlignment: MainAxisAlignment.start,
+            children: [
+              if (showAvatar)
+                Container(
+                  margin: const EdgeInsets.only(right: 8, bottom: 2),
+                  padding: const EdgeInsets.all(1),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: const Color(0xFF0094FF), width: 1.5),
+                  ),
+                  child: CircleAvatar(
+                    radius: 15,
+                    backgroundColor: Colors.grey[200],
+                    backgroundImage: (peerAvatar != null && peerAvatar.isNotEmpty)
+                        ? CachedNetworkImageProvider(peerAvatar)
+                        : null,
+                    child: (peerAvatar == null || peerAvatar.isEmpty)
+                        ? const Icon(Icons.person, size: 14, color: Colors.grey)
+                        : null,
+                  ),
+                )
+              else
+                const SizedBox(width: 32 + 8),
+              Flexible(
+                child: Container(
+                  constraints: BoxConstraints(
+                    maxWidth: MediaQuery.of(context).size.width * 0.72,
+                  ),
+                  decoration: BoxDecoration(
+                    color: isImage ? Colors.transparent : const Color(0xFFE5E5EA),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  padding: isImage
+                      ? EdgeInsets.zero
+                      : const EdgeInsets.symmetric(horizontal: 14, vertical: 8.5),
+                  child: content,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
     }
-    return '';
   }
 
   Widget _buildImageContent(String url) {
@@ -1140,7 +1528,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
       child: Hero(
         tag: url,
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(16),
           child: CachedNetworkImage(
             imageUrl: url,
             placeholder: (context, url) => const SizedBox(
